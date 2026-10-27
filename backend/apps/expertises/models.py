@@ -68,3 +68,18 @@ class Suspension(models.Model):
             models.UniqueConstraint(fields=["expertise"],condition=Q(resumed_on__isnull=True),name="one_open_work_suspension"),
             models.CheckConstraint(condition=Q(resumed_on__isnull=True)|Q(resumed_on__gte=F("suspended_on")),name="ordered_suspension_dates"),
         ]
+
+
+class DeadlineEvent(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    expertise=models.ForeignKey(Expertise,related_name="deadline_events",on_delete=models.PROTECT)
+    kind=models.CharField(max_length=20,choices=[("initial","Исходный срок"),("request","Запрошенный срок"),("agreement","Согласованный срок")])
+    recorded_on=models.DateField()
+    due_on=models.DateField()
+    reason=models.TextField()
+    document=models.ForeignKey("documents.Document",related_name="deadline_events",null=True,blank=True,on_delete=models.PROTECT)
+    actor=models.ForeignKey(settings.AUTH_USER_MODEL,related_name="recorded_deadline_events",on_delete=models.PROTECT)
+    created_at=models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering=["recorded_on","created_at","id"]

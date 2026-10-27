@@ -19,7 +19,7 @@ from .services import register_expertise, assign_experts, reassign_experts
 
 
 def loaded(queryset=None):
-    return (queryset if queryset is not None else Expertise.objects.all()).select_related("receipt__basis_document","material","department","specialty","complex_group").prefetch_related("assignments__employee","receipt__basis_document__versions","suspensions__actor__employee","suspensions__resumed_by__employee")
+    return (queryset if queryset is not None else Expertise.objects.all()).select_related("receipt__basis_document","material","department","specialty","complex_group").prefetch_related("assignments__employee","receipt__basis_document__versions","suspensions__actor__employee","suspensions__resumed_by__employee","deadline_events__actor__employee","deadline_events__document__versions")
 
 
 class ExpertiseRegisterView(GenericAPIView):

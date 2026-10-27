@@ -13,7 +13,7 @@ def receipt_context(receipt):
 
 def validate_basis(receipt):
     document=receipt.basis_document
-    if document is None:
+    if document is None or document.kind not in ("resolution","decision"):
         raise ValidationError({"basis_document_id":"Нужно постановление или определение."})
     if document.source_kind=="uploaded_copy" and not document.versions.exists():
         raise ValidationError({"basis_document_id":"Сначала сохраните файл копии основания."})

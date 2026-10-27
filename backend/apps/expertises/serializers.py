@@ -95,6 +95,7 @@ class ExpertiseOutput(serializers.ModelSerializer):
         result=[action] if scopes.get(action,AccessScope()).allows(**context) else []
         production_action="expertise.suspend" if obj.state=="in_progress" else "expertise.resume"
         if scopes.get(production_action,AccessScope()).allows(**context):result.append(production_action)
+        if scopes.get("expertise.deadline.record",AccessScope()).allows(**context):result.append("expertise.deadline.record")
         return result
     def get_production(self,obj):
         from .production import production_summary
@@ -102,7 +103,9 @@ class ExpertiseOutput(serializers.ModelSerializer):
     def get_suspensions(self,obj):
         from .production_serializers import SuspensionOutput
         return SuspensionOutput(obj.suspensions.all(),many=True).data
-    def get_deadline_events(self,obj):return []
+    def get_deadline_events(self,obj):
+        from .production_serializers import DeadlineOutput
+        return DeadlineOutput(obj.deadline_events.all(),many=True,context=self.context).data
     def get_basis_document(self,obj):
         document=obj.receipt.basis_document
         if document is None: return None

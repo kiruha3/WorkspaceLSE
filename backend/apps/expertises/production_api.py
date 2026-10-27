@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from apps.accounts.policies import permission_scopes
 from .api import loaded
 from .serializers import ExpertiseOutput
-from .production_serializers import SuspendInput,ResumeInput
-from .production import suspend_work,resume_work
+from .production_serializers import SuspendInput,ResumeInput,DeadlineInput
+from .production import suspend_work,resume_work,record_deadline
 
 
 class TransitionView(GenericAPIView):
@@ -14,5 +14,13 @@ class TransitionView(GenericAPIView):
         form.is_valid(raise_exception=True)
         command=suspend_work if self.kind=="suspend" else resume_work
         result=command(actor=request.user,expertise_id=pk,data=form.validated_data,key=request.headers.get("Idempotency-Key"),payload=request.data)
+        work=loaded().get(pk=result["expertise_id"])
+        return Response({"event":{"id":result["id"]},"expertise":ExpertiseOutput(work,context={"user":request.user,"scopes":permission_scopes(request.user)}).data})
+
+
+class DeadlineView(GenericAPIView):
+    def post(self,request,pk):
+        form=DeadlineInput(data=request.data);form.is_valid(raise_exception=True)
+        result=record_deadline(actor=request.user,expertise_id=pk,data=form.validated_data,key=request.headers.get("Idempotency-Key"),payload=request.data)
         work=loaded().get(pk=result["expertise_id"])
         return Response({"event":{"id":result["id"]},"expertise":ExpertiseOutput(work,context={"user":request.user,"scopes":permission_scopes(request.user)}).data})

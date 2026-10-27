@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from apps.accounts.commands import execute_once
 from apps.accounts.services import audit,check_version
-from .models import Expertise,Suspension
+from .models import Expertise,Suspension,DeadlineEvent
 from .policies import require_work
 
 METHOD="calendar_inclusive_pause_half_open_v1"
@@ -22,7 +22,13 @@ def calculate_days(received_at,intervals,as_of):
 def production_summary(work,as_of=None):
     as_of=as_of or timezone.localdate()
     counts=calculate_days(work.receipt.received_at,[(s.suspended_on,s.resumed_on) for s in work.suspensions.all()],as_of) if work.state in OPEN_STATES else {"calendar_days":None,"paused_days":None,"active_calendar_days":None}
-    return {"as_of":as_of.isoformat(),"method":METHOD,**counts,"initial_due_on":None,"agreed_due_on":None,"current_due_on":None,"last_requested_due_on":None,"overdue_calendar_days":None}
+    events=list(work.deadline_events.all())
+    def latest(kind):
+        matching=[e for e in events if e.kind==kind]
+        return max(matching,key=lambda e:(e.recorded_on,e.created_at,e.id)).due_on if matching else None
+    initial,agreed,requested=latest("initial"),latest("agreement"),latest("request")
+    current=agreed or initial
+    return {"as_of":as_of.isoformat(),"method":METHOD,**counts,"initial_due_on":initial.isoformat() if initial else None,"agreed_due_on":agreed.isoformat() if agreed else None,"current_due_on":current.isoformat() if current else None,"last_requested_due_on":requested.isoformat() if requested else None,"overdue_calendar_days":max((as_of-current).days,0) if current and work.state in OPEN_STATES else None}
 
 
 def validate_event_date(work,value,field):
@@ -68,3 +74,33 @@ def suspend_work(**kwargs):return _transition(**kwargs,kind="suspend")
 
 
 def resume_work(**kwargs):return _transition(**kwargs,kind="resume")
+
+
+@transaction.atomic
+def record_deadline(*,actor,expertise_id,data,key,payload):
+    from apps.documents.models import Document
+    from apps.documents.policies import require_document
+    work=get_object_or_404(Expertise.objects.select_for_update(),pk=expertise_id)
+    action="expertise.deadline.record"
+    require_work(actor,"expertise.view",work)
+    require_work(actor,action,work)
+
+    def operation():
+        check_version(work,data["expected_version"])
+        if work.state not in OPEN_STATES:raise ValidationError("Производство завершено. Нужна отдельная процедура корректировки.")
+        validate_event_date(work,data["recorded_on"],"recorded_on")
+        if data["due_on"]<work.receipt.received_at:raise ValidationError({"due_on":"Срок раньше поступления материалов."})
+        document=data.get("document")
+        if document:
+            document=Document.objects.select_for_update().get(pk=document.pk)
+            require_document(actor,"documents.view",document)
+            if document.source_kind=="uploaded_copy" and not document.versions.exists():
+                raise ValidationError({"document_id":"Сначала сохраните копию документа."})
+        if data["kind"]=="agreement" and (document is None or document.kind not in ("deadline_agreement","resolution","decision")):
+            raise ValidationError({"document_id":"Согласование требует подтверждения, а не документа запроса."})
+        event=DeadlineEvent.objects.create(expertise=work,kind=data["kind"],recorded_on=data["recorded_on"],due_on=data["due_on"],reason=data["reason"],document=document,actor=actor)
+        work.version+=1;work.save(update_fields=["version"])
+        audit(actor,action,work,{"event_id":str(event.id),"kind":event.kind,"recorded_on":event.recorded_on,"due_on":event.due_on,"document_id":str(event.document_id) if event.document_id else None,"version":work.version},event.reason)
+        return {"id":str(event.id),"expertise_id":str(work.id)}
+
+    return execute_once(actor=actor,action=action,key=key,payload={"expertise_id":str(expertise_id),"data":payload},operation=operation)

@@ -5,7 +5,7 @@ from .models import Document,FileVersion
 
 
 class DocumentCreate(StrictSerializer):
-    kind=serializers.ChoiceField(choices=["resolution","decision"])
+    kind=serializers.ChoiceField(choices=Document._meta.get_field("kind").choices)
     title=serializers.CharField(max_length=400)
     source_kind=serializers.ChoiceField(choices=["paper_original","uploaded_copy"])
     department_id=serializers.PrimaryKeyRelatedField(queryset=Department.objects.filter(is_active=True),source="department",allow_null=True,required=False)
