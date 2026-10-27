@@ -1,6 +1,7 @@
 from django.urls import path
 from .api import ExpertiseRegisterView, ExpertiseListView, ExpertiseDetailView, NumberHintView, FilterOptionsView, ComplexGroupView, AssignmentCandidatesView, AssignView
 from .production_api import TransitionView,DeadlineView
+from .result_api import ResultOptionsView,ResultView
 
 urlpatterns=[
     path("receipts/<uuid:pk>/expertises/",ExpertiseRegisterView.as_view()),
@@ -14,5 +15,7 @@ urlpatterns=[
     path("expertises/<uuid:pk>/suspend/",TransitionView.as_view(kind="suspend")),
     path("expertises/<uuid:pk>/resume/",TransitionView.as_view(kind="resume")),
     path("expertises/<uuid:pk>/deadline-events/",DeadlineView.as_view()),
+    path("expertises/<uuid:pk>/result-options/",ResultOptionsView.as_view()),
+    path("expertises/<uuid:pk>/result/",ResultView.as_view()),
     path("complex-groups/",ComplexGroupView.as_view()),
 ]

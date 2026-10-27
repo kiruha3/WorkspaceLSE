@@ -8,9 +8,10 @@ from rest_framework.exceptions import NotFound, ValidationError
 from apps.accounts.policies import require
 from apps.accounts.services import audit, check_version, require_any_scope
 from apps.accounts.serializers import StrictSerializer, VersionedSerializer
-from .models import Department, Position, Specialty
+from .models import Department, Position, Specialty, SndzReason, UnresolvedQuestionReason, ReturnReason
 
-CATALOGS = {"departments":Department,"positions":Position,"specialties":Specialty}
+CATALOGS = {"departments":Department,"positions":Position,"specialties":Specialty,
+    "sndz-reasons":SndzReason,"unresolved-question-reasons":UnresolvedQuestionReason,"return-reasons":ReturnReason}
 
 
 class ReferenceCreate(StrictSerializer):
@@ -43,6 +44,8 @@ class ReferenceListView(GenericAPIView):
             options += ["employees.org_assignments.manage"]
         elif catalog == "specialties":
             options += ["specialties.training.manage","specialties.qualify","expertise.view","expertise.register","expertise.assign","expertise.reassign"]
+        elif catalog in ("sndz-reasons","unresolved-question-reasons","return-reasons"):
+            options += ["expertise.view","expertise.result.draft","expertise.complete","expertise.closed.correct","expertise.return_without_execution"]
         require_any_scope(request.user,*options)
         queryset = model.objects.all()
         if search := request.query_params.get("search","").strip():

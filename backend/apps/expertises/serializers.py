@@ -75,10 +75,15 @@ class ExpertiseOutput(serializers.ModelSerializer):
     production=serializers.SerializerMethodField()
     suspensions=serializers.SerializerMethodField()
     deadline_events=serializers.SerializerMethodField()
+    result=serializers.SerializerMethodField()
+    result_history=serializers.SerializerMethodField()
+    closure=serializers.SerializerMethodField()
+    closure_history=serializers.SerializerMethodField()
+    result_readiness=serializers.SerializerMethodField()
 
     class Meta:
         model = Expertise
-        fields = ["id","registration_number","historical_number","sequence","year","category_code","department","specialty","receipt","material","appointment_nature","is_commission","complex_group","state","version","current_assignments","assignment_history","allowed_actions","basis_document","production","suspensions","deadline_events"]
+        fields = ["id","registration_number","historical_number","sequence","year","category_code","department","specialty","receipt","material","appointment_nature","is_commission","complex_group","state","version","current_assignments","assignment_history","allowed_actions","basis_document","production","suspensions","deadline_events","result","result_history","closure","closure_history","result_readiness"]
 
     def get_department(self,obj): return {"id":str(obj.department_id),"code":obj.department.code,"name":obj.department.name}
     def get_specialty(self,obj): return {"id":str(obj.specialty_id),"code":obj.specialty.code,"name":obj.specialty.name}
@@ -96,7 +101,21 @@ class ExpertiseOutput(serializers.ModelSerializer):
         production_action="expertise.suspend" if obj.state=="in_progress" else "expertise.resume"
         if scopes.get(production_action,AccessScope()).allows(**context):result.append(production_action)
         if scopes.get("expertise.deadline.record",AccessScope()).allows(**context):result.append("expertise.deadline.record")
+        if scopes.get("expertise.result.draft",AccessScope()).allows(**context):result.append("expertise.result.draft")
         return result
+    def get_result(self,obj):
+        from .results import latest_result
+        from .result_serializers import ResultOutput
+        revision=latest_result(obj)
+        return ResultOutput(revision,context=self.context).data if revision else None
+    def get_result_history(self,obj):
+        from .result_serializers import ResultOutput
+        return ResultOutput(obj.result_revisions.all(),many=True,context=self.context).data
+    def get_closure(self,obj):return None
+    def get_closure_history(self,obj):return []
+    def get_result_readiness(self,obj):
+        from .results import result_readiness
+        return result_readiness(obj)
     def get_production(self,obj):
         from .production import production_summary
         return production_summary(obj)

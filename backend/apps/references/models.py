@@ -27,3 +27,15 @@ class Position(Reference):
 
 class Specialty(Reference):
     pass
+
+
+class SndzReason(Reference):
+    pass
+
+
+class UnresolvedQuestionReason(Reference):
+    pass
+
+
+class ReturnReason(Reference):
+    pass

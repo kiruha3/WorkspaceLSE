@@ -83,3 +83,48 @@ class DeadlineEvent(models.Model):
 
     class Meta:
         ordering=["recorded_on","created_at","id"]
+
+
+class ResultRevision(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    expertise=models.ForeignKey(Expertise,related_name="result_revisions",on_delete=models.PROTECT)
+    number=models.PositiveIntegerField()
+    kind=models.CharField(max_length=30,null=True,blank=True,choices=[("expert_conclusion","Заключение эксперта"),("research_act","Акт экспертного исследования"),("sndz","Сообщение о невозможности дать заключение")])
+    completed_on=models.DateField(null=True,blank=True)
+    document=models.ForeignKey("documents.Document",related_name="result_revisions",null=True,blank=True,on_delete=models.PROTECT)
+    complexity_level=models.PositiveIntegerField(null=True,blank=True)
+    questions=models.PositiveIntegerField(null=True,blank=True)
+    categorical=models.PositiveIntegerField(null=True,blank=True)
+    probable=models.PositiveIntegerField(null=True,blank=True)
+    unresolved=models.PositiveIntegerField(null=True,blank=True)
+    statistics_complete=models.BooleanField(default=False)
+    sndz_reason=models.ForeignKey("references.SndzReason",null=True,blank=True,on_delete=models.PROTECT)
+    sndz_comment=models.TextField(blank=True)
+    allocations_complete=models.BooleanField(default=False)
+    note=models.TextField(blank=True)
+    actor=models.ForeignKey(settings.AUTH_USER_MODEL,related_name="result_revisions",on_delete=models.PROTECT)
+    created_at=models.DateTimeField(auto_now_add=True)
+    reason=models.TextField()
+
+    class Meta:
+        ordering=["number","id"]
+        constraints=[
+            models.UniqueConstraint(fields=["expertise","number"],name="unique_work_result_revision"),
+            models.CheckConstraint(condition=Q(complexity_level__isnull=True)|Q(complexity_level__gte=1),name="positive_result_complexity"),
+        ]
+
+
+class UnresolvedAllocation(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    result=models.ForeignKey(ResultRevision,related_name="unresolved_allocations",on_delete=models.PROTECT)
+    reason=models.ForeignKey("references.UnresolvedQuestionReason",on_delete=models.PROTECT)
+    count=models.PositiveIntegerField()
+    comment=models.TextField(blank=True)
+    document=models.ForeignKey("documents.Document",related_name="unresolved_allocations",null=True,blank=True,on_delete=models.PROTECT)
+
+    class Meta:
+        ordering=["reason__code","id"]
+        constraints=[
+            models.UniqueConstraint(fields=["result","reason"],name="unique_result_unresolved_reason"),
+            models.CheckConstraint(condition=Q(count__gte=1),name="positive_unresolved_allocation"),
+        ]
