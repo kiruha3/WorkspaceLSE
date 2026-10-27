@@ -78,3 +78,17 @@ def test_receipts_list_and_detail_require_their_own_scope(employee_factory,grant
     other=Client();other.force_login(outsider.user)
     assert other.get("/api/v1/receipts/").json()["count"]==0
     assert other.get(f"/api/v1/receipts/{receipt['id']}/").status_code==403
+
+
+def test_amend_only_user_can_load_department_choices_and_amend(employee_factory,grant):
+    from apps.references.models import Department
+    department=Department.objects.create(code="3",name="Отдел 3")
+    client,_=clerk_client(employee_factory,grant)
+    receipt=client.post("/api/v1/receipts/",{"received_at":"2026-10-28","department_id":str(department.id)},content_type="application/json").json()
+    employee=employee_factory()
+    for action in ("receipts.view","receipts.amend"):grant(employee,action,"departments",departments=[department])
+    other=Client();other.force_login(employee.user)
+    choices=other.get("/api/v1/references/departments/")
+    assert choices.status_code==200 and choices.json()["results"][0]["id"]==str(department.id)
+    response=other.post(f"/api/v1/receipts/{receipt['id']}/amend/",{"expected_version":1,"sender_name":"Уточнённый отправитель","reason":"Письмо отправителя"},content_type="application/json")
+    assert response.status_code==200 and response.json()["sender_name"]=="Уточнённый отправитель"

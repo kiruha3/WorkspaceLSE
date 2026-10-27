@@ -28,7 +28,7 @@ class DocumentVersionsView(GenericAPIView):
 
     def post(self,request,pk):
         serializer=FileUpload(data=request.data);serializer.is_valid(raise_exception=True)
-        version=add_file_version(actor=request.user,document_id=pk,expected_version=serializer.validated_data["expected_version"],upload=serializer.validated_data["file"])
+        version=add_file_version(actor=request.user,document_id=pk,expected_version=serializer.validated_data["expected_version"],upload=serializer.validated_data["file"],idempotency_key=request.headers.get("Idempotency-Key"))
         return Response(FileVersionOutput(version).data,status=201)
 
 

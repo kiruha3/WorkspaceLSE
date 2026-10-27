@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LatestRequest, useApi } from '../../api/client'
+import { newCommandKey } from '../../api/commandKey'
 import type { BasisDocument, ComplexGroup, Expertise, FileVersion, Receipt, Reference } from '../../api/types'
 import { useSessionStore } from '../../stores/session'
 import ApiMessage from '../../shared/ui/ApiMessage.vue'
@@ -16,6 +17,7 @@ const number = ref(''), historical = ref(''), departmentId = ref(''), specialtyI
 const hintYear = ref(''), lastNumber = ref<string | null>(null), hintLoading = ref(false), hintError = ref<unknown>(null), key = ref('')
 const amending = ref(false), amendDate = ref(''), amendSender = ref(''), amendDepartment = ref(''), amendReason = ref(''), replaceBasis = ref(false), basisForm = ref<InstanceType<typeof BasisDocumentForm> | null>(null)
 const uploadFile = ref<File | null>(null), uploadedFile = ref<File | null>(null), uploadError = ref<unknown>(null)
+let uploadAttempt: { key: string; documentId: string; expectedVersion: number; file: File } | null = null
 const canRegister = computed(() => session.can('expertise.register') && receipt.value?.status === 'accepted')
 const document = computed(() => receipt.value?.basis_document && !('restricted' in receipt.value.basis_document) ? receipt.value.basis_document : null)
 const basisReady = computed(() => receipt.value?.basis_document && (!document.value || document.value.source_kind === 'paper_original' || document.value.versions.length > 0))
@@ -24,7 +26,7 @@ const registered = ref(false)
 const amendmentDirty = computed(() => Boolean(amendReason.value || basisForm.value?.dirty) || (amending.value && (amendDate.value !== receipt.value?.received_at || amendSender.value !== receipt.value?.sender_name || amendDepartment.value !== (receipt.value?.department_id ?? ''))))
 const dirty = computed(() => !registered.value && (Boolean(number.value || historical.value || specialtyId.value || groupTitle.value || groupId.value || commission.value || nature.value !== 'primary' || amendReason.value || uploadFile.value || basisForm.value?.dirty) || (amending.value && Boolean(amendDate.value !== receipt.value?.received_at || amendSender.value !== receipt.value?.sender_name || amendDepartment.value !== (receipt.value?.department_id ?? '')))))
 useDirtyGuard(() => dirty.value || busy.value, router)
-watch(registrationPayload, () => { key.value = '' }, { flush: 'sync' })
+watch(() => JSON.stringify(registrationPayload.value), () => { key.value = '' }, { flush: 'sync' })
 const returnTo = computed(() => typeof route.query.return === 'string' && /^\/intake(?:\?|$)/.test(route.query.return) ? route.query.return : '/intake')
 async function load() {
   loading.value = true; error.value = null
@@ -76,19 +78,11 @@ function toggleAmend() {
   amending.value = !amending.value
   if (!amending.value) { amendReason.value = ''; replaceBasis.value = false }
 }
-function newRegistrationKey() {
-  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
-  const bytes = crypto.getRandomValues(new Uint8Array(16))
-  bytes[6] = (bytes[6]! & 0x0f) | 0x40
-  bytes[8] = (bytes[8]! & 0x3f) | 0x80
-  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
-}
 async function register() {
   if (busy.value || !canRegister.value || !receipt.value) return
   busy.value = true; commandError.value = null; success.value = ''
   try {
-    if (!key.value) key.value = newRegistrationKey()
+    if (!key.value) key.value = newCommandKey()
     const result = await api.request<Expertise>(`/receipts/${receipt.value.id}/expertises/`, { method: 'POST', body: registrationPayload.value, headers: { 'Idempotency-Key': key.value } })
     registered.value = true; busy.value = false
     await router.push({ path: `/expertises/${result.id}`, query: { return: '/expertises' } })
@@ -107,13 +101,17 @@ async function upload() {
   if (busy.value || !document.value || !uploadFile.value || !session.can('documents.upload')) return
   busy.value = true; uploadError.value = null
   try {
+    if (!uploadAttempt || uploadAttempt.file !== uploadFile.value || uploadAttempt.documentId !== document.value.id) {
+      uploadAttempt = { key: newCommandKey(), documentId: document.value.id, expectedVersion: document.value.version, file: uploadFile.value }
+      uploadedFile.value = null
+    }
     if (uploadedFile.value !== uploadFile.value) {
-      const body = new FormData(); body.append('expected_version', String(document.value.version)); body.append('file', uploadFile.value)
-      await api.request<FileVersion>(`/documents/${document.value.id}/versions/`, { method: 'POST', body }); uploadedFile.value = uploadFile.value
+      const body = new FormData(); body.append('expected_version', String(uploadAttempt.expectedVersion)); body.append('file', uploadFile.value)
+      await api.request<FileVersion>(`/documents/${uploadAttempt.documentId}/versions/`, { method: 'POST', body, headers: { 'Idempotency-Key': uploadAttempt.key } }); uploadedFile.value = uploadFile.value
     }
     const updated = await api.request<BasisDocument>(`/documents/${document.value.id}/`)
     if (receipt.value) receipt.value = { ...receipt.value, basis_document: updated }
-    uploadFile.value = null; uploadedFile.value = null; success.value = 'Новая версия файла сохранена сервером. Приёмка и регистрация выполняются отдельно.'
+    uploadFile.value = null; uploadedFile.value = null; uploadAttempt = null; success.value = 'Новая версия файла сохранена сервером. Приёмка и регистрация выполняются отдельно.'
   } catch (cause) { uploadError.value = cause } finally { busy.value = false }
 }
 watch([departmentId, hintYear, canRegister], hint)
@@ -121,7 +119,7 @@ watch(() => route.params.id, () => {
   if (!route.path.startsWith('/receipts/')) return
   hints.cancel(); groupRequests.cancel(); receipt.value = null; groups.value = []
   number.value = ''; historical.value = ''; departmentId.value = ''; specialtyId.value = ''; nature.value = 'primary'; commission.value = false; groupId.value = ''; groupTitle.value = ''; hintYear.value = ''; lastNumber.value = null
-  amending.value = false; amendDate.value = ''; amendSender.value = ''; amendDepartment.value = ''; amendReason.value = ''; replaceBasis.value = false; uploadFile.value = null; uploadedFile.value = null; registered.value = false
+  amending.value = false; amendDate.value = ''; amendSender.value = ''; amendDepartment.value = ''; amendReason.value = ''; replaceBasis.value = false; uploadFile.value = null; uploadedFile.value = null; uploadAttempt = null; registered.value = false
   commandError.value = null; uploadError.value = null; success.value = ''; void load()
 }, { immediate: true })
 void loadReferences()

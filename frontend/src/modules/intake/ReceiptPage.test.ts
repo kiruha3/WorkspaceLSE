@@ -2,11 +2,82 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiClient, apiKey } from '../../api/client'
 import { json, page, sessionWith } from '../../test/fixtures'
-import { department, expertise, receipt, specialty, testRouter } from '../../test/intakeFixtures'
+import { basis, department, expertise, receipt, specialty, testRouter } from '../../test/intakeFixtures'
 import ReceiptPage from './ReceiptPage.vue'
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('manual expertise registration', () => {
+  it('allows the minimal view-and-amend profile to select its department and save', async () => {
+    const client = new ApiClient(async (input, init) => {
+      const path = String(input)
+      if (path.endsWith('/csrf/')) return json({ csrf_token: 'token' })
+      if (path.includes('/references/departments/')) return json(page([department]))
+      if (path.endsWith('/amend/') && init?.method === 'POST') return json({ ...receipt, version: 3 })
+      return json(receipt)
+    })
+    const router = await testRouter('/receipts/receipt-1')
+    const wrapper = mount(ReceiptPage, { global: { plugins: [sessionWith('receipts.view', 'receipts.amend'), router], provide: { [apiKey as symbol]: client } } })
+    await flushPromises()
+    await wrapper.findAll('button').find(b => b.text() === 'Уточнить поступление')!.trigger('click')
+    expect((wrapper.get('form select').element as HTMLSelectElement).value).toBe('d-4')
+    await wrapper.get('[name="amend_reason"]').setValue('Уточнение отправителя')
+    await wrapper.get('form').trigger('submit'); await flushPromises()
+    expect(wrapper.text()).toContain('Уточнение поступления сохранено сервером')
+    expect(wrapper.find('[data-register-expertise]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+  it('recovers a late scan upload after its committed response is lost', async () => {
+    let attempted = false, committedKey: string | null = null
+    const version = { id: 'file-1', number: 1, original_name: 'basis.png', content_type: 'image/png', size: 4, sha256: 'abc', created_at: '2026-10-28T00:00:00Z', download_url: '/download/', preview_url: '/preview/' }
+    const client = new ApiClient(async (input, init) => {
+      const path = String(input)
+      if (path.endsWith('/csrf/')) return json({ csrf_token: 'token' })
+      if (path.endsWith('/versions/')) {
+        const key = new Headers(init?.headers).get('Idempotency-Key')
+        if (!attempted) { attempted = true; committedKey = key; throw new TypeError('Ответ потерян после загрузки') }
+        return key && key === committedKey ? json(version, 201) : json({ code: 'version_conflict', message: 'Конфликт версии', field_errors: {} }, 409)
+      }
+      if (path.endsWith('/documents/document-1/')) return json({ ...basis, version: 2, versions: [version] })
+      return json(receipt)
+    })
+    const router = await testRouter('/receipts/receipt-1')
+    const wrapper = mount(ReceiptPage, { global: { plugins: [sessionWith('receipts.view', 'documents.upload'), router], provide: { [apiKey as symbol]: client } } })
+    await flushPromises()
+    Object.defineProperty(wrapper.get('input[type="file"]').element, 'files', { value: [new File(['scan'], 'basis.png')] })
+    await wrapper.get('input[type="file"]').trigger('change')
+    await wrapper.get('form').trigger('submit'); await flushPromises()
+    expect(wrapper.text()).toContain('Ответ потерян после загрузки')
+    await wrapper.get('form').trigger('submit'); await flushPromises()
+    expect(wrapper.find('img[src="/preview/"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Новая версия файла сохранена сервером')
+    wrapper.unmount()
+  })
+  it('recovers a committed registration after lost response and an unchanged receipt reload', async () => {
+    let committedKey: string | null = null
+    const client = new ApiClient(async (input, init) => {
+      const path = String(input)
+      if (path.endsWith('/csrf/')) return json({ csrf_token: 'token' })
+      if (path.endsWith('/expertises/')) {
+        const key = new Headers(init?.headers).get('Idempotency-Key')
+        if (!committedKey) { committedKey = key; throw new TypeError('Ответ потерян после сохранения') }
+        return key === committedKey ? json(expertise, 201) : json({ code: 'registration_conflict', message: 'Номер уже занят', field_errors: {} }, 409)
+      }
+      if (path.includes('number-hint')) return json({ last_number: null })
+      if (path.includes('/references/')) return json(page(path.includes('departments') ? [department] : [specialty]))
+      if (path.includes('/complex-groups/')) return json(page([]))
+      return json({ ...receipt })
+    })
+    const router = await testRouter('/receipts/receipt-1')
+    const wrapper = mount(ReceiptPage, { global: { plugins: [sessionWith('receipts.view', 'expertise.register'), router], provide: { [apiKey as symbol]: client } } })
+    await flushPromises()
+    await wrapper.get('[name="registration_number"]').setValue('151/4-1-26')
+    await wrapper.get('[name="specialty_id"]').setValue('s-18')
+    await wrapper.get('[data-register-expertise]').trigger('submit'); await flushPromises()
+    await wrapper.findAll('button').find(b => b.text() === 'Обновить серверные сведения')!.trigger('click'); await flushPromises()
+    await wrapper.get('[data-register-expertise]').trigger('submit'); await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/expertises/work-1')
+    wrapper.unmount()
+  })
   it('registers with a stable UUID retry key when randomUUID is unavailable outside localhost', async () => {
     const getRandomValues = crypto.getRandomValues.bind(crypto)
     vi.stubGlobal('crypto', { randomUUID: undefined, getRandomValues })

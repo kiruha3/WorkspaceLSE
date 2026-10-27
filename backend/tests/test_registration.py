@@ -144,3 +144,35 @@ def test_scopes_filter_before_pagination_and_do_not_broaden_registration(employe
 def test_invalid_work_filters_are_controlled(employee_factory, grant, query):
     client, _, _, _, _, _ = registration_setup(employee_factory, grant)
     assert client.get("/api/v1/expertises/?" + query).status_code == 400
+
+
+def test_replay_redacts_document_after_granular_revocation(employee_factory,grant):
+    client,employee,receipt,_,_,data=registration_setup(employee_factory,grant)
+    key=str(uuid.uuid4());first=register(client,receipt,data,key)
+    assert first.status_code==201 and first.json()["basis_document"]["title"]
+    employee.role_assignments.filter(role__permissions__permission_code="documents.view").update(is_active=False)
+    replay=register(client,receipt,data,key)
+    assert replay.status_code==201
+    assert replay.json()["basis_document"]=={"id":receipt["basis_document"]["id"],"restricted":True}
+
+
+def test_replay_recomputes_actions_without_changing_business_result(employee_factory,grant):
+    client,employee,receipt,_,_,data=registration_setup(employee_factory,grant)
+    _,assignment=grant(employee,"expertise.assign")
+    key=str(uuid.uuid4());first=register(client,receipt,data,key)
+    assert first.json()["allowed_actions"]==["expertise.assign"]
+    assignment.is_active=False;assignment.save()
+    replay=register(client,receipt,data,key)
+    assert replay.json()["id"]==first.json()["id"] and replay.json()["version"]==1
+    assert replay.json()["allowed_actions"]==[]
+
+
+def test_replay_survives_reference_deactivation_but_new_work_does_not(employee_factory,grant):
+    client,_,receipt,_,specialty,data=registration_setup(employee_factory,grant)
+    key=str(uuid.uuid4());first=register(client,receipt,data,key)
+    assert first.status_code==201
+    specialty.is_active=False;specialty.save()
+    replay=register(client,receipt,data,key)
+    assert replay.status_code==201 and replay.json()["id"]==first.json()["id"]
+    data["registration_number"]="152/3-1-26"
+    assert register(client,receipt,data).status_code==400

@@ -29,8 +29,10 @@ def register_expertise(*,actor,receipt_id,data,idempotency_key,payload):
         if receipt.status!="accepted":raise ValidationError("Сначала примите поступление с основанием.")
         validate_basis(receipt)
         # Resolve active references under lock, not the serializer's old copies.
-        department=get_object_or_404(Department.objects.select_for_update(),pk=values["department"].id,is_active=True)
-        specialty=get_object_or_404(Specialty.objects.select_for_update(),pk=values["specialty"].id,is_active=True)
+        department=get_object_or_404(Department.objects.select_for_update(),pk=values["department"].id)
+        specialty=get_object_or_404(Specialty.objects.select_for_update(),pk=values["specialty"].id)
+        if not department.is_active:raise ValidationError({"department_id":"Отдел неактивен."})
+        if not specialty.is_active:raise ValidationError({"specialty_id":"Специальность неактивна."})
         parsed=parse_current_number(values["registration_number"])
         if parsed.department_code!=department.code:
             raise ValidationError({"department_id":"Отдел не совпадает с текущим регистрационным номером."})
@@ -49,7 +51,20 @@ def register_expertise(*,actor,receipt_id,data,idempotency_key,payload):
         from .serializers import ExpertiseOutput
         return ExpertiseOutput(work,context={"user":actor,"scopes":permission_scopes(actor)}).data
 
-    return execute_once(actor=actor,action="expertise.register",key=idempotency_key,payload={"receipt_id":str(receipt_id),"data":payload},operation=operation)
+    result=execute_once(actor=actor,action="expertise.register",key=idempotency_key,payload={"receipt_id":str(receipt_id),"data":payload},operation=operation)
+    # Replay preserves business facts, never yesterday's authority. Do not
+    # overwrite the stored result when projecting today's permission fields.
+    from apps.documents.models import Document
+    from apps.documents.policies import can_document
+    from .serializers import ExpertiseOutput
+    work=Expertise.objects.prefetch_related("assignments").get(pk=result["id"])
+    output=dict(result)
+    output["allowed_actions"]=ExpertiseOutput(context={"user":actor,"scopes":permission_scopes(actor)}).get_allowed_actions(work)
+    if basis:=result.get("basis_document"):
+        document=Document.objects.filter(pk=basis["id"]).first()
+        if document is None or not can_document(actor,"documents.view",document):
+            output["basis_document"]={"id":basis["id"],"restricted":True}
+    return output
 
 
 @transaction.atomic

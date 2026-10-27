@@ -12,8 +12,10 @@ from .policies import work_context
 class RegistrationInput(VersionedSerializer):
     registration_number = serializers.CharField(max_length=100)
     historical_number = serializers.CharField(max_length=300, allow_blank=True, required=False, default="")
-    department_id = serializers.PrimaryKeyRelatedField(source="department",queryset=Department.objects.filter(is_active=True))
-    specialty_id = serializers.PrimaryKeyRelatedField(source="specialty",queryset=Specialty.objects.filter(is_active=True))
+    # Active status is checked under the command lock for NEW registrations.
+    # A replay must still resolve a reference that was deactivated afterwards.
+    department_id = serializers.PrimaryKeyRelatedField(source="department",queryset=Department.objects.all())
+    specialty_id = serializers.PrimaryKeyRelatedField(source="specialty",queryset=Specialty.objects.all())
     appointment_nature = serializers.ChoiceField(choices=["primary","repeated","additional"])
     is_commission = serializers.BooleanField()
     complex_group_id = serializers.PrimaryKeyRelatedField(source="complex_group",queryset=ComplexGroup.objects.all(),required=False,allow_null=True,default=None)

@@ -8,8 +8,8 @@ pytestmark=pytest.mark.django_db
 PNG=base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1sAAAAASUVORK5CYII=")
 
 
-def upload(client,document_id,version=1):
-    return client.post(f"/api/v1/documents/{document_id}/versions/",{"expected_version":version,"file":SimpleUploadedFile("основание.png",PNG,content_type="image/png")})
+def upload(client,document_id,version=1,key=None):
+    return client.post(f"/api/v1/documents/{document_id}/versions/",{"expected_version":version,"file":SimpleUploadedFile("основание.png",PNG,content_type="image/png")},**({"HTTP_IDEMPOTENCY_KEY":key} if key else {}))
 
 
 def test_uploaded_basis_survives_reload_and_original_bytes_are_served(employee_factory,grant,settings,tmp_path):
@@ -64,7 +64,8 @@ def test_unpreviewable_content_is_download_only(employee_factory,grant,settings,
     assert file_response["Content-Disposition"].startswith("attachment;")
 
 
-def test_failed_version_command_removes_only_new_file(employee_factory,grant,settings,tmp_path,monkeypatch):
+@pytest.mark.parametrize("key",[None,"failed-upload-command"])
+def test_failed_version_command_removes_only_new_file(employee_factory,grant,settings,tmp_path,monkeypatch,key):
     from apps.documents import services
     settings.MEDIA_ROOT=tmp_path
     client,_=clerk_client(employee_factory,grant)
@@ -72,7 +73,24 @@ def test_failed_version_command_removes_only_new_file(employee_factory,grant,set
     first=upload(client,document["id"]).json()
     def unavailable_audit(*args,**kwargs):raise RuntimeError("Audit persistence failed")
     monkeypatch.setattr(services,"audit",unavailable_audit)
-    with pytest.raises(RuntimeError):upload(client,document["id"],version=2)
+    with pytest.raises(RuntimeError):upload(client,document["id"],version=2,key=key)
     assert len(list(tmp_path.rglob("*.png")))==1
     assert b"".join(client.get(first["download_url"]).streaming_content)==PNG
     assert len(client.get(f"/api/v1/documents/{document['id']}/").json()["versions"])==1
+    from apps.accounts.models import CommandReceipt
+    assert not CommandReceipt.objects.filter(action="document.version.add").exists()
+
+
+def test_upload_replay_recovers_committed_file_without_duplicate(employee_factory,grant,settings,tmp_path):
+    settings.MEDIA_ROOT=tmp_path
+    client,employee=clerk_client(employee_factory,grant)
+    document=create_basis(client,"uploaded_copy")
+    def send(content=PNG):
+        return client.post(f"/api/v1/documents/{document['id']}/versions/",{"expected_version":1,"file":SimpleUploadedFile("basis.png",content)},HTTP_IDEMPOTENCY_KEY="lost-upload-response")
+    first=send();assert first.status_code==201
+    second=send()
+    assert second.status_code==201 and second.json()==first.json()
+    assert len(list(tmp_path.rglob("*.png")))==1
+    assert send(PNG+b"different").status_code==409
+    employee.role_assignments.filter(role__permissions__permission_code="documents.upload").update(is_active=False)
+    assert send().status_code==403

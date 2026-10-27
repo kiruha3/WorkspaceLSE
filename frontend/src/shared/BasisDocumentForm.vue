@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ApiError, useApi } from '../api/client'
+import { newCommandKey } from '../api/commandKey'
 import type { BasisDocument, FileVersion } from '../api/types'
 const props = defineProps<{ departmentId: string; busy?: boolean }>()
 const api = useApi()
 const kind = ref<'resolution' | 'decision'>('resolution'), title = ref(''), sourceKind = ref<'paper_original' | 'uploaded_copy'>('paper_original')
 const file = ref<File | null>(null), prepared = ref<BasisDocument | null>(null), preparedPayload = ref(''), uploaded = ref<File | null>(null)
+const uploadKey = ref('')
+watch(file, () => { uploadKey.value = '' }, { flush: 'sync' })
 const payload = computed(() => ({ kind: kind.value, title: title.value.trim(), source_kind: sourceKind.value, department_id: props.departmentId || null }))
 const dirty = computed(() => Boolean(title.value || file.value || prepared.value))
 function chooseFile(event: Event) { file.value = (event.target as HTMLInputElement).files?.[0] ?? null }
@@ -15,12 +18,13 @@ async function persist(): Promise<BasisDocument> {
   const stamp = JSON.stringify(payload.value)
   if (!prepared.value || stamp !== preparedPayload.value) {
     prepared.value = await api.request<BasisDocument>('/documents/', { method: 'POST', body: payload.value })
-    preparedPayload.value = stamp; uploaded.value = null
+    preparedPayload.value = stamp; uploaded.value = null; uploadKey.value = ''
   }
   if (file.value && uploaded.value !== file.value) {
     const body = new FormData()
     body.append('expected_version', String(prepared.value.version)); body.append('file', file.value)
-    const version = await api.request<FileVersion>(`/documents/${prepared.value.id}/versions/`, { method: 'POST', body })
+    if (!uploadKey.value) uploadKey.value = newCommandKey()
+    const version = await api.request<FileVersion>(`/documents/${prepared.value.id}/versions/`, { method: 'POST', body, headers: { 'Idempotency-Key': uploadKey.value } })
     prepared.value = { ...prepared.value, version: prepared.value.version + 1, versions: [...prepared.value.versions, version] }
     uploaded.value = file.value
   }
