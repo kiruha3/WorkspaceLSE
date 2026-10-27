@@ -96,6 +96,8 @@ class ExpertiseOutput(serializers.ModelSerializer):
         # Only implemented commands are advertised; execution always rechecks.
         scopes=self.context["scopes"];context=work_context(obj,self.context["user"],scopes)
         if obj.state not in ("in_progress","suspended"):
+            from apps.issuance.models import MaterialIssue
+            if MaterialIssue.objects.filter(package__material_id=obj.material_id).exists():return []
             return ["expertise.closed.correct"] if scopes.get("expertise.closed.correct",AccessScope()).allows(**context) else []
         action = "expertise.reassign" if any(a.ended_at is None for a in obj.assignments.all()) else "expertise.assign"
         result=[action] if scopes.get(action,AccessScope()).allows(**context) else []

@@ -2,6 +2,7 @@ from rest_framework import serializers
 from apps.accounts.serializers import StrictSerializer
 from apps.accounts.policies import permission_scopes
 from apps.documents.models import Document
+from apps.documents.policies import can_document
 from apps.expertises.result_serializers import document_link
 from apps.references.api import reference_data
 from .models import ITEM_KINDS
@@ -59,6 +60,10 @@ def package_data(package, user, scopes=None):
     check_records = list(package.checks.all())
     issue = getattr(package, "issuance", None)
     state = "issued" if issue else "checked" if ready["check_current"] else "needs_recheck" if check_records else "draft"
+    actions = []
+    if not issue:
+        for action, possible in (("issue.prepare", all(can_document(user, "documents.view", item.document) for item in current.items.all())), ("issue.check", ready["can_check"]), ("issue.confirm", ready["can_issue"])):
+            if possible and material_queryset(user, action, scopes).filter(pk=package.material_id).exists(): actions.append(action)
     return {"id": str(package.pk), "material": {"id": str(package.material_id), "title": package.material.title}, "version": package.version, "state": state,
         "content": revision_data(current, user), "content_history": [revision_data(revision, user) for revision in revisions],
         "works": [{"id": str(work.pk), "registration_number": work.registration_number, "category_code": work.category_code, "state": work.state,
@@ -73,5 +78,4 @@ def package_data(package, user, scopes=None):
         "issuance": {**recorded_data(issue), "check_id": str(issue.package_check_id), "issued_on": issue.issued_on, "method": reference_data(issue.method),
             "recipient_name": issue.recipient_name, "recipient_basis": issue.recipient_basis, "tracking": issue.tracking, "comment": issue.comment,
             "evidence": document_link(issue.evidence_document, user, issue.accepted_evidence_version_id)} if issue else None,
-        # Check/confirm are advertised only when the next task implements them.
-        "allowed_actions": ["issue.prepare"] if not issue and material_queryset(user, "issue.prepare", scopes).filter(pk=package.material_id).exists() else []}
+        "allowed_actions": actions}

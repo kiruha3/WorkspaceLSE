@@ -159,6 +159,7 @@ def test_uploaded_supplement_needs_bytes_while_paper_original_does_not(employee_
     actor.role_assignments.filter(role__permissions__permission_code="documents.view").update(is_active=False)
     projected = client.get(path).json()
     assert projected["content"]["items"][0]["document"]["restricted"]
+    assert "issue.prepare" not in projected["allowed_actions"]
     assert any(item["code"] == "document_unavailable" for item in projected["readiness"]["blockers"])
     assert save_package(client, package, materials_description="Не удалять скрытые приложения", items=[]).status_code == 403
 

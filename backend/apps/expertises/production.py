@@ -40,11 +40,10 @@ def validate_event_date(work,value,field):
 
 
 def locked_work(expertise_id):
-    from apps.intake.models import Receipt
-    # Receipt first, then work: date amendments and every production command
-    # share the same lock without a receipt/work lock-order inversion.
+    from apps.intake.locking import locked_receipt
+    # Material -> receipt -> work also serializes production with full issue.
     receipt_id=get_object_or_404(Expertise.objects.only("receipt_id"),pk=expertise_id).receipt_id
-    Receipt.objects.select_for_update().get(pk=receipt_id)
+    locked_receipt(receipt_id)
     return get_object_or_404(Expertise.objects.select_for_update(),pk=expertise_id)
 
 

@@ -34,6 +34,8 @@
 
 Каждая mutation требует reason/Idempotency-Key и expected_version комплекта кроме create. execute_once хранит только event/package IDs; свежий ответ строится после повторной проверки прав. Все отказы откатывают редакции/факты/аудит/receipt. Выданный комплект неизменяем. Исправление после выдачи отдельной процедурой остаётся явно незавершённой частью общей цели.
 
+Чтение отдельного общего файла не требует доступа ко всему комплекту: по общейspec§6 достаточно одной разрешённой связи с работой и совпадающих областей expertise.view/issue.view/documents.view. Чужие PackageItem/состав пакета от этого не открываются, загрузка новой версии не разрешается. Для доказательства общей выдачи допустима разрешённая связь материала с такой работой. Это исправляет чрезмерно узкий первичный fallback полного пакета, а не расширяет действия выдачи.
+
 ## Контракт
 
 Префикс `/api/v1`. POST отвечает `{event:{id},package:PackageDTO}`, create201, остальные200. GET `/materials/{id}/issue-packages/` → `{material:{id,title},package:PackageDTO|null,can_prepare:boolean}`; POST туда создаёт черновик из Content+reason. GET `/issue-packages/` — стандартная пагинация PackageDTO, фильтры `search`, `state:draft|checked|needs_recheck|issued`, `issued_from/to` (только фактическая дата). GET `/issue-packages/{id}/`, GET `/{id}/readiness/`.

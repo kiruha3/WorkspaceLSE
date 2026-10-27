@@ -79,3 +79,27 @@ def test_package_document_fallback_needs_both_current_scopes_and_never_grants_up
     assert upload(expert, document["id"], version=2).status_code == 403
     actor.role_assignments.filter(role__permissions__permission_code="issue.view").update(is_active=False)
     assert expert.get(version["download_url"]).status_code == 403
+
+
+def test_one_permitted_file_link_does_not_require_or_reveal_whole_material_package(employee_factory, grant, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    from test_basis_documents import upload
+    from test_expert_assignments import assign, qualified
+    client, _, work, expert, actor, department, specialty = issue_setup(employee_factory, grant)
+    grant(actor, "issue.view", "own")
+    other = register(client, work["receipt"], {"expected_version": 2, "registration_number": "152/3-1-26", "department_id": str(department.pk), "specialty_id": str(specialty.pk), "appointment_nature": "primary", "is_commission": False})
+    assert other.status_code == 201
+    own_doc = item_document(client, "invoice", source="uploaded_copy")
+    private_doc = item_document(client, "invoice", source="uploaded_copy")
+    own_file = upload(client, own_doc["id"]).json()
+    private_file = upload(client, private_doc["id"]).json()
+    package = create_package(client, work["material"]["id"], items=[
+        {"kind": "invoice", "expertise_id": work["id"], "document_id": own_doc["id"]},
+        {"kind": "invoice", "expertise_id": other.json()["id"], "document_id": private_doc["id"]},
+    ])
+    assert package.status_code == 201
+    assert expert.get(f"/api/v1/issue-packages/{package.json()['package']['id']}/").status_code == 403
+    assert expert.get(own_file["preview_url"]).status_code == 200
+    assert expert.get(private_file["preview_url"]).status_code == 403
+    assert assign(client, work, [qualified(employee_factory, specialty)], reassign=True).status_code == 200
+    assert expert.get(own_file["preview_url"]).status_code == 403

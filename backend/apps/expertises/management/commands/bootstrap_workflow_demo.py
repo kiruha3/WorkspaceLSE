@@ -4,7 +4,7 @@ from django.db import transaction
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from apps.accounts.models import User, Role, RolePermission
-from apps.accounts.management.commands.bootstrap_access import stable_id, TEMPLATES, CORRESPONDENCE_NEW_RIGHTS
+from apps.accounts.management.commands.bootstrap_access import stable_id, TEMPLATES, CORRESPONDENCE_NEW_RIGHTS, ISSUANCE_NEW_RIGHTS
 from apps.personnel.models import Employee, EmployeeOrgAssignment, EmployeeRole, EmployeeSpecialty
 from apps.references.models import Department, Position, Specialty
 
@@ -15,12 +15,19 @@ class Command(BaseCommand):
     def add_arguments(self,parser):
         parser.add_argument("--enable-results",action="store_true",help="Явно добавить два новых права результата только учебной роли эксперта")
         parser.add_argument("--enable-correspondence",action="store_true",help="Явно добавить новые права переписки только учебным ролям эксперта и делопроизводителя")
+        parser.add_argument("--enable-issuance",action="store_true",help="Явно добавить новые права выдачи только учебным ролям эксперта и делопроизводителя")
 
     @transaction.atomic
     def handle(self,*args,**options):
         department,_=Department.objects.get_or_create(code="3",defaults={"name":"Отдел 3"})
         specialty,_=Specialty.objects.get_or_create(code="1.1",defaults={"name":"Исследование почерка и подписей"})
         profiles=[("clerk","Делопроизводитель","clerk"),("head3","Руководитель отдела","head"),("expert","Эксперт","expert"),("expert2","Эксперт","expert"),("trainee","Эксперт","expert")]
+        if options["enable_issuance"]:
+            for template, logins in (("Эксперт", ("expert","expert2","trainee")), ("Делопроизводитель", ("clerk",))):
+                role=Role.objects.filter(pk=stable_id("workflow-demo:role:"+template)).first()
+                allowed=[stable_id("workflow-demo:employee:demo."+login) for login in logins]
+                if role and role.assignments.exclude(employee_id__in=allowed).exists():
+                    raise CommandError("В учебной роли есть неучебный сотрудник: расширение выдачи запрещено.")
         if options["enable_correspondence"]:
             for template, logins in (("Эксперт", ("expert","expert2","trainee")), ("Делопроизводитель", ("clerk",))):
                 role=Role.objects.filter(pk=stable_id("workflow-demo:role:"+template)).first()
@@ -58,5 +65,10 @@ class Command(BaseCommand):
             for template in ("Эксперт", "Делопроизводитель"):
                 role=Role.objects.get(pk=stable_id("workflow-demo:role:"+template))
                 for code, scope in CORRESPONDENCE_NEW_RIGHTS[template].items():
+                    RolePermission.objects.get_or_create(role=role,permission_code=code,defaults={"scope":scope})
+        if options["enable_issuance"]:
+            for template in ("Эксперт", "Делопроизводитель"):
+                role=Role.objects.get(pk=stable_id("workflow-demo:role:"+template))
+                for code, scope in ISSUANCE_NEW_RIGHTS[template].items():
                     RolePermission.objects.get_or_create(role=role,permission_code=code,defaults={"scope":scope})
         self.stdout.write("Учебные профили готовы: "+", ".join("demo."+p[0] for p in profiles))

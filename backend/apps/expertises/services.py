@@ -7,6 +7,7 @@ from apps.accounts.policies import require, permission_scopes
 from apps.accounts.services import audit, check_version
 from apps.intake.models import Receipt
 from apps.intake.services import validate_basis
+from apps.intake.locking import locked_receipt, require_not_issued
 from apps.references.models import Department, Specialty
 from .models import Expertise, ComplexGroup, ExpertAssignment
 from .numbering import parse_current_number
@@ -24,8 +25,9 @@ def register_expertise(*,actor,receipt_id,data,idempotency_key,payload):
     require(actor,"expertise.register",department_ids=[data["department"].id])
 
     def operation():
-        receipt=get_object_or_404(Receipt.objects.select_for_update(),pk=receipt_id)
+        receipt=locked_receipt(receipt_id)
         values=data.copy();check_version(receipt,values.pop("expected_version"))
+        require_not_issued(receipt.material_id)
         if receipt.status!="accepted":raise ValidationError("Сначала примите поступление с основанием.")
         validate_basis(receipt)
         # Resolve active references under lock, not the serializer's old copies.

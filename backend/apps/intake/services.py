@@ -6,6 +6,7 @@ from apps.accounts.policies import active_employee,require
 from apps.accounts.services import audit,check_version
 from apps.documents.policies import require_document
 from .models import Receipt,Material
+from .locking import locked_receipt, require_not_issued
 
 
 def receipt_context(receipt):
@@ -46,9 +47,10 @@ def accept_receipt(*,actor,receipt_id,expected_version):
 
 @transaction.atomic
 def amend_receipt(*,actor,receipt_id,data):
-    receipt=get_object_or_404(Receipt.objects.select_for_update(),pk=receipt_id)
+    receipt=locked_receipt(receipt_id)
     require(actor,"receipts.amend",**receipt_context(receipt))
     data=data.copy();check_version(receipt,data.pop("expected_version"));reason=data.pop("reason")
+    require_not_issued(receipt.material_id)
     if data.get("basis_document"):require_document(actor,"documents.view",data["basis_document"])
     before={key:str(getattr(receipt,key+"_id")) if key in ("department","basis_document") else str(getattr(receipt,key)) for key in data}
     for key,value in data.items():setattr(receipt,key,value)

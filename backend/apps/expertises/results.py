@@ -4,6 +4,7 @@ from apps.accounts.commands import execute_once
 from apps.accounts.services import audit, check_version
 from apps.documents.models import Document
 from apps.documents.policies import require_document
+from apps.intake.locking import require_not_issued
 from .models import ResultRevision, UnresolvedAllocation, WorkClosure
 from .policies import require_work
 from .production import locked_work, validate_event_date, OPEN_STATES
@@ -150,6 +151,7 @@ def _close(*,actor,expertise_id,data,key,payload,command):
     def operation():
         check_version(work,data["expected_version"])
         if command=="correct":
+            require_not_issued(work.material_id)
             previous=latest_closure(work)
             if work.state in OPEN_STATES or previous is None:raise ValidationError("Нет подтверждённого окончания для корректировки.")
             expected="result" if work.state=="completed" else "return"

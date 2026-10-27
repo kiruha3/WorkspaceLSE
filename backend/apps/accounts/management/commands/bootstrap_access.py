@@ -40,6 +40,16 @@ CORRESPONDENCE_NEW_RIGHTS = {
 for template, permissions in CORRESPONDENCE_NEW_RIGHTS.items():
     TEMPLATES[template].update(permissions)
 
+ISSUANCE_NEW_RIGHTS = {
+    "Эксперт": {"issue.view": "own"},
+    "Делопроизводитель": {code: "institution" for code in ("issue.view", "issue.prepare", "issue.check")},
+    "Руководитель отдела": {"issue.view": "departments"},
+    "Заместитель начальника отдела": {"issue.view": "departments"},
+    "Руководитель учреждения": {"issue.view": "institution"},
+}
+for template, permissions in ISSUANCE_NEW_RIGHTS.items():
+    TEMPLATES[template].update(permissions)
+
 STAFF = [
     ("Власова Т.В.","3","head",["16.1","16.2"]),
     ("Миндибекова Т.М.","3","deputy",["1.1","3.1"]),

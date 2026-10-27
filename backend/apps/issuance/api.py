@@ -16,6 +16,8 @@ from .policies import package_queryset, require_material, material_queryset
 from .serializers import ContentInput, DraftInput, PackageFilters, package_data
 from .readiness import readiness, DOCUMENT_KINDS
 from .drafts import create_package, save_package
+from .command_serializers import CheckInput, IssueInput
+from .commands import check_package, issue_material
 
 
 def loaded(queryset=None):
@@ -99,3 +101,31 @@ class DocumentOptionsView(GenericAPIView):
         allowed = [document for document in query if scope.allows(**document_context(document)) or can_document(request.user, "documents.view", document)]
         page = self.paginate_queryset(allowed)
         return self.get_paginated_response(DocumentOutput(page, many=True).data)
+
+
+class PackageCommandView(GenericAPIView):
+    command = "check"
+
+    def post(self, request, pk):
+        serializer, command = (CheckInput, check_package) if self.command == "check" else (IssueInput, issue_material)
+        form = serializer(data=request.data); form.is_valid(raise_exception=True)
+        return command_response(request, command(actor=request.user, package_id=pk, data=form.validated_data, key=request.headers.get("Idempotency-Key"), payload=request.data))
+
+
+class WorkIssueStatusView(GenericAPIView):
+    def get(self, request, pk):
+        from apps.expertises.models import Expertise
+        from apps.expertises.policies import require_work, work_context
+        from .models import MaterialIssue
+        work = get_object_or_404(Expertise.objects.select_related("material").prefetch_related("assignments"), pk=pk)
+        scopes = permission_scopes(request.user)
+        require_work(request.user, "expertise.view", work, scopes)
+        if not scopes.get("issue.view", AccessScope()).allows(**work_context(work, request.user, scopes)):
+            return Response({"status": "unavailable", "issued_on": None, "package": None})
+        package = IssuePackage.objects.filter(material=work.material).first()
+        issue = MaterialIssue.objects.filter(package=package).first() if package else None
+        link = None
+        if package:
+            link = {"id": str(package.pk)}
+            if not material_queryset(request.user, "issue.view", scopes).filter(pk=work.material_id).exists(): link["restricted"] = True
+        return Response({"status": "issued" if issue else "not_issued", "issued_on": issue.issued_on if issue else None, "package": link})
