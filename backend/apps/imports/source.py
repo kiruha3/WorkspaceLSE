@@ -112,4 +112,4 @@ def parse_journal(content:bytes,filename:str)->ParsedJournal:
     rows=normalize_rows(source,date_system=epoch)
     summary={"row_count":len(rows),"error_rows":sum(not row.normalization_complete for row in rows),"warning_rows":sum(any(item.severity=="warning" for item in row.diagnostics) for row in rows),
         "diagnostic_counts":dict(Counter(item.code for row in rows for item in row.diagnostics)),"state_counts":dict(Counter(row.facts["state"] or "unknown" for row in rows))}
-    return ParsedJournal(name,kind,hashlib.sha256(content).hexdigest(),sheet,PARSER_VERSION,rows,summary)
+    return ParsedJournal(name,kind,epoch,hashlib.sha256(content).hexdigest(),sheet,PARSER_VERSION,rows,summary)

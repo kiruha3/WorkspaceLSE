@@ -64,5 +64,7 @@ PERMISSIONS = {item.code: item for item in [
     Permission("issue.check", "Проверять комплект выдачи", "Выдача", ("departments", "institution")),
     Permission("issue.confirm", "Выдавать комплект материалов", "Выдача", ("departments", "institution")),
     Permission("reports.form151.run", "Рассчитывать отчёт 15.1", "Отчётность", ("departments", "institution")),
+    Permission("imports.preview", "Проверять источник журнала", "Перенос журнала", ("institution",)),
+    Permission("imports.results.view", "Просматривать снимки переноса", "Перенос журнала", ("institution",)),
     Permission("reports.form151.download", "Выгружать отчёт 15.1", "Отчётность", ("departments", "institution")),
 ]}

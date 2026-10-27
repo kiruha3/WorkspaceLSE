@@ -50,6 +50,10 @@ ISSUANCE_NEW_RIGHTS = {
 for template, permissions in ISSUANCE_NEW_RIGHTS.items():
     TEMPLATES[template].update(permissions)
 
+IMPORT_PREVIEW_NEW_RIGHTS={"Делопроизводитель":{code:"institution" for code in ("imports.preview","imports.results.view")}}
+TEMPLATES["Делопроизводитель"].update(IMPORT_PREVIEW_NEW_RIGHTS["Делопроизводитель"])
+TEMPLATES["Руководитель учреждения"]["imports.results.view"]="institution"
+
 STAFF = [
     ("Власова Т.В.","3","head",["16.1","16.2"]),
     ("Миндибекова Т.М.","3","deputy",["1.1","3.1"]),

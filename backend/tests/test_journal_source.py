@@ -42,6 +42,7 @@ def test_xlsx_caches_and_formulas_are_kept_separate_and_second_sheet_is_ignored(
 
 def test_xlsx_1904_epoch_changes_serial_interpretation():
     result=parse_journal(xlsx_source([row(C=1,P=2)],date1904=True),"journal.xlsx")
+    assert result.to_dict()["date_system"]=="1904"
     assert result.rows[0].facts["received_on"]=="1904-01-02"
     assert result.rows[0].facts["completed_on"]=="1904-01-03"
 

@@ -34,6 +34,7 @@ class NormalizedRow(SourceRow):
 class ParsedJournal:
     source_name:str
     source_kind:str
+    date_system:str
     source_sha256:str
     sheet_name:str
     parser_version:str
