@@ -14,12 +14,21 @@ from .serializers import DocumentOutput,FileVersionOutput
 
 
 @transaction.atomic
-def create_document(*,actor,data):
+def create_document(*,actor,data,idempotency_key=None):
     employee=active_employee(actor)
     department=data.get("department")
     require(actor,"documents.upload",employee_id=employee.id if employee else None,department_ids=[department.id] if department else [])
-    document=Document.objects.create(created_by=employee,**data)
-    audit(actor,"document.create",document,DocumentOutput(document).data)
+    def operation():
+        document=Document.objects.create(created_by=employee,**data)
+        audit(actor,"document.create",document,DocumentOutput(document).data)
+        return {"id":str(document.pk)}
+
+    # Keep unkeyed legacy callers compatible; the shared UI always supplies a
+    # stable key before its first metadata POST, not only before file upload.
+    payload={"kind":data["kind"],"title":data["title"],"source_kind":data["source_kind"],"department_id":str(department.pk) if department else None}
+    result=operation() if idempotency_key is None else execute_once(actor=actor,action="document.create",key=idempotency_key,payload=payload,operation=operation)
+    document=Document.objects.get(pk=result["id"])
+    if idempotency_key is not None:require_document(actor,"documents.view",document)
     return document
 
 

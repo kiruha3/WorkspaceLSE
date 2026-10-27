@@ -10,6 +10,7 @@ const options = computed(() => props.kindOptions ?? [{ value: 'resolution' as co
 const kind = ref<DocumentKind>(options.value[0]!.value), title = ref(''), sourceKind = ref<'paper_original' | 'uploaded_copy'>('paper_original')
 const file = ref<File | null>(null), prepared = ref<BasisDocument | null>(null), preparedPayload = ref(''), uploaded = ref<File | null>(null)
 const uploadKey = ref('')
+const metadataAttempt = ref<{ stamp: string; key: string } | null>(null)
 watch(file, () => { uploadKey.value = '' }, { flush: 'sync' })
 const payload = computed(() => ({ kind: kind.value, title: title.value.trim(), source_kind: sourceKind.value, department_id: props.departmentId || null }))
 const dirty = computed(() => Boolean(title.value || file.value || prepared.value || kind.value !== options.value[0]!.value || sourceKind.value !== 'paper_original'))
@@ -20,7 +21,8 @@ async function persist(): Promise<BasisDocument> {
   if (sourceKind.value === 'uploaded_copy' && !file.value && !prepared.value?.versions.length) throw new ApiError(400, 'file_required', props.heading ? 'Выберите файл документа.' : 'Выберите файл копии основания.', { file: ['Файл ещё не сохранён'] })
   const stamp = JSON.stringify(payload.value)
   if (!prepared.value || stamp !== preparedPayload.value) {
-    prepared.value = await api.request<BasisDocument>('/documents/', { method: 'POST', body: payload.value })
+    if (metadataAttempt.value?.stamp !== stamp) metadataAttempt.value = { stamp, key: newCommandKey() }
+    prepared.value = await api.request<BasisDocument>('/documents/', { method: 'POST', body: payload.value, headers: { 'Idempotency-Key': metadataAttempt.value.key } })
     preparedPayload.value = stamp; uploaded.value = null; uploadKey.value = ''
   }
   if (file.value && uploaded.value !== file.value) {

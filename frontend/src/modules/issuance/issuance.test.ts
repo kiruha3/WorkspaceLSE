@@ -28,6 +28,27 @@ async function open(value: IssuePackage = pkg, transport?: Transport, url = '/is
 }
 afterEach(() => vi.restoreAllMocks()); enableAutoUnmount(afterEach)
 describe('material issuance workplace', () => {
+  it.each(['uploaded_copy', 'paper_original'] as const)('pins the main issued %s supplement to its issuing check, not latest or another check', async source => {
+    const first = { id: 'supp-v1', number: 1, original_name: 'accepted.pdf', content_type: 'application/pdf', size: 12, sha256: '', created_at: revision.created_at, download_url: '/supp-v1/download/', preview_url: '/supp-v1/preview/' }
+    const document = { ...basis, id: 'subscription', kind: 'expert_subscription' as const, source_kind: source, versions: [first, { ...first, id: 'supp-v2', number: 2, original_name: 'later.pdf', download_url: '/supp-v2/download/', preview_url: '/supp-v2/preview/' }] }
+    const content = { ...revision, items: [{ id: 'item-1', kind: 'expert_subscription' as const, expertise_id: work.id, document, note: '' }] }
+    const check = (id: string, accepted_version_id: string | null) => ({ id, revision_id: revision.id, actor, created_at: revision.created_at, reason: 'Проверка', works: [], files: [{ item_id: 'item-1', closure_id: null, document: { ...document, accepted_version_id } }] })
+    const issuance = { id: 'issue-1', check_id: 'issuing-check', issued_on: '2026-10-28', method: options.methods[0]!, recipient_name: 'ДЕМО', recipient_basis: 'ДЕМО', tracking: '', comment: '', evidence: null, actor, created_at: revision.created_at, reason: 'ДЕМО' }
+    const { wrapper } = await open({ ...ready, state: 'issued', content, content_history: [content], checks: [check('another-check', 'supp-v2'), check('issuing-check', source === 'uploaded_copy' ? 'supp-v1' : null)], issuance, allowed_actions: [] })
+    const main = wrapper.get('[data-issue-work="work-1"] .inset-form')
+    if (source === 'uploaded_copy') {
+      expect(main.get('iframe').attributes('src')).toBe('/supp-v1/preview/')
+      expect(main.get('a[download]').attributes('href')).toBe('/supp-v1/download/')
+      await main.get('select').setValue('supp-v2')
+    } else {
+      expect(main.find('iframe').exists()).toBe(false)
+      expect(main.find('a[download]').exists()).toBe(false)
+      expect(main.text()).toContain('Подтверждённая версия файла не установлена')
+      await main.get('select').setValue('supp-v2')
+    }
+    expect(main.get('[data-unconfirmed-file]').text()).toContain('не подтверждена этим событием')
+    wrapper.unmount()
+  })
   it('shows every work requirement and server blocker without treating completed work as issued', async () => {
     const { wrapper } = await open({ ...pkg, works: [work, { ...work, id: 'work-2', registration_number: '152/4-2-26', category_code: '2', required_items: ['expert_subscription', 'cover_letter', 'invoice'] }] })
     expect(wrapper.get('[data-issue-fact]').text()).toContain('Не выдано'); expect(wrapper.get('[data-issue-work="work-1"]').text()).toContain('Уведомление'); expect(wrapper.get('[data-issue-work="work-2"]').text()).toContain('Счёт'); expect(wrapper.get('[data-issue-readiness]').text()).toContain('Не хватает подписки'); expect(wrapper.find('[data-start-issue]').attributes('disabled')).toBeDefined(); wrapper.unmount()

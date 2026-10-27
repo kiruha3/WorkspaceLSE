@@ -94,3 +94,44 @@ def test_upload_replay_recovers_committed_file_without_duplicate(employee_factor
     assert send(PNG+b"different").status_code==409
     employee.role_assignments.filter(role__permissions__permission_code="documents.upload").update(is_active=False)
     assert send().status_code==403
+
+
+def test_metadata_replay_recovers_one_document_and_audit_then_uploads_same_id(employee_factory,grant,settings,tmp_path):
+    from apps.documents.models import Document
+    from apps.audit.models import AuditEvent
+    settings.MEDIA_ROOT=tmp_path
+    client,_=clerk_client(employee_factory,grant)
+    data={"kind":"decision","title":"ДЕМО · потерян ответ метаданных","source_kind":"uploaded_copy"}
+    def send(body=data,key="metadata-lost-response"):
+        return client.post("/api/v1/documents/",body,content_type="application/json",HTTP_IDEMPOTENCY_KEY=key)
+    first=send();assert first.status_code==201
+    repeated=send();assert repeated.status_code==201
+    assert repeated.json()["id"]==first.json()["id"]
+    assert Document.objects.count()==1
+    assert AuditEvent.objects.filter(action="document.create").count()==1
+    version=upload(client,first.json()["id"],key="metadata-following-upload").json()
+    fresh=send().json()
+    assert fresh["version"]==2 and fresh["versions"][0]["id"]==version["id"]
+    receipt=client.post("/api/v1/receipts/",{"received_at":"2026-10-28","basis_document_id":fresh["id"]},content_type="application/json")
+    assert receipt.status_code==201 and receipt.json()["basis_document"]["id"]==first.json()["id"]
+    assert send({**data,"title":"Другой документ"}).status_code==409
+    assert Document.objects.count()==1
+
+
+@pytest.mark.parametrize("permission",["documents.upload","documents.view"])
+def test_metadata_replay_checks_current_rights_before_returning_document(employee_factory,grant,permission):
+    client,employee=clerk_client(employee_factory,grant)
+    data={"kind":"decision","title":"Скрытый документ","source_kind":"paper_original"}
+    def send():return client.post("/api/v1/documents/",data,content_type="application/json",HTTP_IDEMPOTENCY_KEY="metadata-revoked")
+    assert send().status_code==201
+    employee.role_assignments.filter(role__permissions__permission_code=permission).update(is_active=False)
+    response=send()
+    assert response.status_code==403 and "id" not in response.json()
+
+
+@pytest.mark.parametrize("key",["","x"*101])
+def test_metadata_invalid_present_key_is_rejected_without_document(employee_factory,grant,key):
+    from apps.documents.models import Document
+    client,_=clerk_client(employee_factory,grant)
+    response=client.post("/api/v1/documents/",{"kind":"decision","title":"Не создавать","source_kind":"paper_original"},content_type="application/json",HTTP_IDEMPOTENCY_KEY=key)
+    assert response.status_code==400 and Document.objects.count()==0

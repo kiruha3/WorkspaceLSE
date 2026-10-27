@@ -13,7 +13,7 @@ from .services import create_document,add_file_version
 class DocumentListView(GenericAPIView):
     def post(self,request):
         serializer=DocumentCreate(data=request.data);serializer.is_valid(raise_exception=True)
-        return Response(DocumentOutput(create_document(actor=request.user,data=serializer.validated_data)).data,status=201)
+        return Response(DocumentOutput(create_document(actor=request.user,data=serializer.validated_data,idempotency_key=request.headers.get("Idempotency-Key"))).data,status=201)
 
 
 class DocumentDetailView(GenericAPIView):
