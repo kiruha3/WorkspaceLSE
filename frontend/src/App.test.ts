@@ -8,6 +8,14 @@ import { useDirtyGuard } from './shared/ui/useDirtyGuard'
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('session exit', () => {
+  it('offers the intake and expertise registries only under their independent read rights', async () => {
+    const router = createRouter({ history: createMemoryHistory(), routes: ['/workspace', '/intake', '/expertises'].map(path => ({ path, component: { template: '<p>Раздел</p>' } })) })
+    await router.push('/workspace')
+    const wrapper = mount(App, { global: { plugins: [sessionWith('receipts.view'), router] } })
+    expect(wrapper.find('nav a[href="/intake"]').exists()).toBe(true)
+    expect(wrapper.find('nav a[href="/expertises"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
   it('does not end the server session if the user keeps an unsaved form', async () => {
     let requests = 0
     vi.stubGlobal('fetch', async () => { requests++; return json({ csrf_token: 'token' }) })

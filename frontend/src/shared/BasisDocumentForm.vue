@@ -1,0 +1,39 @@
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { ApiError, useApi } from '../api/client'
+import type { BasisDocument, FileVersion } from '../api/types'
+const props = defineProps<{ departmentId: string; busy?: boolean }>()
+const api = useApi()
+const kind = ref<'resolution' | 'decision'>('resolution'), title = ref(''), sourceKind = ref<'paper_original' | 'uploaded_copy'>('paper_original')
+const file = ref<File | null>(null), prepared = ref<BasisDocument | null>(null), preparedPayload = ref(''), uploaded = ref<File | null>(null)
+const payload = computed(() => ({ kind: kind.value, title: title.value.trim(), source_kind: sourceKind.value, department_id: props.departmentId || null }))
+const dirty = computed(() => Boolean(title.value || file.value || prepared.value))
+function chooseFile(event: Event) { file.value = (event.target as HTMLInputElement).files?.[0] ?? null }
+async function persist(): Promise<BasisDocument> {
+  if (!title.value.trim()) throw new ApiError(400, 'validation_error', 'Укажите название документа-основания.', { title: ['Обязательное поле'] })
+  if (sourceKind.value === 'uploaded_copy' && !file.value && !prepared.value?.versions.length) throw new ApiError(400, 'file_required', 'Выберите файл копии основания.', { file: ['Файл ещё не сохранён'] })
+  const stamp = JSON.stringify(payload.value)
+  if (!prepared.value || stamp !== preparedPayload.value) {
+    prepared.value = await api.request<BasisDocument>('/documents/', { method: 'POST', body: payload.value })
+    preparedPayload.value = stamp; uploaded.value = null
+  }
+  if (file.value && uploaded.value !== file.value) {
+    const body = new FormData()
+    body.append('expected_version', String(prepared.value.version)); body.append('file', file.value)
+    const version = await api.request<FileVersion>(`/documents/${prepared.value.id}/versions/`, { method: 'POST', body })
+    prepared.value = { ...prepared.value, version: prepared.value.version + 1, versions: [...prepared.value.versions, version] }
+    uploaded.value = file.value
+  }
+  return prepared.value
+}
+defineExpose({ persist, dirty })
+</script>
+<template>
+  <fieldset class="form-grid" :disabled="busy">
+    <div class="form-columns"><label>Вид основания<select v-model="kind" name="document_kind"><option value="resolution">Постановление</option><option value="decision">Определение</option></select></label><label>Источник основания<select v-model="sourceKind" name="source_kind"><option value="paper_original">Бумажный оригинал</option><option value="uploaded_copy">Загруженная копия / фото</option></select></label></div>
+    <label>Название или известные реквизиты<input v-model="title" name="document_title" maxlength="500" required /></label>
+    <p v-if="sourceKind === 'paper_original'" class="muted compact">Заявляется наличие бумажного оригинала. Скан можно добавить позднее в карточке поступления.</p>
+    <label v-else>Файл копии или фото<input name="basis_file" type="file" @change="chooseFile" /><small>Копия станет основанием после успешного сохранения файла на сервере.</small></label>
+    <p v-if="prepared" class="message message-success" role="status">Документ подготовлен: {{ prepared.id }}. {{ prepared.versions.length ? 'Файл сохранён.' : 'Электронного файла пока нет.' }} Поступление и номер экспертизы сохраняются отдельно.</p>
+  </fieldset>
+</template>

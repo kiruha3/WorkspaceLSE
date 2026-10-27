@@ -6,6 +6,34 @@ const json = (value: unknown, status = 200) => new Response(JSON.stringify(value
 })
 
 describe('session API client', () => {
+  it('uploads the original FormData with CSRF and leaves the multipart boundary to the browser', async () => {
+    let sent: RequestInit | undefined
+    const client = new ApiClient(async (input, init) => {
+      if (String(input).endsWith('/csrf/')) return json({ csrf_token: 'upload-token' })
+      sent = init
+      return json({ id: 'file-1' }, 201)
+    })
+    const body = new FormData()
+    body.append('expected_version', '1')
+    body.append('file', new File(['scan'], 'basis.pdf', { type: 'application/pdf' }))
+    await client.request('/documents/document-1/versions/', { method: 'POST', body })
+    expect(sent?.body).toBe(body)
+    expect(new Headers(sent?.headers).has('Content-Type')).toBe(false)
+    expect(new Headers(sent?.headers).get('X-CSRFToken')).toBe('upload-token')
+  })
+
+  it('sends a caller idempotency key without losing the JSON and CSRF headers', async () => {
+    let sent: RequestInit | undefined
+    const client = new ApiClient(async (input, init) => {
+      if (String(input).endsWith('/csrf/')) return json({ csrf_token: 'token' })
+      sent = init
+      return json({ id: 'work-1' }, 201)
+    })
+    await client.request('/receipts/receipt-1/expertises/', { method: 'POST', body: { registration_number: '151/4-1-26' }, headers: { 'Idempotency-Key': 'retry-key' } })
+    expect(new Headers(sent?.headers).get('Idempotency-Key')).toBe('retry-key')
+    expect(new Headers(sent?.headers).get('Content-Type')).toBe('application/json')
+    expect(new Headers(sent?.headers).get('X-CSRFToken')).toBe('token')
+  })
   it('gets CSRF before login and uses the rotated token on the next write', async () => {
     const calls: { path: string; init?: RequestInit }[] = []
     const client = new ApiClient(async (input, init) => {

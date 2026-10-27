@@ -1,0 +1,30 @@
+<script setup lang="ts">
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
+import { LatestRequest, useApi } from '../../api/client'
+import type { Expertise } from '../../api/types'
+import ApiMessage from '../../shared/ui/ApiMessage.vue'
+import BasisPreview from '../../shared/BasisPreview.vue'
+import AssignmentForm from './AssignmentForm.vue'
+const api = useApi(), route = useRoute(), requests = new LatestRequest()
+const expertise = ref<Expertise | null>(null), loading = ref(false), error = ref<unknown>(null), action = ref<'assign' | 'reassign' | null>(null), success = ref('')
+const stateLabels = { in_progress: 'В производстве', suspended: 'Приостановлена', completed: 'Завершена', without_execution: 'Без исполнения' }
+const natureLabels = { primary: 'Первичная', repeated: 'Повторная', additional: 'Дополнительная' }
+const returnTo = computed(() => typeof route.query.return === 'string' && /^\/expertises(?:\?|$)/.test(route.query.return) ? route.query.return : '/expertises')
+function time(value: string | null) { return value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Krasnoyarsk', dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : 'Не указано' }
+async function load() {
+  loading.value = true; error.value = null
+  try { await requests.run(signal => api.request<Expertise>(`/expertises/${route.params.id}/`, { signal }), value => { expertise.value = value; loading.value = false }) }
+  catch (cause) { error.value = cause; loading.value = false }
+}
+function updated(value: Expertise) { requests.cancel(); loading.value = false; expertise.value = value; action.value = null; success.value = 'Назначения сохранены сервером. Номер работы не изменён.' }
+watch(() => route.params.id, () => { if (route.path.startsWith('/expertises/')) { action.value = null; expertise.value = null; success.value = ''; void load() } }, { immediate: true })
+onBeforeUnmount(() => requests.cancel())
+</script>
+<template>
+  <div class="page-heading"><div><p class="eyebrow">Рабочая карточка экспертизы</p><h1>{{ expertise?.registration_number || 'Экспертиза' }}</h1><p class="muted">{{ expertise?.material.title || 'Серверные данные работы' }}</p></div><RouterLink data-back-to-expertises :to="returnTo">← К реестру экспертиз</RouterLink></div><ApiMessage :error="error" /><p v-if="loading" class="state">Загрузка рабочей карточки…</p>
+  <template v-if="expertise"><p v-if="success" class="message message-success" role="status">{{ success }}</p><section class="card"><div class="section-heading"><div><h2>{{ expertise.registration_number }}</h2><p v-if="expertise.historical_number" class="muted compact">Исторический номер: {{ expertise.historical_number }}</p></div><div class="button-row"><span class="badge" :class="expertise.state === 'in_progress' ? 'badge-green' : ''">{{ stateLabels[expertise.state] }}</span><button :disabled="loading" @click="load">Обновить серверные сведения</button></div></div><dl class="work-facts"><div><dt>Отдел</dt><dd>{{ expertise.department.code }} · {{ expertise.department.name }}</dd></div><div><dt>Специальность</dt><dd>{{ expertise.specialty.code }} · {{ expertise.specialty.name }}</dd></div><div><dt>Характер назначения</dt><dd>{{ natureLabels[expertise.appointment_nature] }}{{ expertise.is_commission ? ' · Комиссионная' : '' }}</dd></div><div><dt>Поступление</dt><dd>{{ expertise.receipt.received_at }}</dd></div><div><dt>Категория / год</dt><dd>{{ expertise.category_code }} / {{ expertise.year }}</dd></div><div><dt>Комплексная группа</dt><dd>{{ expertise.complex_group?.title || (expertise.complex_group ? expertise.complex_group.id : 'Не включена') }}</dd></div></dl><p v-if="expertise.complex_group" class="muted compact">В комплексной группе отдельный номер для каждой специальности. Доступ к этой работе не предоставляет доступ ко всем работам материала.</p><p class="muted compact">Версия работы {{ expertise.version }}</p></section>
+    <section class="card stack-card"><div class="section-heading"><div><h2>Текущие исполнители</h2><p class="muted compact">{{ expertise.is_commission ? 'Комиссия выполняет одну работу под одним номером.' : 'Назначение по специальности этой работы.' }}</p></div><div class="button-row"><button v-if="expertise.allowed_actions.includes('expertise.assign') && !action" data-start-assignment class="button-primary" @click="action = 'assign'">Назначить эксперта{{ expertise.is_commission ? 'ов' : '' }}</button><button v-if="expertise.allowed_actions.includes('expertise.reassign') && !action" data-start-assignment @click="action = 'reassign'">Перепоручить</button></div></div><div data-current-assignments><div v-for="assignment in expertise.current_assignments" :key="assignment.id" class="assignment-line"><strong>{{ assignment.employee.full_name }}</strong><small>Назначен: {{ time(assignment.started_at) }}</small><p class="muted compact">{{ assignment.reason || 'Основание не указано' }}</p></div><p v-if="!expertise.current_assignments.length" class="muted">Исполнитель ещё не назначен. Это отдельный признак, состояние работы — {{ stateLabels[expertise.state].toLowerCase() }}.</p></div><AssignmentForm v-if="action" :key="`${expertise.id}-${action}`" :expertise="expertise" :action="action" @updated="updated" @cancel="action = null" /></section>
+    <section data-assignment-history class="card stack-card"><h2>История назначений</h2><div v-for="assignment in expertise.assignment_history" :key="assignment.id" class="assignment-line"><strong>{{ assignment.employee.full_name }}</strong><small>{{ time(assignment.started_at) }} → {{ assignment.ended_at ? time(assignment.ended_at) : 'действует' }}</small><p class="muted compact">{{ assignment.reason || 'Основание не указано' }}</p></div><p v-if="!expertise.assignment_history.length" class="muted compact">Предыдущих назначений нет.</p></section><section class="card stack-card"><BasisPreview :document="expertise.basis_document" /></section>
+  </template>
+</template>

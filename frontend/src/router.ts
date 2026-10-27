@@ -5,6 +5,10 @@ import LoginPage from './modules/LoginPage.vue'
 import RolesPage from './modules/RolesPage.vue'
 import PeoplePage from './modules/PeoplePage.vue'
 import AccessPeoplePage from './modules/AccessPeoplePage.vue'
+import IntakePage from './modules/intake/IntakePage.vue'
+import ReceiptPage from './modules/intake/ReceiptPage.vue'
+import ExpertisesPage from './modules/expertises/ExpertisesPage.vue'
+import ExpertisePage from './modules/expertises/ExpertisePage.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -12,6 +16,10 @@ export const router = createRouter({
     { path: '/', redirect: '/workspace' },
     { path: '/login', component: LoginPage, meta: { title: 'Вход' } },
     { path: '/workspace', component: HomePage, meta: { title: 'Рабочее место' } },
+    { path: '/intake', component: IntakePage, meta: { permission: 'receipts.view', title: 'Приёмка материалов' } },
+    { path: '/receipts/:id', component: ReceiptPage, meta: { permission: 'receipts.view', title: 'Поступление' } },
+    { path: '/expertises', component: ExpertisesPage, meta: { permission: 'expertise.view', title: 'Реестр экспертиз' } },
+    { path: '/expertises/:id', component: ExpertisePage, meta: { permission: 'expertise.view', title: 'Рабочая карточка' } },
     { path: '/roles', component: RolesPage, meta: { permissionsAny: ['access.roles.view','access.roles.manage'], title: 'Роли и права' } },
     { path: '/access', component: AccessPeoplePage, meta: { permissionsAny: accessDirectoryActions, title: 'Учётные записи' } },
     { path: '/people', component: PeoplePage, meta: { permission: 'employees.view', title: 'Сотрудники' } },

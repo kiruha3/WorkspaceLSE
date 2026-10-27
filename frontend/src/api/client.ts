@@ -4,7 +4,7 @@ import type { Page } from './types'
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public fieldErrors: Record<string, unknown> = {}) { super(message); this.name = 'ApiError' }
 }
-interface Options { method?: string; body?: unknown; signal?: AbortSignal }
+interface Options { method?: string; body?: unknown; signal?: AbortSignal; headers?: HeadersInit }
 export class ApiClient {
   private csrfToken = ''
   private csrfRequest: Promise<void> | null = null
@@ -20,12 +20,15 @@ export class ApiClient {
   async request<T>(path: string, options: Options = {}): Promise<T> {
     const method = options.method ?? 'GET'
     if (!['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) await this.ensureCsrf()
-    const headers = new Headers({ Accept: 'application/json' })
-    if (options.body !== undefined) headers.set('Content-Type', 'application/json')
+    const headers = new Headers(options.headers)
+    headers.set('Accept', 'application/json')
+    const multipart = options.body instanceof FormData
+    if (multipart) headers.delete('Content-Type')
+    else if (options.body !== undefined) headers.set('Content-Type', 'application/json')
     if (!['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) headers.set('X-CSRFToken', this.csrfToken)
     const response = await this.transport(`/api/v1${path}`, {
       method, headers, credentials: 'same-origin', signal: options.signal,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: options.body === undefined ? undefined : multipart ? options.body as FormData : JSON.stringify(options.body),
     })
     let data: unknown
     try { data = response.status === 204 ? undefined : await response.json() }

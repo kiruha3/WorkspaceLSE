@@ -93,6 +93,24 @@ def bootstrap(args):
                    {"AIS_BOOTSTRAP_PASSWORD":login["password"]})
 
 
+def workflow_demo():
+    login_file=RUNTIME / "workflow-demo-login.json"
+    if login_file.exists():login=json.loads(login_file.read_text(encoding="utf-8"))
+    else:
+        login={"password":secrets.token_urlsafe(24),"usernames":["demo.clerk","demo.head3","demo.expert","demo.expert2","demo.trainee"]}
+        login_file.write_text(json.dumps(login),encoding="utf-8")
+    result=backend(["manage.py","bootstrap_workflow_demo"],{"AIS_DEMO_PASSWORD":login["password"]})
+    if result==0:
+        (RUNTIME / "Демо-доступ-к-АИС.txt").write_text(
+            "АИС ФГБУ Абаканская ЛСЭ — учебные профили\nhttp://127.0.0.1:5173/\nhttp://185.112.226.84:5173/\n\n"
+            "demo.clerk — приёмка и ручная регистрация\ndemo.head3 — назначение/перепоручение отдела 3\n"
+            "demo.expert / demo.expert2 — квалифицированные учебные эксперты 1.1\ndemo.trainee — обучение 1.1, назначение запрещено\n\n"
+            "Пароль учебных профилей: "+login["password"]+"\n\nНе персональные аккаунты сотрудников, не использовать для реальных дел.\n"
+            "Учётная запись setup и её пароль сохранены отдельно в Доступ-к-АИС.txt.\n",encoding="utf-8")
+        print("Demo credentials saved to .runtime/Демо-доступ-к-АИС.txt (ignored by Git).")
+    return result
+
+
 if __name__ == "__main__":
     command, *arguments = sys.argv[1:]
     if command == "db-start":
@@ -105,6 +123,8 @@ if __name__ == "__main__":
         sys.exit(backend(arguments))
     elif command == "bootstrap":
         sys.exit(bootstrap(arguments))
+    elif command == "workflow-demo":
+        sys.exit(workflow_demo())
     elif command == "web-hosts":
         if not arguments or any(not re.fullmatch(r"[A-Za-z0-9.-]+",host) for host in arguments):
             raise SystemExit("Pass IPv4 addresses or hostnames, without protocol or port.")
