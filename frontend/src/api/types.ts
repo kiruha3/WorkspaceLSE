@@ -37,8 +37,9 @@ export interface FileVersion {
   id: string; number: number; original_name: string; content_type: string; size: number
   sha256: string; created_at: string; download_url: string; preview_url: string | null
 }
+export type DocumentKind = 'resolution' | 'decision' | 'deadline_agreement' | 'deadline_request'
 export interface BasisDocument {
-  id: string; kind: 'resolution' | 'decision'; title: string; source_kind: 'paper_original' | 'uploaded_copy'
+  id: string; kind: DocumentKind; title: string; source_kind: 'paper_original' | 'uploaded_copy'
   department_id: string | null; version: number; versions: FileVersion[]
 }
 export type DocumentLink = BasisDocument | { id: string; restricted: true } | null
@@ -51,6 +52,22 @@ export interface ExpertAssignment {
   id: string; employee: { id: string; full_name: string }; started_at: string; ended_at: string | null; reason: string
 }
 export interface AssignmentCandidate { id: string; full_name: string; eligible: boolean; code: string; message: string }
+export interface Production {
+  as_of: string; method: 'calendar_inclusive_pause_half_open_v1'
+  calendar_days: number | null; paused_days: number | null; active_calendar_days: number | null
+  initial_due_on: string | null; agreed_due_on: string | null; current_due_on: string | null
+  last_requested_due_on: string | null; overdue_calendar_days: number | null
+}
+export interface Suspension {
+  id: string; suspended_on: string; resumed_on: string | null; reason: string; resume_reason: string
+  created_at: string; resumed_recorded_at: string | null; actor: { id: string; full_name: string }
+  resumed_by: { id: string; full_name: string } | null
+}
+export type DeadlineKind = 'initial' | 'request' | 'agreement'
+export interface DeadlineEvent {
+  id: string; kind: DeadlineKind; recorded_on: string; due_on: string; reason: string; created_at: string
+  actor: { id: string; full_name: string }; document: DocumentLink
+}
 export interface Expertise {
   id: string; registration_number: string; historical_number: string; sequence: number; year: number; category_code: string
   department: Pick<Reference, 'id' | 'code' | 'name'>; specialty: Pick<Reference, 'id' | 'code' | 'name'>
@@ -58,4 +75,5 @@ export interface Expertise {
   appointment_nature: 'primary' | 'repeated' | 'additional'; is_commission: boolean; complex_group: ComplexGroup | null
   state: 'in_progress' | 'suspended' | 'completed' | 'without_execution'; version: number
   current_assignments: ExpertAssignment[]; assignment_history: ExpertAssignment[]; allowed_actions: string[]; basis_document: DocumentLink
+  production: Production; suspensions: Suspension[]; deadline_events: DeadlineEvent[]
 }

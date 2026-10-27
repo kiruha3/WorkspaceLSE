@@ -63,10 +63,10 @@
 - Deadline DTO `{id,kind,recorded_on,due_on,reason,created_at,actor:{id,full_name},document:DocumentLink}`; production initial/agreed/current/last_requested_due_on and overdue_calendar_days computed from latest factual-date event, tie created_at/id. Request never affects current. Original initial may stay null.
 - Extend Document.kind with deadline_agreement/deadline_request; original basis accepts resolution/decision only. Agreement accepts deadline_agreement or resolution/decision, paper_original or persisted uploaded_copy; request doc optional but readable/persisted when linked. Shared document read through allowed deadline link, never write authority or unrelated links.
 
-- [ ] Step 1: RED tests initial/request/agreement independent; unknown initial remains null; agreement required actual document, request kind rejected as proof; all dates bounded as design, due_on future allowed; older fact doesn't override; paper no invented file; pending copy invalid; unrelated doc403, own expert can read clerk-linked agreement only with documents.view; revoked rights redacts and denies download; metadata document cannot replace receipt basis. HTTP separate clerk/expert sessions suspend→request→agreement→resume and reload true data.
-- [ ] Step 2: Run focused RED; implement append-only records transactionally, lock evidence/document and work, context policy; requests do not close correspondence/control.
-- [ ] Step 3: Full backend suite and migrations check, expected green. Keep all receipt/number/upload replay regressions.
-- [ ] Step 4: Commit `feat: record requested and agreed expertise deadlines`.
+- [x] Step 1: RED tests initial/request/agreement independent; unknown initial remains null; agreement required actual document, request kind rejected as proof; all dates bounded as design, due_on future allowed; older fact doesn't override; paper no invented file; pending copy invalid; unrelated doc403, own expert can read clerk-linked agreement only with documents.view; revoked rights redacts and denies download; metadata document cannot replace receipt basis. HTTP separate clerk/expert sessions suspend→request→agreement→resume and reload true data.
+- [x] Step 2: Run focused RED; implement append-only records transactionally, lock evidence/document and work, context policy; requests do not close correspondence/control.
+- [x] Step 3: Full backend suite and migrations check, expected green. Keep all receipt/number/upload replay regressions.
+- [x] Step 4: Commit `feat: record requested and agreed expertise deadlines`.
 
 ### Task 3: Рабочий блок производства Vue и проверка разных ролей
 
@@ -80,9 +80,9 @@
 - Produce actual forms gated by allowed_actions; server confirmation only, `updated` event passes new ExpertiseDTO and cancels stale card requests without resetting active drafts. No fictional completion/issue button.
 - Agreement document uses actual paper metadata or staged upload with stable identity; preserve document/file/reason on 403/409/lost response. Explicit reload of identical data retains key; changed payload changes key. Include state/calendar filters in URL and return link.
 
-- [ ] Step 1: Component RED tests for rights, pause/resume, request versus effective deadline, required evidence upload and persisted preview, retained drafts on conflicts, stable replay through unchanged reload and payload-edits reset, race with old GET after successful mutation; filters restored. Existing full frontend suite remains green.
-- [ ] Step 2: Implement consistent green full-width card panel/history, method/as_of shown; generic document creation must not relabel agreement as original постановление. No hard-coded role switcher or direct date mutations.
-- [ ] Step 3: Full frontend tests/typecheck/build and full serialized backend suite. Browser own demo expert2 card pause→request/agreement→resume; head without expert authority no self-service bypass, clerk allowed by institution grant. Demo files labelled not real court data.
+- [x] Step 1: Component RED tests for rights, pause/resume, request versus effective deadline, required evidence upload and persisted preview, retained drafts on conflicts, stable replay through unchanged reload and payload-edits reset, race with old GET after successful mutation; filters restored. Existing full frontend suite remains green.
+- [x] Step 2: Implement consistent green full-width card panel/history, method/as_of shown; generic document creation must not relabel agreement as original постановление. No hard-coded role switcher or direct date mutations.
+- [x] Step 3: Full frontend tests/typecheck/build and full serialized backend suite. Browser own demo expert2 card pause→request/agreement→resume; head without expert authority no self-service bypass, clerk allowed by institution grant. Demo files labelled not real court data.
 - [ ] Step 4: Commit `feat: connect production history and deadline forms in Vue`, one fresh whole-slice review, one TDD fix pass for Important/Critical, preserve minor/rulings in tracked verification record. Keep branch and servers; no push. Entire goal remains active.
 
 ## Further required goal work

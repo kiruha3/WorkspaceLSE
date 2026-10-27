@@ -8,6 +8,7 @@ export const expertise: Expertise = {
   id: 'work-1', registration_number: '151/4-1-26', historical_number: '', sequence: 151, year: 2026, category_code: '1', department, specialty,
   receipt: { id: receipt.id, received_at: receipt.received_at, status: receipt.status }, material: receipt.material, appointment_nature: 'primary', is_commission: false, complex_group: null,
   state: 'in_progress', version: 1, current_assignments: [], assignment_history: [], allowed_actions: ['expertise.assign'], basis_document: basis,
+  production: { as_of: '2026-10-28', method: 'calendar_inclusive_pause_half_open_v1', calendar_days: 1, paused_days: 0, active_calendar_days: 1, initial_due_on: null, agreed_due_on: null, current_due_on: null, last_requested_due_on: null, overdue_calendar_days: null }, suspensions: [], deadline_events: [],
 }
 export async function testRouter(path: string) {
   const router = createRouter({ history: createMemoryHistory(), routes: ['/intake', '/receipts/:id', '/expertises', '/expertises/:id'].map(path => ({ path, component: { template: '<div />' } })) })

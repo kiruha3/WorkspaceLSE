@@ -6,6 +6,28 @@ import { department, expertise, specialty, testRouter } from '../../test/intakeF
 import ExpertisesPage from './ExpertisesPage.vue'
 
 describe('expertise registry', () => {
+  it('restores state and calendar day range from the URL, forwards zero and retains filters in the work return link', async () => {
+    const paths: string[] = []
+    const client = new ApiClient(async input => {
+      const path = String(input); paths.push(path)
+      if (path.includes('/references/')) return json(page(path.includes('departments') ? [department] : [specialty]))
+      if (path.includes('filter-options')) return json({ employees: [] })
+      return json(page([expertise]))
+    })
+    const router = await testRouter('/expertises?state=suspended&calendar_days_min=0&calendar_days_max=12&page=1')
+    const wrapper = mount(ExpertisesPage, { global: { plugins: [sessionWith('expertise.view'), router], provide: { [apiKey as symbol]: client } } })
+    await flushPromises()
+    expect(wrapper.get('[name="state"]').element).toHaveProperty('value', 'suspended')
+    expect(wrapper.get('[name="calendar_days_min"]').element).toHaveProperty('value', '0')
+    expect(wrapper.get('[name="calendar_days_max"]').element).toHaveProperty('value', '12')
+    expect(paths.some(path => path.includes('state=suspended') && path.includes('calendar_days_min=0') && path.includes('calendar_days_max=12'))).toBe(true)
+    const link = new URL(wrapper.get('[data-open-expertise]').attributes('href')!, 'http://localhost')
+    expect(link.searchParams.get('return')).toBe('/expertises?state=suspended&calendar_days_min=0&calendar_days_max=12&page=1')
+    await wrapper.get('[name="calendar_days_min"]').setValue('3')
+    await wrapper.get('form.toolbar').trigger('submit'); await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({ state: 'suspended', calendar_days_min: '3', calendar_days_max: '12', page: '1' })
+    wrapper.unmount()
+  })
   it('uses URL filters and keeps them in the detail return link', async () => {
     const paths: string[] = []
     const client = new ApiClient(async input => {
