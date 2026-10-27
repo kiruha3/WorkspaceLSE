@@ -1,12 +1,12 @@
 from django.db import transaction
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from apps.accounts.commands import execute_once
 from apps.accounts.policies import active_employee, permission_scopes
 from apps.accounts.services import audit, check_version, require_any_scope
 from apps.documents.models import Document
 from apps.documents.policies import require_document
 from .models import Letter, LetterRevision, LetterRecipient, LetterAttachment, LetterRegistration
-from .policies import require_letter, require_links, require_create_department
+from .policies import can_material, visible_works, require_letter, require_links, require_create_department
 from .locking import locked_letter, lock_letters
 
 
@@ -22,7 +22,17 @@ def append_revision(letter, actor, data, reason, *, parent_id=None):
     values = data.copy(); ids = values.pop("expertise_ids"); recipients = values.pop("recipients")
     if letter.direction == "outgoing" and values["received_on"]:
         raise ValidationError({"received_on": "Получение фиксируется у входящего письма, доставка — отдельным действием."})
-    require_links(actor, {**values, "expertise_ids": ids})
+    scopes = permission_scopes(actor)
+    require_links(actor, {**values, "expertise_ids": ids}, scopes)
+    if letter.current_revision_id:
+        previous = letter.current_revision
+        # A redacted read is not an instruction to unlink inaccessible facts.
+        hidden_ids = previous.expertises.exclude(pk__in=visible_works(actor, scopes)).values_list("pk", flat=True)
+        ids = [*ids, *hidden_ids]
+        if previous.material_id and not can_material(actor, previous.material, scopes):
+            if values["material"] is not None:
+                raise PermissionDenied("Недостаточно прав для замены связи с материалом.")
+            values["material"] = previous.material
     values["kind"] = checked_reference(values["kind"], set(letter.revisions.values_list("kind_id", flat=True)), "kind_id")
     parent_id = letter.current_revision.parent_id if letter.current_revision_id else parent_id
     if not parent_id and values["reply_completeness"]:

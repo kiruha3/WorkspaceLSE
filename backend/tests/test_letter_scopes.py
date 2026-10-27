@@ -98,6 +98,47 @@ def test_material_links_and_options_require_a_visible_receipt_or_work(employee_f
     assert detail["content"]["material"] is None and detail["content"]["expertises"] == []
 
 
+@pytest.mark.parametrize("hide_links", [True, False])
+def test_draft_roundtrip_preserves_hidden_links_but_can_remove_visible_links(employee_factory, grant, hide_links):
+    from apps.correspondence.models import Letter
+    client, actor, work, _, _, _, _ = production_setup(employee_factory, grant)
+    for action in ("letters.view", "letters.draft"): grant(actor, action, "own")
+    created = create_letter(client, material_id=work["material"]["id"], expertise_ids=[work["id"]])
+    assert created.status_code == 201
+    letter = created.json()["letter"]
+    if hide_links:
+        actor.role_assignments.filter(role__permissions__permission_code="expertise.view").update(is_active=False)
+    projected = client.get(f"/api/v1/letters/{letter['id']}/").json()
+    if hide_links:
+        assert projected["content"]["material"] is None and projected["content"]["expertises"] == []
+    saved = save_draft(client, projected, subject="Изменена только тема", material_id=None, expertise_ids=[])
+    assert saved.status_code == 200
+    revision = Letter.objects.get(pk=letter["id"]).current_revision
+    assert (str(revision.material_id) if revision.material_id else None) == (work["material"]["id"] if hide_links else None)
+    assert list(map(str, revision.expertises.values_list("pk", flat=True))) == ([work["id"]] if hide_links else [])
+    assert saved.json()["letter"]["content"]["material"] is None
+    assert saved.json()["letter"]["content"]["expertises"] == []
+
+
+def test_draft_cannot_replace_an_inaccessible_existing_material(employee_factory, grant):
+    from datetime import date
+    from apps.correspondence.models import Letter
+    from apps.intake.models import Material, Receipt
+    client, actor, work, _, _, _, _ = production_setup(employee_factory, grant)
+    for action in ("letters.view", "letters.draft", "receipts.view"): grant(actor, action, "own")
+    created = create_letter(client, material_id=work["material"]["id"])
+    assert created.status_code == 201
+    letter = created.json()["letter"]
+    actor.role_assignments.filter(role__permissions__permission_code="expertise.view").update(is_active=False)
+    other = Material.objects.create(title="Другой доступный материал", created_by=actor)
+    Receipt.objects.create(material=other, received_at=date(2026, 10, 1), created_by=actor)
+    response = save_draft(client, letter, material_id=str(other.pk))
+    assert response.status_code == 403
+    current = Letter.objects.get(pk=letter["id"])
+    assert current.version == 1 and current.revisions.count() == 1
+    assert str(current.current_revision.material_id) == work["material"]["id"]
+
+
 def test_department_mutation_scope_is_independent_of_institution_view(employee_factory, grant):
     department = Department.objects.create(code="3", name="Отдел 3")
     other_department = Department.objects.create(code="4", name="Отдел 4")

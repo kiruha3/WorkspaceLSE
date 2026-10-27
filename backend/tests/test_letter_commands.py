@@ -196,6 +196,29 @@ def test_list_state_and_period_filters_use_actual_facts_and_control_scope(employ
     assert client.get("/api/v1/letters/", {"control_status": "open"}).status_code == 403
 
 
+@pytest.mark.parametrize("has_control", [True, False])
+def test_control_read_capability_distinguishes_redaction_without_disclosing_existence(employee_factory, grant, has_control):
+    owner, _, options, journals = command_setup(employee_factory, grant)
+    letter = registered(owner, make_letter(owner, options), journals)
+    if has_control:
+        response = command(owner, letter, "control", opened_on="2026-10-02", due_on=None, due_basis="")
+        assert response.status_code == 200
+    reader = employee_factory()
+    grant(reader, "letters.view")
+    grant(reader, "control.view", "own")
+    client = Client(); client.force_login(reader.user)
+    path = f"/api/v1/letters/{letter['id']}/"
+    restricted = client.get(path).json()
+    assert restricted["control"] is None
+    assert "control.view" not in restricted["allowed_actions"]
+    grant(reader, "control.view")
+    readable = client.get(path).json()
+    assert "control.view" in readable["allowed_actions"]
+    assert (readable["control"] is not None) is has_control
+    listed = client.get("/api/v1/letters/").json()["results"][0]
+    assert "control.view" in listed["allowed_actions"]
+
+
 def test_proof_replay_redacts_revoked_document_and_keeps_pinned_version(employee_factory, grant, settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path
     client, actor, options, journals = command_setup(employee_factory, grant)

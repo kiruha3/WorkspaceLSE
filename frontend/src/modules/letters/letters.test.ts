@@ -31,6 +31,17 @@ async function open(value: Letter = letter, transport?: Transport, url = '/lette
 afterEach(() => vi.restoreAllMocks())
 enableAutoUnmount(afterEach)
 describe('correspondence workplace', () => {
+  it.each([
+    { allowed: false, detail: 'Сведения о контроле недоступны', registry: 'Недоступно' },
+    { allowed: true, detail: 'На контроль не поставлено', registry: 'Не поставлено' },
+  ])('distinguishes restricted control from confirmed absence (read access: $allowed)', async ({ allowed, detail, registry }) => {
+    const value = { ...registered, allowed_actions: allowed ? ['control.view'] : [] }
+    const card = await open(value)
+    expect(card.wrapper.get('[data-control-status]').text()).toBe(detail)
+    card.wrapper.unmount()
+    const list = await open(value, async input => json(String(input).includes('/options/') ? options : page([value])), '/letters')
+    expect(list.wrapper.get('tbody tr td:last-child').text()).toBe(registry)
+  })
   it('keeps unknown facts unknown and exposes only server allowed commands', async () => {
     const { wrapper } = await open({ ...letter, allowed_actions: ['letters.register'] })
     expect(wrapper.get('[data-received-on]').text()).toBe('Неизвестно')
@@ -181,6 +192,38 @@ describe('correspondence workplace', () => {
     const { wrapper } = await open(value, async (input, init) => { if (String(input).endsWith('/csrf/')) return json({ csrf_token: 'token' }); if (init?.method === 'POST') { expect(String(input)).toBe('/api/v1/letters/letter-1/draft/'); writes.push(JSON.parse(String(init.body))); return json({ event: { id: 'revision-2' }, letter: { ...value, version: 2 } }) } if (String(input).includes('-options/')) return json(page([])); return json(String(input).includes('/options/') ? options : value) })
     await wrapper.get('[data-edit-draft]').trigger('click'); await flushPromises(); await wrapper.get('[name="reply_completeness"]').setValue('additional'); await wrapper.get('[name="draft_reason"]').setValue('Уточнение'); await wrapper.get('[data-letter-draft]').trigger('submit'); await flushPromises()
     expect(writes[0]).toEqual({ expected_version: 1, reason: 'Уточнение', kind_id: null, subject: 'Запрос материалов', body: 'Текст письма', sender_name: 'Районный суд', external_number: '', external_on: null, document_on: null, received_on: null, note: '', material_id: null, expertise_ids: [], reply_completeness: 'additional', recipients: [{ name: 'Суд первый', address: '', email: '' }, { name: 'Суд второй', address: '', email: '' }] }); wrapper.unmount()
+  })
+  it('keeps the content base version when server details refresh before the first draft save', async () => {
+    let version = 1
+    const writes: { body: Record<string, unknown>; key: string | null }[] = []
+    const value = { ...letter, allowed_actions: ['letters.draft'] }
+    const { wrapper } = await open(value, async (input, init) => {
+      const path = String(input)
+      if (path.endsWith('/csrf/')) return json({ csrf_token: 'token' })
+      if (init?.method === 'POST') {
+        const body = JSON.parse(String(init.body))
+        writes.push({ body, key: new Headers(init.headers).get('Idempotency-Key') })
+        if (body.expected_version !== version) return json({ code: 'version_conflict', message: 'Обновите сведения' }, 409)
+        return json({ event: { id: 'revision-3' }, letter: { ...value, version: 3 } })
+      }
+      if (path.includes('-options/')) return json(page([]))
+      return json(path.includes('/options/') ? options : { ...value, version, content: { ...content, body: version === 1 ? 'Текст письма' : 'Правка второго редактора' } })
+    })
+    await wrapper.get('[data-edit-draft]').trigger('click'); await flushPromises()
+    await wrapper.get('[name="subject"]').setValue('Моя правка темы')
+    await wrapper.get('[name="draft_reason"]').setValue('Уточнение темы')
+    version = 2
+    await wrapper.get('[data-refresh-letter]').trigger('click'); await flushPromises()
+    await wrapper.get('[data-letter-draft]').trigger('submit'); await flushPromises()
+    expect(writes[0]!.body.expected_version).toBe(1)
+    expect(wrapper.get('[name="body"]').element).toHaveProperty('value', 'Текст письма')
+    expect(wrapper.get('[name="subject"]').element).toHaveProperty('value', 'Моя правка темы')
+    expect(wrapper.text()).toContain('Правка второго редактора')
+    await wrapper.get('[data-accept-draft-version]').trigger('click')
+    await wrapper.get('[data-letter-draft]').trigger('submit'); await flushPromises()
+    expect(writes[1]!.body.expected_version).toBe(2)
+    expect(writes[1]!.body.subject).toBe('Моя правка темы')
+    expect(writes[1]!.key).not.toBe(writes[0]!.key)
   })
   it('preserves a denied command draft when current server permissions are revoked', async () => {
     let revoked = false; let posts = 0

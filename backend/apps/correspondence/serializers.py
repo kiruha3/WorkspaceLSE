@@ -174,7 +174,7 @@ def control_data(control, replies, user, scopes):
 
 
 def allowed_actions(letter, user, scopes, registration, receipt, control, control_allowed):
-    possible = ["letters.attach", "control.assign"]
+    possible = ["letters.attach", "control.assign", "control.view"]
     if not registration: possible += ["letters.draft", "letters.register"]
     else:
         if scopes.get("letters.draft", AccessScope()).allows(**letter_context(letter, user, "letters.draft", scopes)): possible.append("letters.reply")
