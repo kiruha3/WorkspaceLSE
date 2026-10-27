@@ -8,10 +8,11 @@ from rest_framework.exceptions import NotFound, ValidationError
 from apps.accounts.policies import require
 from apps.accounts.services import audit, check_version, require_any_scope
 from apps.accounts.serializers import StrictSerializer, VersionedSerializer
-from .models import Department, Position, Specialty, SndzReason, UnresolvedQuestionReason, ReturnReason
+from .models import Department, Position, Specialty, SndzReason, UnresolvedQuestionReason, ReturnReason, LetterKind, LetterJournal, DispatchChannel, ControlClosureReason
 
 CATALOGS = {"departments":Department,"positions":Position,"specialties":Specialty,
-    "sndz-reasons":SndzReason,"unresolved-question-reasons":UnresolvedQuestionReason,"return-reasons":ReturnReason}
+    "sndz-reasons":SndzReason,"unresolved-question-reasons":UnresolvedQuestionReason,"return-reasons":ReturnReason,
+    "letter-kinds":LetterKind,"letter-journals":LetterJournal,"dispatch-channels":DispatchChannel,"control-closure-reasons":ControlClosureReason}
 
 
 class ReferenceCreate(StrictSerializer):
@@ -24,8 +25,20 @@ class ReferenceUpdate(VersionedSerializer):
     is_active = serializers.BooleanField(required=False)
 
 
+class LetterJournalCreate(ReferenceCreate):
+    direction = serializers.ChoiceField(choices=["incoming", "outgoing"])
+    department_id = serializers.PrimaryKeyRelatedField(source="department", queryset=Department.objects.filter(is_active=True), allow_null=True, required=False, default=None)
+
+
+class ClosureReasonCreate(ReferenceCreate):
+    rule = serializers.ChoiceField(choices=ControlClosureReason._meta.get_field("rule").choices, required=False, default="other")
+
+
 def reference_data(obj):
-    return {"id":str(obj.id),"code":obj.code,"name":obj.name,"is_active":obj.is_active,"version":obj.version}
+    data = {"id":str(obj.id),"code":obj.code,"name":obj.name,"is_active":obj.is_active,"version":obj.version}
+    if isinstance(obj,LetterJournal):data.update(direction=obj.direction,department_id=str(obj.department_id) if obj.department_id else None)
+    if isinstance(obj,ControlClosureReason):data["rule"]=obj.rule
+    return data
 
 
 def catalog_model(catalog):
@@ -46,6 +59,8 @@ class ReferenceListView(GenericAPIView):
             options += ["specialties.training.manage","specialties.qualify","expertise.view","expertise.register","expertise.assign","expertise.reassign"]
         elif catalog in ("sndz-reasons","unresolved-question-reasons","return-reasons"):
             options += ["expertise.view","expertise.result.draft","expertise.complete","expertise.closed.correct","expertise.return_without_execution"]
+        elif catalog in ("letter-kinds","letter-journals","dispatch-channels","control-closure-reasons"):
+            options += ["letters.view","letters.draft","letters.register","control.view","control.assign"]
         require_any_scope(request.user,*options)
         queryset = model.objects.all()
         if search := request.query_params.get("search","").strip():
@@ -62,7 +77,8 @@ class ReferenceListView(GenericAPIView):
     def post(self,request,catalog):
         require(request.user,"references.manage")
         model = catalog_model(catalog)
-        serializer = ReferenceCreate(data=request.data)
+        create_type = LetterJournalCreate if model is LetterJournal else ClosureReasonCreate if model is ControlClosureReason else ReferenceCreate
+        serializer = create_type(data=request.data)
         serializer.is_valid(raise_exception=True)
         if model.objects.filter(code=serializer.validated_data["code"]).exists():
             raise ValidationError({"code":"Этот код уже существует."})

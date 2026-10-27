@@ -10,7 +10,7 @@ def version_path(instance, filename):
 
 class Document(models.Model):
     id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
-    kind=models.CharField(max_length=30,choices=[("resolution","Постановление"),("decision","Определение"),("deadline_agreement","Согласование срока"),("deadline_request","Запрос срока"),("expert_conclusion","Заключение эксперта"),("research_act","Акт экспертного исследования"),("sndz","Сообщение о невозможности дать заключение"),("return_decision","Решение без исполнения")])
+    kind=models.CharField(max_length=30,choices=[("resolution","Постановление"),("decision","Определение"),("deadline_agreement","Согласование срока"),("deadline_request","Запрос срока"),("expert_conclusion","Заключение эксперта"),("research_act","Акт экспертного исследования"),("sndz","Сообщение о невозможности дать заключение"),("return_decision","Решение без исполнения"),("letter","Письмо / документ переписки")])
     title=models.CharField(max_length=400)
     source_kind=models.CharField(max_length=30,choices=[("paper_original","Бумажный оригинал"),("uploaded_copy","Загружаемая копия")])
     department=models.ForeignKey("references.Department",null=True,blank=True,on_delete=models.PROTECT)

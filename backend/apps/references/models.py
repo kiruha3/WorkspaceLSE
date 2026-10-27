@@ -39,3 +39,20 @@ class UnresolvedQuestionReason(Reference):
 
 class ReturnReason(Reference):
     pass
+
+
+class LetterKind(Reference):
+    pass
+
+
+class LetterJournal(Reference):
+    direction = models.CharField(max_length=12, choices=[("incoming", "Входящие"), ("outgoing", "Исходящие")])
+    department = models.ForeignKey(Department, null=True, blank=True, on_delete=models.PROTECT)
+
+
+class DispatchChannel(Reference):
+    pass
+
+
+class ControlClosureReason(Reference):
+    rule = models.CharField(max_length=20, default="other", choices=[("reply_sent", "Ответ отправлен"), ("reply_received", "Ответ получен"), ("withdrawn", "Отозван"), ("not_required", "Не требуется"), ("other", "Иное решение")])
