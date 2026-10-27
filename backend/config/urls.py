@@ -7,6 +7,7 @@ from apps.personnel.api import EmployeeOrgAssignmentsView, OrgAssignmentDetailVi
 from apps.personnel.api import AccessEmployeeDirectoryView
 
 urlpatterns = [
+    path("api/v1/",include("apps.expertises.urls")),
     path("api/v1/",include("apps.documents.urls")),
     path("api/v1/",include("apps.intake.urls")),
     path("api/v1/auth/csrf/",csrf_view),

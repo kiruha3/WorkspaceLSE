@@ -38,11 +38,11 @@ class ReferenceListView(GenericAPIView):
         model = catalog_model(catalog)
         options = ["references.view","references.manage"]
         if catalog == "departments":
-            options += ["access.roles.assign","employees.org_assignments.manage"]
+            options += ["access.roles.assign","employees.org_assignments.manage","receipts.create","expertise.view","expertise.register","expertise.assign","expertise.reassign"]
         elif catalog == "positions":
             options += ["employees.org_assignments.manage"]
         elif catalog == "specialties":
-            options += ["specialties.training.manage","specialties.qualify"]
+            options += ["specialties.training.manage","specialties.qualify","expertise.view","expertise.register","expertise.assign","expertise.reassign"]
         require_any_scope(request.user,*options)
         queryset = model.objects.all()
         if search := request.query_params.get("search","").strip():

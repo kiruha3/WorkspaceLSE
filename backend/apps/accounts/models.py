@@ -26,3 +26,15 @@ class RolePermission(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["role", "permission_code"], name="unique_role_action")]
+
+
+class CommandReceipt(models.Model):
+    actor = models.ForeignKey(User, on_delete=models.PROTECT)
+    action = models.CharField(max_length=100)
+    key = models.CharField(max_length=100)
+    payload_hash = models.CharField(max_length=64)
+    result = models.JSONField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["actor","action","key"], name="unique_actor_command_key")]
