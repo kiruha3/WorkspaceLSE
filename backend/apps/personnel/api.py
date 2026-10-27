@@ -2,6 +2,7 @@ from django.db import transaction
 from django.db.models import Q, FilteredRelation
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.http import JsonResponse
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError, PermissionDenied
@@ -210,7 +211,8 @@ class EmployeeAccountView(GenericAPIView):
     def get(self,request,pk):
         require_any(request.user,"users.view","users.create","users.deactivate")
         employee = get_object_or_404(Employee.objects.select_related("user"),pk=pk)
-        return Response(account_data(employee.user))
+        # DRF treats Response(None) as an empty body, not JSON null.
+        return JsonResponse(account_data(employee.user),safe=False)
 
     @transaction.atomic
     def post(self,request,pk):

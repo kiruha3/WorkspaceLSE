@@ -27,3 +27,18 @@
 - Удаление используемой роли вместе с историей. В АИС роль и справочное значение деактивируются; прекращение конкретного назначения — отдельное событие.
 
 Исходные файлы служат свидетельством рассмотренных вариантов. Новый код пишется под спецификацию АИС и её тесты, без зависимости от пакетов или локальных `.env` проектов Doca/Docaml.
+
+## Дополнение из E:/DA/DA
+
+Прочитаны выбранные исходники TechHelper, converter и AIMoS; проверка работающего стенда не выполнялась. Каталоги не менялись.
+
+| Источник | Что используем | Что не копируем |
+|---|---|---|
+| `techhelper/backend/rbac/resolver.py`: решение с allowed/reason/sources, общий require и snapshot | Один policy для команд и интерфейса; объяснение отказа и предоставившей роли; объектные ограничения только сужают область | Модель workspace/project и её наследование не нужны нашей схеме own/departments/institution |
+| `techhelper/frontend_shadcn/src/components/ui/table/GenericResizableTable.vue`: column key/label/minWidth/sortKey, событие sort-change, сохранение ширин | Именованные колонки, устойчивый ID, настройка ширин и серверная сортировка | Полный компонент/виртуализатор до необходимости; зависимость должна быть объявлена явно |
+| `techhelper/backend/common/services/document_versions.py`: atomic + select_for_update родителя перед max(version)+1 | Блокировка документа при создании версии и уникальность document/version в PostgreSQL | Выдачу номера версии без транзакции и блокировки |
+| `techhelper/frontend_shadcn/src/components/features/documents/DocumentViewer.vue`: lazy viewers, loading/error, readonly | Небольшая оболочка просмотра по серверному типу и конкретной версии | Перенос сложных редакторов и прямого v-html. Оригиналы PDF/DOCX должны храниться, а не заменяться content_json |
+| `services/converter/converter/app.py`: task_id/status и запрос результата | Явные статусы длительной операции и доступный пользователю результат | In-memory словарь jobs/ThreadPoolExecutor как единственное хранилище; наша задача должна переживать рестарт |
+| `techhelper/backend/api2/schemas/errors.py`, `aimos/backend/api2/services/error_envelopes.py` | Код ошибки, сообщение для пользователя и отдельная техническая диагностика | Разные типы поля detail и вывод технического stderr в обычную форму |
+
+Особенно не переносим пустой catch сохранения из просмотренной ProjectForm: ошибка должна остаться видимой, а успех — зависеть от ответа сервера. Фактический frontend TechHelper — Vue согласно package.json, несмотря на упоминание React в README; ориентируемся на исходники.

@@ -13,6 +13,16 @@ def client_for(employee):
     return client
 
 
+def test_employee_without_account_returns_json_null_not_an_empty_success(employee_factory,grant):
+    from apps.personnel.models import Employee
+    actor = employee_factory()
+    target = Employee.objects.create(full_name="Без учётной записи")
+    grant(actor,"users.view")
+    response = client_for(actor).get(f"/api/v1/employees/{target.id}/account/")
+    assert response.status_code == 200
+    assert response.json() is None
+
+
 def test_org_assignment_is_explicit_multiple_and_dates_versioned(employee_factory,grant):
     actor = employee_factory()
     target = employee_factory()

@@ -1,0 +1,27 @@
+{
+  "name": "ais-lse-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "vue-tsc --noEmit && vite build"
+  },
+  "dependencies": {
+    "pinia": "^3.0.3",
+    "vue": "^3.5.22",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "@vue/test-utils": "^2.4.6",
+    "happy-dom": "^20.0.10",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.9",
+    "vitest": "^3.2.4",
+    "vue-tsc": "^3.1.0"
+  }
+}
