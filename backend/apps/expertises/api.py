@@ -12,8 +12,8 @@ from apps.intake.services import receipt_context
 from apps.references.models import Department
 from .models import Expertise, ComplexGroup
 from .policies import expertise_scope_queryset, require_work
-from .serializers import RegistrationInput, GroupInput, ExpertiseOutput, WorkFilters
-from .services import register_expertise
+from .serializers import RegistrationInput, GroupInput, ExpertiseOutput, WorkFilters, AssignmentInput
+from .services import register_expertise, assign_experts, reassign_experts
 
 
 def loaded(queryset=None):
@@ -47,6 +47,29 @@ class ExpertiseDetailView(GenericAPIView):
         work=get_object_or_404(loaded(),pk=pk);scopes=permission_scopes(request.user)
         require_work(request.user,"expertise.view",work,scopes)
         return Response(ExpertiseOutput(work,context={"user":request.user,"scopes":scopes}).data)
+
+
+class AssignmentCandidatesView(GenericAPIView):
+    def get(self,request,pk):
+        from django.utils import timezone
+        from apps.personnel.models import Employee, EmployeeSpecialty
+        from apps.personnel.services import qualification_eligibility
+        work=get_object_or_404(loaded(),pk=pk)
+        action="expertise.reassign" if any(a.ended_at is None for a in work.assignments.all()) else "expertise.assign"
+        require_work(request.user,action,work)
+        qualifications={q.employee_id:q for q in EmployeeSpecialty.objects.filter(specialty_id=work.specialty_id)}
+        return Response([{"id":str(e.id),"full_name":e.full_name,**qualification_eligibility(e,work.specialty,timezone.localdate(),qualification=qualifications.get(e.id))} for e in Employee.objects.all()])
+
+
+class AssignView(GenericAPIView):
+    reassign=False
+
+    def post(self,request,pk):
+        form=AssignmentInput(data=request.data);form.is_valid(raise_exception=True)
+        command=reassign_experts if self.reassign else assign_experts
+        work=command(actor=request.user,expertise_id=pk,**form.validated_data)
+        work=loaded().get(pk=work.id)
+        return Response(ExpertiseOutput(work,context={"user":request.user,"scopes":permission_scopes(request.user)}).data)
 
 
 class NumberHintView(GenericAPIView):

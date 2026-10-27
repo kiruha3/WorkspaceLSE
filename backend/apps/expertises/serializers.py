@@ -24,6 +24,15 @@ class GroupInput(StrictSerializer):
     title = serializers.CharField(max_length=300,allow_blank=True,required=False,default="")
 
 
+class AssignmentInput(VersionedSerializer):
+    employee_ids = serializers.ListField(child=serializers.UUIDField(),allow_empty=False)
+    reason = serializers.CharField()
+
+    def validate_employee_ids(self,values):
+        if len(set(values))!=len(values):raise serializers.ValidationError("Сотрудник указан несколько раз.")
+        return values
+
+
 class WorkFilters(serializers.Serializer):
     search = serializers.CharField(required=False,allow_blank=True)
     department_id = serializers.UUIDField(required=False)
