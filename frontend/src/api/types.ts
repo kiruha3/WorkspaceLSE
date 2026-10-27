@@ -40,6 +40,7 @@ export interface FileVersion {
 export type ResultKind = 'expert_conclusion' | 'research_act' | 'sndz'
 export type DocumentKind = 'resolution' | 'decision' | 'deadline_agreement' | 'deadline_request' | ResultKind | 'return_decision'
 export interface BasisDocument {
+  accepted_version_id?: string | null
   id: string; kind: DocumentKind; title: string; source_kind: 'paper_original' | 'uploaded_copy'
   department_id: string | null; version: number; versions: FileVersion[]
 }

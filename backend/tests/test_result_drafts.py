@@ -203,3 +203,18 @@ def test_result_requires_both_view_and_action_and_a_nonempty_command_key(employe
     assert draft(client,work,key=" ").status_code==400
     actor.role_assignments.filter(role__permissions__permission_code="expertise.view").update(is_active=False)
     assert draft(client,work).status_code==403
+
+
+def test_inactive_historical_reasons_can_be_restored_in_the_same_work(employee_factory,grant):
+    from apps.references.models import SndzReason,UnresolvedQuestionReason
+    client,_,work,_,_,_,_=result_setup(employee_factory,grant);options=reasons(client,work)
+    a,b=options["sndz_reasons"][:2];x,y=options["unresolved_reasons"][:2]
+    def save(work,sndz,unresolved):
+        return draft(client,work,kind="sndz",sndz_reason_id=sndz["id"],unresolved=1,unresolved_allocations=[{"reason_id":unresolved["id"],"count":1,"comment":"По документу","document_id":None}])
+    first=save(work,a,x);assert first.status_code==200
+    second=save(first.json()["expertise"],b,y);assert second.status_code==200
+    SndzReason.objects.filter(pk=a["id"]).update(is_active=False)
+    UnresolvedQuestionReason.objects.filter(pk=x["id"]).update(is_active=False)
+    restored=save(second.json()["expertise"],a,x)
+    assert restored.status_code==200
+    assert restored.json()["expertise"]["result"]["sndz_reason"]["id"]==a["id"]

@@ -50,9 +50,13 @@ def create_revision(work,actor,data,reason):
     if kind and ((work.category_code=="6" and kind!="research_act") or (work.category_code!="6" and kind=="research_act")):
         raise ValidationError({"kind":"Вид результата не соответствует категории работы."})
     if values["completed_on"]:validate_event_date(work,values["completed_on"],"completed_on")
+    document_ids={d.pk for d in [values["document"],*[a["document"] for a in allocations]] if d is not None}
+    # Acquire ALL document locks before reference locks, including the main
+    # document: different works can cross-reference each other's evidence.
+    list(Document.objects.select_for_update().filter(pk__in=document_ids).order_by("pk"))
     values["document"]=checked_document(actor,values["document"],kind=kind)
-    values["sndz_reason"]=locked_reference(values["sndz_reason"],{previous.sndz_reason_id} if previous else set(),"sndz_reason_id")
-    previous_reasons={a.reason_id for a in previous.unresolved_allocations.all()} if previous else set()
+    values["sndz_reason"]=locked_reference(values["sndz_reason"],set(work.result_revisions.values_list("sndz_reason_id",flat=True)),"sndz_reason_id")
+    previous_reasons=set(UnresolvedAllocation.objects.filter(result__expertise=work).values_list("reason_id",flat=True))
     # Deterministic reference/document order avoids opposite allocation lock orders.
     checked=[]
     for allocation in sorted(allocations,key=lambda a:str(a["reason"].pk)):
@@ -119,7 +123,11 @@ def confirm_result(work,actor,result):
 
 def create_closure(work,actor,*,reason,kind,ended_on,document,result=None,return_reason=None,comment=""):
     previous=latest_closure(work)
-    closure=WorkClosure.objects.create(expertise=work,number=previous.number+1 if previous else 1,kind=kind,ended_on=ended_on,document=document,result=result,return_reason=return_reason,comment=comment,actor=actor,reason=reason)
+    # checked_document already holds the same lock as add_file_version. Pin
+    # the actual accepted bytes, not a moving "latest file" relation.
+    accepted=document.versions.order_by("-number").first()
+    if accepted is None:raise ValidationError({"document_id":"Нет сохранённого файла для подтверждения."})
+    closure=WorkClosure.objects.create(expertise=work,number=previous.number+1 if previous else 1,kind=kind,ended_on=ended_on,document=document,accepted_version=accepted,result=result,return_reason=return_reason,comment=comment,actor=actor,reason=reason)
     work.state=kind;work.version+=1;work.save(update_fields=["state","version"])
     return closure
 
@@ -128,8 +136,7 @@ def return_values(work,actor,data):
     validate_ending(work,data["decided_on"],"decided_on")
     document=checked_document(actor,data["document"],kind="return_decision")
     if not document.versions.exists():raise ValidationError({"document_id":"Подкрепите сохранённый файл решения."})
-    previous=latest_closure(work)
-    reason=locked_reference(data["return_reason"],{previous.return_reason_id} if previous else set(),"return_reason_id")
+    reason=locked_reference(data["return_reason"],set(work.closures.values_list("return_reason_id",flat=True)),"return_reason_id")
     if reason and reason.code=="other" and not data["comment"]:
         raise ValidationError({"comment":"Для иной причины нужно пояснение."})
     return {"kind":"without_execution","ended_on":data["decided_on"],"document":document,"return_reason":reason,"comment":data["comment"]}
@@ -161,7 +168,7 @@ def _close(*,actor,expertise_id,data,key,payload,command):
                 values={"kind":"completed","ended_on":result.completed_on,"document":result.document,"result":result}
             else:values=return_values(work,actor,data)
         closure=create_closure(work,actor,reason=data["reason"],**values)
-        audit(actor,action,work,{"closure_id":str(closure.pk),"result_id":str(closure.result_id) if closure.result_id else None,"kind":closure.kind,"ended_on":closure.ended_on,"version":work.version},data["reason"])
+        audit(actor,action,work,{"closure_id":str(closure.pk),"accepted_version_id":str(closure.accepted_version_id),"result_id":str(closure.result_id) if closure.result_id else None,"kind":closure.kind,"ended_on":closure.ended_on,"version":work.version},data["reason"])
         return {"id":str(closure.pk),"expertise_id":str(work.pk)}
     return execute_once(actor=actor,action=action,key=key,payload={"expertise_id":str(expertise_id),"data":payload},operation=operation)
 

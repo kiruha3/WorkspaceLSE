@@ -154,6 +154,7 @@ onBeforeUnmount(() => requests.cancel())
       <h3>{{ action === 'complete' ? 'Подтвердить завершение' : action === 'correct' ? 'Исправление закрытой работы' : isReturn ? 'Решение без исполнения' : 'Редакция результата' }}</h3>
       <ApiMessage :error="error" /><ApiMessage :error="optionsError" />
       <p v-if="loadingOptions" class="muted compact">Загрузка справочников…</p><button v-if="optionsError" type="button" @click="loadOptions">Повторить загрузку справочников</button>
+      <p v-if="action === 'correct'" class="muted compact">Исправление заново подтверждает последнюю сохранённую версию выбранного документа. Проверьте её перед сохранением; прежнее подтверждение сохраняет свой файл.</p>
       <p v-if="recovering" class="message">Ответ на команду не получен. Повтор сохранит исходные данные, версию и ключ.</p><p v-else-if="!authorized" class="message message-error">Действие больше не разрешено. Введённые данные сохранены.</p>
       <p v-if="conflict" class="message message-error">Карточка обновлена; черновик сохранён. <button data-result-accept-version type="button" :disabled="saving || !authorized" @click="acceptVersion">Применить версию {{ expertise.version }} к новой попытке</button></p>
       <fieldset class="form-grid" :disabled="saving || (!authorized && !recovering)">

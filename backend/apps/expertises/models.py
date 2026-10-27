@@ -138,6 +138,7 @@ class WorkClosure(models.Model):
     ended_on=models.DateField()
     result=models.ForeignKey(ResultRevision,related_name="closures",null=True,blank=True,on_delete=models.PROTECT)
     document=models.ForeignKey("documents.Document",related_name="work_closures",on_delete=models.PROTECT)
+    accepted_version=models.ForeignKey("documents.FileVersion",related_name="accepted_closures",null=True,blank=True,on_delete=models.PROTECT)
     return_reason=models.ForeignKey("references.ReturnReason",null=True,blank=True,on_delete=models.PROTECT)
     comment=models.TextField(blank=True)
     actor=models.ForeignKey(settings.AUTH_USER_MODEL,related_name="recorded_work_closures",on_delete=models.PROTECT)

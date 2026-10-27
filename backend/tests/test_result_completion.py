@@ -197,3 +197,66 @@ def test_completion_scope_does_not_follow_title_or_previous_assignment(employee_
     assert send(clerk,work,"complete",result_id=work["result"]["id"]).status_code==403
     work=assign(clerk,work,[qualified(employee_factory,specialty)],reassign=True).json()
     assert send(client,work,"complete",result_id=work["result"]["id"]).status_code==403
+
+
+def test_later_file_upload_does_not_replace_file_accepted_by_old_closure(employee_factory,grant,settings,tmp_path):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from test_basis_documents import PNG
+    settings.MEDIA_ROOT=tmp_path
+    client,actor,work,_,_,_,_=completion_setup(employee_factory,grant)
+    work=ready_result(client,work)
+    first=work["result"]["document"]["versions"][0]
+    done=send(client,work,"complete",result_id=work["result"]["id"]);assert done.status_code==200
+    done=done.json()["expertise"];doc=done["result"]["document"]
+    newer=client.post(f"/api/v1/documents/{doc['id']}/versions/",{"expected_version":doc["version"],"file":SimpleUploadedFile("other.png",PNG+b"new-version")})
+    assert newer.status_code==201
+    current=client.get(f"/api/v1/expertises/{work['id']}/").json()
+    assert current["closure"]["document"].get("accepted_version_id")==first["id"]
+    assert current["result"]["document"].get("accepted_version_id")==first["id"]
+    assert current["closure_history"][0]["document"].get("accepted_version_id")==first["id"]
+    assert len(current["closure"]["document"]["versions"])==2
+    assert current["version"]==done["version"] and "expertise.closed.correct" not in current["allowed_actions"]
+    grant(actor,"expertise.closed.correct","own")
+    corrected=send(client,current,"correct",correction_kind="result",result=result_body(current,note="Новая версия явно перепроверена"))
+    assert corrected.status_code==200
+    history=corrected.json()["expertise"]["closure_history"]
+    assert history[0]["document"]["accepted_version_id"]==first["id"]
+    assert history[1]["document"]["accepted_version_id"]==newer.json()["id"]
+
+
+def test_inactive_historical_return_reason_can_be_restored(employee_factory,grant,settings,tmp_path):
+    from apps.references.models import ReturnReason
+    settings.MEDIA_ROOT=tmp_path
+    client,actor,work,_,_,_,_=completion_setup(employee_factory,grant);options=reasons(client,work)
+    a,b=options["return_reasons"][:2];doc=result_document(client,"return_decision");assert upload(client,doc["id"]).status_code==201
+    fields={"decided_on":"2026-10-10","document_id":doc["id"],"return_reason_id":a["id"],"comment":"По документу"}
+    done=send(client,work,"return-without-execution",**fields);assert done.status_code==200
+    grant(actor,"expertise.closed.correct","own")
+    fields["return_reason_id"]=b["id"]
+    changed=send(client,done.json()["expertise"],"correct",correction_kind="return",**fields);assert changed.status_code==200
+    ReturnReason.objects.filter(pk=a["id"]).update(is_active=False)
+    fields["return_reason_id"]=a["id"]
+    assert send(client,changed.json()["expertise"],"correct",correction_kind="return",**fields).status_code==200
+
+
+@pytest.mark.parametrize("file_existed",[True,False])
+def test_existing_closure_migration_does_not_accept_a_later_file(employee_factory,grant,settings,tmp_path,file_existed):
+    import importlib
+    from datetime import timedelta
+    from django.apps import apps
+    from django.utils import timezone
+    from apps.expertises.models import WorkClosure
+    settings.MEDIA_ROOT=tmp_path
+    client,_,work,_,_,_,_=completion_setup(employee_factory,grant);work=ready_result(client,work)
+    first=work["result"]["document"]["versions"][0]
+    response=send(client,work,"complete",result_id=work["result"]["id"]);assert response.status_code==200
+    closure=WorkClosure.objects.get(pk=response.json()["event"]["id"])
+    values={"accepted_version_id":None}
+    if not file_existed:values["created_at"]=timezone.now()-timedelta(days=1)
+    WorkClosure.objects.filter(pk=closure.pk).update(**values)
+    doc=work["result"]["document"]
+    assert upload(client,doc["id"],version=doc["version"]).status_code==201
+    migration=importlib.import_module("apps.expertises.migrations.0006_workclosure_accepted_version")
+    migration.pin_existing_files(apps,None)
+    closure.refresh_from_db()
+    assert str(closure.accepted_version_id) == (first["id"] if file_existed else "None")

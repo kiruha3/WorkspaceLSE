@@ -103,9 +103,15 @@ class CorrectInput(StrictSerializer):
         return data
 
 
-def document_link(document,user):
+_UNSET=object()
+
+
+def document_link(document,user,accepted_version_id=_UNSET):
     if document is None:return None
-    return DocumentOutput(document).data if can_document(user,"documents.view",document) else {"id":str(document.pk),"restricted":True}
+    if not can_document(user,"documents.view",document):return {"id":str(document.pk),"restricted":True}
+    data=DocumentOutput(document).data
+    if accepted_version_id is not _UNSET:data["accepted_version_id"]=str(accepted_version_id) if accepted_version_id else None
+    return data
 
 
 class AllocationOutput(serializers.ModelSerializer):
@@ -127,7 +133,9 @@ class ResultOutput(serializers.ModelSerializer):
         model=ResultRevision
         fields=["id","number","kind","completed_on","document","complexity_level","questions","categorical","probable","unresolved","statistics_complete","sndz_reason","sndz_comment","unresolved_allocations","allocations_complete","note","actor","created_at","reason"]
     def get_actor(self,obj):return actor_data(obj.actor)
-    def get_document(self,obj):return document_link(obj.document,self.context["user"])
+    def get_document(self,obj):
+        closure=max(obj.closures.all(),key=lambda c:c.number,default=None)
+        return document_link(obj.document,self.context["user"],closure.accepted_version_id) if closure else document_link(obj.document,self.context["user"])
     def get_sndz_reason(self,obj):return reference_data(obj.sndz_reason) if obj.sndz_reason_id else None
 
 
@@ -140,5 +148,5 @@ class ClosureOutput(serializers.ModelSerializer):
         model=WorkClosure
         fields=["id","number","kind","ended_on","document","result_id","return_reason","comment","actor","created_at","reason"]
     def get_actor(self,obj):return actor_data(obj.actor)
-    def get_document(self,obj):return document_link(obj.document,self.context["user"])
+    def get_document(self,obj):return document_link(obj.document,self.context["user"],obj.accepted_version_id)
     def get_return_reason(self,obj):return reference_data(obj.return_reason) if obj.return_reason_id else None

@@ -17,7 +17,7 @@ from .services import register_expertise, assign_experts, reassign_experts
 
 
 def loaded(queryset=None):
-    return (queryset if queryset is not None else Expertise.objects.all()).select_related("receipt__basis_document","material","department","specialty","complex_group").prefetch_related("assignments__employee","receipt__basis_document__versions","suspensions__actor__employee","suspensions__resumed_by__employee","deadline_events__actor__employee","deadline_events__document__versions","result_revisions__actor__employee","result_revisions__document__versions","result_revisions__sndz_reason","result_revisions__unresolved_allocations__reason","result_revisions__unresolved_allocations__document__versions","closures__actor__employee","closures__document__versions","closures__return_reason")
+    return (queryset if queryset is not None else Expertise.objects.all()).select_related("receipt__basis_document","material","department","specialty","complex_group").prefetch_related("assignments__employee","receipt__basis_document__versions","suspensions__actor__employee","suspensions__resumed_by__employee","deadline_events__actor__employee","deadline_events__document__versions","result_revisions__actor__employee","result_revisions__document__versions","result_revisions__sndz_reason","result_revisions__unresolved_allocations__reason","result_revisions__unresolved_allocations__document__versions","result_revisions__closures","closures__actor__employee","closures__document__versions","closures__return_reason")
 
 
 class ExpertiseRegisterView(GenericAPIView):
