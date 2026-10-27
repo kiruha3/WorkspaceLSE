@@ -41,6 +41,10 @@ class ReturnReason(Reference):
     pass
 
 
+class IssueMethod(Reference):
+    pass
+
+
 class LetterKind(Reference):
     pass
 

@@ -9,7 +9,7 @@ ROOT_URLCONF = "config.urls"
 INSTALLED_APPS = [
     "django.contrib.auth", "django.contrib.contenttypes", "django.contrib.sessions",
     "rest_framework", "apps.accounts", "apps.references", "apps.personnel", "apps.audit",
-    "apps.documents", "apps.intake", "apps.expertises", "apps.correspondence",
+    "apps.documents", "apps.intake", "apps.expertises", "apps.correspondence", "apps.issuance",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

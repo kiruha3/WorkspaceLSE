@@ -24,7 +24,11 @@ def can_document(user,action,document):
         from apps.correspondence.policies import letter_scope_queryset
         letters=letter_scope_queryset(user,"letters.view",scopes).filter(
             Q(attachments__document=document)|Q(dispatches__evidence_document=document)|Q(dispatches__deliveries__evidence_document=document)|Q(receipt_fact__evidence_document=document)|Q(registration__files__file_version__document=document)|Q(dispatches__files__file_version__document=document))
-        return letter_scope_queryset(user,"documents.view",scopes).filter(pk__in=letters).exists()
+        if letter_scope_queryset(user,"documents.view",scopes).filter(pk__in=letters).exists():return True
+    if scopes.get("issue.view"):
+        from apps.issuance.policies import package_queryset
+        packages=package_queryset(user,scopes=scopes).filter(Q(revisions__items__document=document)|Q(checks__files__document=document)|Q(issuance__evidence_document=document))
+        return package_queryset(user,"documents.view",scopes).filter(pk__in=packages).exists()
     return False
 
 

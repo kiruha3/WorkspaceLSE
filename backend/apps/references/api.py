@@ -8,11 +8,11 @@ from rest_framework.exceptions import NotFound, ValidationError
 from apps.accounts.policies import require
 from apps.accounts.services import audit, check_version, require_any_scope
 from apps.accounts.serializers import StrictSerializer, VersionedSerializer
-from .models import Department, Position, Specialty, SndzReason, UnresolvedQuestionReason, ReturnReason, LetterKind, LetterJournal, DispatchChannel, ControlClosureReason
+from .models import Department, Position, Specialty, SndzReason, UnresolvedQuestionReason, ReturnReason, LetterKind, LetterJournal, DispatchChannel, ControlClosureReason, IssueMethod
 
 CATALOGS = {"departments":Department,"positions":Position,"specialties":Specialty,
     "sndz-reasons":SndzReason,"unresolved-question-reasons":UnresolvedQuestionReason,"return-reasons":ReturnReason,
-    "letter-kinds":LetterKind,"letter-journals":LetterJournal,"dispatch-channels":DispatchChannel,"control-closure-reasons":ControlClosureReason}
+    "letter-kinds":LetterKind,"letter-journals":LetterJournal,"dispatch-channels":DispatchChannel,"control-closure-reasons":ControlClosureReason,"issue-methods":IssueMethod}
 
 
 class ReferenceCreate(StrictSerializer):
@@ -61,6 +61,8 @@ class ReferenceListView(GenericAPIView):
             options += ["expertise.view","expertise.result.draft","expertise.complete","expertise.closed.correct","expertise.return_without_execution"]
         elif catalog in ("letter-kinds","letter-journals","dispatch-channels","control-closure-reasons"):
             options += ["letters.view","letters.draft","letters.register","control.view","control.assign"]
+        elif catalog == "issue-methods":
+            options += ["issue.view","issue.prepare","issue.check","issue.confirm"]
         require_any_scope(request.user,*options)
         queryset = model.objects.all()
         if search := request.query_params.get("search","").strip():
