@@ -4,8 +4,8 @@ from apps.documents.models import Document
 from apps.documents.policies import can_document
 from apps.documents.serializers import DocumentOutput
 from apps.references.api import reference_data
-from apps.references.models import SndzReason, UnresolvedQuestionReason
-from .models import ResultRevision, UnresolvedAllocation
+from apps.references.models import SndzReason, UnresolvedQuestionReason, ReturnReason
+from .models import ResultRevision, UnresolvedAllocation, WorkClosure
 from .production_serializers import actor_data
 
 
@@ -62,6 +62,47 @@ class ResultInput(ResultData):
     reason=serializers.CharField()
 
 
+class CompleteInput(StrictSerializer):
+    expected_version=serializers.IntegerField(min_value=1)
+    reason=serializers.CharField()
+    result_id=serializers.UUIDField()
+
+
+class ReturnData(StrictSerializer):
+    decided_on=serializers.DateField()
+    document_id=serializers.PrimaryKeyRelatedField(source="document",queryset=Document.objects.all())
+    return_reason_id=serializers.PrimaryKeyRelatedField(source="return_reason",queryset=ReturnReason.objects.all(),allow_null=True,required=False,default=None)
+    comment=serializers.CharField(allow_blank=True,required=False,default="")
+
+
+class ReturnInput(ReturnData):
+    expected_version=serializers.IntegerField(min_value=1)
+    reason=serializers.CharField()
+
+
+class CorrectInput(StrictSerializer):
+    expected_version=serializers.IntegerField(min_value=1)
+    reason=serializers.CharField()
+    correction_kind=serializers.ChoiceField(choices=["result","return"])
+    result=ResultData(required=False)
+    decided_on=serializers.DateField(required=False)
+    document_id=serializers.PrimaryKeyRelatedField(source="document",queryset=Document.objects.all(),required=False)
+    return_reason_id=serializers.PrimaryKeyRelatedField(source="return_reason",queryset=ReturnReason.objects.all(),allow_null=True,required=False)
+    comment=serializers.CharField(allow_blank=True,required=False)
+
+    def validate(self,data):
+        if data["correction_kind"]=="result":
+            if "result" not in data:raise serializers.ValidationError({"result":"Нужна исправленная редакция."})
+            if any(k in data for k in ("decided_on","document","return_reason","comment")):
+                raise serializers.ValidationError("Не смешивайте исправление результата и решения без исполнения.")
+        else:
+            if "result" in data:raise serializers.ValidationError("Решение без исполнения не является результатом.")
+            for field in ("decided_on","document"):
+                if field not in data:raise serializers.ValidationError({field:"Обязательное поле."})
+            data.setdefault("return_reason",None);data.setdefault("comment","")
+        return data
+
+
 def document_link(document,user):
     if document is None:return None
     return DocumentOutput(document).data if can_document(user,"documents.view",document) else {"id":str(document.pk),"restricted":True}
@@ -88,3 +129,16 @@ class ResultOutput(serializers.ModelSerializer):
     def get_actor(self,obj):return actor_data(obj.actor)
     def get_document(self,obj):return document_link(obj.document,self.context["user"])
     def get_sndz_reason(self,obj):return reference_data(obj.sndz_reason) if obj.sndz_reason_id else None
+
+
+class ClosureOutput(serializers.ModelSerializer):
+    actor=serializers.SerializerMethodField()
+    document=serializers.SerializerMethodField()
+    return_reason=serializers.SerializerMethodField()
+    result_id=serializers.UUIDField(read_only=True,allow_null=True)
+    class Meta:
+        model=WorkClosure
+        fields=["id","number","kind","ended_on","document","result_id","return_reason","comment","actor","created_at","reason"]
+    def get_actor(self,obj):return actor_data(obj.actor)
+    def get_document(self,obj):return document_link(obj.document,self.context["user"])
+    def get_return_reason(self,obj):return reference_data(obj.return_reason) if obj.return_reason_id else None

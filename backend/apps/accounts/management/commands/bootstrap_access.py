@@ -30,6 +30,7 @@ TEMPLATES = {
 
 TEMPLATES["Делопроизводитель"].update({code:"institution" for code in ["receipts.view","receipts.create","receipts.accept","receipts.amend"]})
 TEMPLATES["Руководитель отдела"]["receipts.view"]="departments"
+TEMPLATES["Эксперт"].update({code:"own" for code in ("expertise.result.draft","expertise.return_without_execution")})
 
 STAFF = [
     ("Власова Т.В.","3","head",["16.1","16.2"]),

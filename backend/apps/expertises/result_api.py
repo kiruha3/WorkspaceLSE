@@ -8,8 +8,8 @@ from .models import ResultRevision
 from .api import loaded
 from .policies import require_work
 from .serializers import ExpertiseOutput
-from .result_serializers import ResultInput
-from .results import save_result
+from .result_serializers import ResultInput,CompleteInput,ReturnInput,CorrectInput
+from .results import save_result,complete_work,return_work,correct_closed_work
 
 
 def command_response(request,result):
@@ -33,3 +33,11 @@ class ResultView(GenericAPIView):
     def post(self,request,pk):
         form=ResultInput(data=request.data);form.is_valid(raise_exception=True)
         return command_response(request,save_result(actor=request.user,expertise_id=pk,data=form.validated_data,key=request.headers.get("Idempotency-Key"),payload=request.data))
+
+
+class ClosureView(GenericAPIView):
+    kind="complete"
+    def post(self,request,pk):
+        serializer,command={"complete":(CompleteInput,complete_work),"return":(ReturnInput,return_work),"correct":(CorrectInput,correct_closed_work)}[self.kind]
+        form=serializer(data=request.data);form.is_valid(raise_exception=True)
+        return command_response(request,command(actor=request.user,expertise_id=pk,data=form.validated_data,key=request.headers.get("Idempotency-Key"),payload=request.data))

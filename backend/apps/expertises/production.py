@@ -21,14 +21,17 @@ def calculate_days(received_at,intervals,as_of):
 
 def production_summary(work,as_of=None):
     as_of=as_of or timezone.localdate()
-    counts=calculate_days(work.receipt.received_at,[(s.suspended_on,s.resumed_on) for s in work.suspensions.all()],as_of) if work.state in OPEN_STATES else {"calendar_days":None,"paused_days":None,"active_calendar_days":None}
+    from .results import latest_closure
+    closure=latest_closure(work) if work.state not in OPEN_STATES else None
+    through=as_of if work.state in OPEN_STATES else min(closure.ended_on,as_of) if closure else None
+    counts=calculate_days(work.receipt.received_at,[(s.suspended_on,s.resumed_on) for s in work.suspensions.all()],through) if through else {"calendar_days":None,"paused_days":None,"active_calendar_days":None}
     events=list(work.deadline_events.all())
     def latest(kind):
         matching=[e for e in events if e.kind==kind]
         return max(matching,key=lambda e:(e.recorded_on,e.created_at,e.id)).due_on if matching else None
     initial,agreed,requested=latest("initial"),latest("agreement"),latest("request")
     current=agreed or initial
-    return {"as_of":as_of.isoformat(),"method":METHOD,**counts,"initial_due_on":initial.isoformat() if initial else None,"agreed_due_on":agreed.isoformat() if agreed else None,"current_due_on":current.isoformat() if current else None,"last_requested_due_on":requested.isoformat() if requested else None,"overdue_calendar_days":max((as_of-current).days,0) if current and work.state in OPEN_STATES else None}
+    return {"as_of":as_of.isoformat(),"counted_through":through.isoformat() if through else None,"method":METHOD,**counts,"initial_due_on":initial.isoformat() if initial else None,"agreed_due_on":agreed.isoformat() if agreed else None,"current_due_on":current.isoformat() if current else None,"last_requested_due_on":requested.isoformat() if requested else None,"overdue_calendar_days":max((as_of-current).days,0) if current and work.state in OPEN_STATES else None}
 
 
 def validate_event_date(work,value,field):

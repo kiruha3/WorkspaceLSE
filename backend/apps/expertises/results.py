@@ -4,13 +4,26 @@ from apps.accounts.commands import execute_once
 from apps.accounts.services import audit, check_version
 from apps.documents.models import Document
 from apps.documents.policies import require_document
-from .models import ResultRevision, UnresolvedAllocation
+from .models import ResultRevision, UnresolvedAllocation, WorkClosure
 from .policies import require_work
 from .production import locked_work, validate_event_date, OPEN_STATES
 
 
 def latest_result(work):
     return max(work.result_revisions.all(),key=lambda r:r.number,default=None)
+
+
+def latest_closure(work):
+    return max(work.closures.all(),key=lambda c:c.number,default=None)
+
+
+def validate_ending(work,on,field="completed_on"):
+    validate_event_date(work,on,field)
+    dates=[s.suspended_on for s in work.suspensions.all()]
+    dates += [s.resumed_on for s in work.suspensions.all() if s.resumed_on]
+    dates += [e.recorded_on for e in work.deadline_events.all()]
+    if dates and on<max(dates):
+        raise ValidationError({field:"Окончание раньше внесённого факта производства. Уточните даты по документам."})
 
 
 def locked_reference(reference,previous_ids,field):
@@ -56,13 +69,17 @@ def result_readiness(work,result=None):
     result=result if result is not None else latest_result(work)
     blockers=[];gaps=[]
     def issue(target,code,field,message):target.append({"code":code,"field":field,"message":message})
+    closure=latest_closure(work)
+    if work.state=="without_execution" and closure:
+        if closure.return_reason_id is None:issue(gaps,"return_reason_missing","return_reason_id","Не определена причина решения без исполнения.")
+        return {"completion_blockers":blockers,"report_gaps":gaps}
     if result is None:
         issue(blockers,"result_missing","result_id","Сначала сохраните результат.")
         return {"completion_blockers":blockers,"report_gaps":gaps}
     if result.kind is None:issue(blockers,"kind_missing","kind","Укажите вид результата.")
     if result.completed_on is None:issue(blockers,"date_missing","completed_on","Укажите дату окончания.")
     else:
-        try:validate_event_date(work,result.completed_on,"completed_on")
+        try:validate_ending(work,result.completed_on,"completed_on")
         except ValidationError:issue(blockers,"date_invalid","completed_on","Проверьте дату окончания относительно поступления и текущей даты.")
     if result.document_id is None or not result.document.versions.exists():
         issue(blockers,"file_missing","document_id","Подкрепите сохранённый файл итогового документа.")
@@ -90,3 +107,65 @@ def save_result(*,actor,expertise_id,data,key,payload):
         audit(actor,action,work,{"result_id":str(revision.id),"number":revision.number,"version":work.version},data["reason"])
         return {"id":str(revision.id),"expertise_id":str(work.id)}
     return execute_once(actor=actor,action=action,key=key,payload={"expertise_id":str(expertise_id),"data":payload},operation=operation)
+
+
+def confirm_result(work,actor,result):
+    if result is None:raise ValidationError({"result_id":"Сохраните текущую редакцию результата."})
+    if result.completed_on:validate_ending(work,result.completed_on)
+    blockers=result_readiness(work,result)["completion_blockers"]
+    if blockers:raise ValidationError({item["field"]:item["message"] for item in blockers})
+    checked_document(actor,result.document,kind=result.kind)
+
+
+def create_closure(work,actor,*,reason,kind,ended_on,document,result=None,return_reason=None,comment=""):
+    previous=latest_closure(work)
+    closure=WorkClosure.objects.create(expertise=work,number=previous.number+1 if previous else 1,kind=kind,ended_on=ended_on,document=document,result=result,return_reason=return_reason,comment=comment,actor=actor,reason=reason)
+    work.state=kind;work.version+=1;work.save(update_fields=["state","version"])
+    return closure
+
+
+def return_values(work,actor,data):
+    validate_ending(work,data["decided_on"],"decided_on")
+    document=checked_document(actor,data["document"],kind="return_decision")
+    if not document.versions.exists():raise ValidationError({"document_id":"Подкрепите сохранённый файл решения."})
+    previous=latest_closure(work)
+    reason=locked_reference(data["return_reason"],{previous.return_reason_id} if previous else set(),"return_reason_id")
+    if reason and reason.code=="other" and not data["comment"]:
+        raise ValidationError({"comment":"Для иной причины нужно пояснение."})
+    return {"kind":"without_execution","ended_on":data["decided_on"],"document":document,"return_reason":reason,"comment":data["comment"]}
+
+
+@transaction.atomic
+def _close(*,actor,expertise_id,data,key,payload,command):
+    work=locked_work(expertise_id)
+    action={"complete":"expertise.complete","return":"expertise.return_without_execution","correct":"expertise.closed.correct"}[command]
+    require_work(actor,"expertise.view",work);require_work(actor,action,work)
+    def operation():
+        check_version(work,data["expected_version"])
+        if command=="correct":
+            previous=latest_closure(work)
+            if work.state in OPEN_STATES or previous is None:raise ValidationError("Нет подтверждённого окончания для корректировки.")
+            expected="result" if work.state=="completed" else "return"
+            if data["correction_kind"]!=expected:raise ValidationError({"correction_kind":"Корректировка не меняет вид закрытия и не переоткрывает работу."})
+            if expected=="result":
+                result=create_revision(work,actor,data["result"],data["reason"])
+                confirm_result(work,actor,result)
+                values={"kind":"completed","ended_on":result.completed_on,"document":result.document,"result":result}
+            else:values=return_values(work,actor,data)
+        else:
+            if work.state not in OPEN_STATES:raise ValidationError("Работа уже закрыта. Нужна отдельная корректировка.")
+            if command=="complete":
+                result=latest_result(work)
+                if result is None or result.pk!=data["result_id"]:raise ValidationError({"result_id":"Подтвердить можно только текущую редакцию результата."})
+                confirm_result(work,actor,result)
+                values={"kind":"completed","ended_on":result.completed_on,"document":result.document,"result":result}
+            else:values=return_values(work,actor,data)
+        closure=create_closure(work,actor,reason=data["reason"],**values)
+        audit(actor,action,work,{"closure_id":str(closure.pk),"result_id":str(closure.result_id) if closure.result_id else None,"kind":closure.kind,"ended_on":closure.ended_on,"version":work.version},data["reason"])
+        return {"id":str(closure.pk),"expertise_id":str(work.pk)}
+    return execute_once(actor=actor,action=action,key=key,payload={"expertise_id":str(expertise_id),"data":payload},operation=operation)
+
+
+def complete_work(**kwargs):return _close(**kwargs,command="complete")
+def return_work(**kwargs):return _close(**kwargs,command="return")
+def correct_closed_work(**kwargs):return _close(**kwargs,command="correct")

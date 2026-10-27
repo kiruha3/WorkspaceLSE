@@ -128,3 +128,25 @@ class UnresolvedAllocation(models.Model):
             models.UniqueConstraint(fields=["result","reason"],name="unique_result_unresolved_reason"),
             models.CheckConstraint(condition=Q(count__gte=1),name="positive_unresolved_allocation"),
         ]
+
+
+class WorkClosure(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    expertise=models.ForeignKey(Expertise,related_name="closures",on_delete=models.PROTECT)
+    number=models.PositiveIntegerField()
+    kind=models.CharField(max_length=25,choices=[("completed","Завершена"),("without_execution","Без исполнения")])
+    ended_on=models.DateField()
+    result=models.ForeignKey(ResultRevision,related_name="closures",null=True,blank=True,on_delete=models.PROTECT)
+    document=models.ForeignKey("documents.Document",related_name="work_closures",on_delete=models.PROTECT)
+    return_reason=models.ForeignKey("references.ReturnReason",null=True,blank=True,on_delete=models.PROTECT)
+    comment=models.TextField(blank=True)
+    actor=models.ForeignKey(settings.AUTH_USER_MODEL,related_name="recorded_work_closures",on_delete=models.PROTECT)
+    created_at=models.DateTimeField(auto_now_add=True)
+    reason=models.TextField()
+
+    class Meta:
+        ordering=["number","id"]
+        constraints=[
+            models.UniqueConstraint(fields=["expertise","number"],name="unique_work_closure_revision"),
+            models.CheckConstraint(condition=Q(kind="completed",result__isnull=False,return_reason__isnull=True)|Q(kind="without_execution",result__isnull=True),name="typed_work_closure"),
+        ]

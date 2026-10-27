@@ -93,13 +93,13 @@ def bootstrap(args):
                    {"AIS_BOOTSTRAP_PASSWORD":login["password"]})
 
 
-def workflow_demo():
+def workflow_demo(args):
     login_file=RUNTIME / "workflow-demo-login.json"
     if login_file.exists():login=json.loads(login_file.read_text(encoding="utf-8"))
     else:
         login={"password":secrets.token_urlsafe(24),"usernames":["demo.clerk","demo.head3","demo.expert","demo.expert2","demo.trainee"]}
         login_file.write_text(json.dumps(login),encoding="utf-8")
-    result=backend(["manage.py","bootstrap_workflow_demo"],{"AIS_DEMO_PASSWORD":login["password"]})
+    result=backend(["manage.py","bootstrap_workflow_demo",*args],{"AIS_DEMO_PASSWORD":login["password"]})
     if result==0:
         (RUNTIME / "Демо-доступ-к-АИС.txt").write_text(
             "АИС ФГБУ Абаканская ЛСЭ — учебные профили\nhttp://127.0.0.1:5173/\nhttp://185.112.226.84:5173/\n\n"
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     elif command == "bootstrap":
         sys.exit(bootstrap(arguments))
     elif command == "workflow-demo":
-        sys.exit(workflow_demo())
+        sys.exit(workflow_demo(arguments))
     elif command == "web-hosts":
         if not arguments or any(not re.fullmatch(r"[A-Za-z0-9.-]+",host) for host in arguments):
             raise SystemExit("Pass IPv4 addresses or hostnames, without protocol or port.")

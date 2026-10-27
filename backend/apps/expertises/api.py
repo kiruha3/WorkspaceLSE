@@ -1,6 +1,4 @@
 from django.db import transaction
-from datetime import timedelta
-from django.utils import timezone
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
@@ -19,7 +17,7 @@ from .services import register_expertise, assign_experts, reassign_experts
 
 
 def loaded(queryset=None):
-    return (queryset if queryset is not None else Expertise.objects.all()).select_related("receipt__basis_document","material","department","specialty","complex_group").prefetch_related("assignments__employee","receipt__basis_document__versions","suspensions__actor__employee","suspensions__resumed_by__employee","deadline_events__actor__employee","deadline_events__document__versions","result_revisions__actor__employee","result_revisions__document__versions","result_revisions__sndz_reason","result_revisions__unresolved_allocations__reason","result_revisions__unresolved_allocations__document__versions")
+    return (queryset if queryset is not None else Expertise.objects.all()).select_related("receipt__basis_document","material","department","specialty","complex_group").prefetch_related("assignments__employee","receipt__basis_document__versions","suspensions__actor__employee","suspensions__resumed_by__employee","deadline_events__actor__employee","deadline_events__document__versions","result_revisions__actor__employee","result_revisions__document__versions","result_revisions__sndz_reason","result_revisions__unresolved_allocations__reason","result_revisions__unresolved_allocations__document__versions","closures__actor__employee","closures__document__versions","closures__return_reason")
 
 
 class ExpertiseRegisterView(GenericAPIView):
@@ -40,13 +38,8 @@ class ExpertiseListView(GenericAPIView):
         if filters.get("received_from"):queryset=queryset.filter(receipt__received_at__gte=filters["received_from"])
         if filters.get("received_to"):queryset=queryset.filter(receipt__received_at__lte=filters["received_to"])
         if "state" in filters:queryset=queryset.filter(state=filters["state"])
-        if "calendar_days_min" in filters or "calendar_days_max" in filters:
-            queryset=queryset.filter(state__in=["in_progress","suspended"])
-            today=timezone.localdate()
-            if filters.get("calendar_days_min",0)>0:queryset=queryset.filter(receipt__received_at__lte=today-timedelta(days=filters["calendar_days_min"]-1))
-            if "calendar_days_max" in filters:
-                maximum=filters["calendar_days_max"]
-                queryset=queryset.filter(receipt__received_at__gt=today) if maximum==0 else queryset.filter(receipt__received_at__gte=today-timedelta(days=maximum-1))
+        from .calendar_query import filter_calendar_days
+        queryset=filter_calendar_days(queryset,filters)
         if search:=filters.get("search"):queryset=queryset.filter(Q(registration_number__icontains=search)|Q(material__title__icontains=search))
         page=self.paginate_queryset(loaded(queryset.distinct()))
         return self.get_paginated_response(ExpertiseOutput(page,many=True,context={"user":request.user,"scopes":scopes}).data)

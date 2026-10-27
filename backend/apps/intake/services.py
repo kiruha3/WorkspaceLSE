@@ -55,6 +55,12 @@ def amend_receipt(*,actor,receipt_id,data):
     require(actor,"receipts.amend",**receipt_context(receipt))
     if "received_at" in data and receipt.expertises.filter(Q(suspensions__suspended_on__lt=receipt.received_at)|Q(deadline_events__recorded_on__lt=receipt.received_at)|Q(deadline_events__due_on__lt=receipt.received_at)).exists():
         raise ValidationError({"received_at":"Дата поступления позже уже внесённого события производства или срока. Уточните исходные документы; история автоматически не переписывается."})
+    if "received_at" in data:
+        from apps.expertises.results import latest_closure
+        for work in receipt.expertises.prefetch_related("closures"):
+            closure=latest_closure(work)
+            if closure and closure.ended_on<receipt.received_at:
+                raise ValidationError({"received_at":"Дата поступления позже подтверждённого окончания работы."})
     if receipt.status=="accepted":validate_basis(receipt)
     receipt.version+=1;receipt.save()
     audit(actor,"receipt.amend",receipt,{"before":before,"fields":list(data),"version":receipt.version},reason)

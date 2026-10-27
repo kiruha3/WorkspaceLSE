@@ -95,13 +95,16 @@ class ExpertiseOutput(serializers.ModelSerializer):
     def get_allowed_actions(self,obj):
         # Only implemented commands are advertised; execution always rechecks.
         scopes=self.context["scopes"];context=work_context(obj,self.context["user"],scopes)
-        if obj.state not in ("in_progress","suspended"): return []
+        if obj.state not in ("in_progress","suspended"):
+            return ["expertise.closed.correct"] if scopes.get("expertise.closed.correct",AccessScope()).allows(**context) else []
         action = "expertise.reassign" if any(a.ended_at is None for a in obj.assignments.all()) else "expertise.assign"
         result=[action] if scopes.get(action,AccessScope()).allows(**context) else []
         production_action="expertise.suspend" if obj.state=="in_progress" else "expertise.resume"
         if scopes.get(production_action,AccessScope()).allows(**context):result.append(production_action)
         if scopes.get("expertise.deadline.record",AccessScope()).allows(**context):result.append("expertise.deadline.record")
         if scopes.get("expertise.result.draft",AccessScope()).allows(**context):result.append("expertise.result.draft")
+        for code in ("expertise.complete","expertise.return_without_execution"):
+            if scopes.get(code,AccessScope()).allows(**context):result.append(code)
         return result
     def get_result(self,obj):
         from .results import latest_result
@@ -111,8 +114,14 @@ class ExpertiseOutput(serializers.ModelSerializer):
     def get_result_history(self,obj):
         from .result_serializers import ResultOutput
         return ResultOutput(obj.result_revisions.all(),many=True,context=self.context).data
-    def get_closure(self,obj):return None
-    def get_closure_history(self,obj):return []
+    def get_closure(self,obj):
+        from .results import latest_closure
+        from .result_serializers import ClosureOutput
+        closure=latest_closure(obj)
+        return ClosureOutput(closure,context=self.context).data if closure else None
+    def get_closure_history(self,obj):
+        from .result_serializers import ClosureOutput
+        return ClosureOutput(obj.closures.all(),many=True,context=self.context).data
     def get_result_readiness(self,obj):
         from .results import result_readiness
         return result_readiness(obj)

@@ -28,3 +28,21 @@ def test_demo_profiles_are_explicit_and_rerun_preserves_edits(monkeypatch):
     assert not RolePermission.objects.filter(role__name="ДЕМО · Делопроизводитель",permission_code="receipts.accept").exists()
     from apps.expertises.models import Expertise
     assert Expertise.objects.count()==0
+
+
+def test_demo_results_opt_in_restores_only_new_rights_and_refuses_real_members(monkeypatch,employee_factory):
+    from django.core.management.base import CommandError
+    from apps.accounts.models import Role
+    from apps.personnel.models import EmployeeRole
+    monkeypatch.setenv("AIS_DEMO_PASSWORD","Only-local-DemoPassword75")
+    call_command("bootstrap_workflow_demo")
+    role=Role.objects.get(name="ДЕМО · Эксперт")
+    RolePermission.objects.filter(role=role,permission_code__in=["expertise.result.draft","expertise.return_without_execution","expertise.complete"]).delete()
+    call_command("bootstrap_workflow_demo")
+    assert not RolePermission.objects.filter(role=role,permission_code="expertise.result.draft").exists()
+    call_command("bootstrap_workflow_demo",enable_results=True)
+    assert RolePermission.objects.filter(role=role,permission_code="expertise.result.draft",scope="own").exists()
+    assert RolePermission.objects.filter(role=role,permission_code="expertise.return_without_execution",scope="own").exists()
+    assert not RolePermission.objects.filter(role=role,permission_code="expertise.complete").exists()
+    EmployeeRole.objects.create(employee=employee_factory(),role=role,reason="Ручное назначение")
+    with pytest.raises(CommandError):call_command("bootstrap_workflow_demo",enable_results=True)
