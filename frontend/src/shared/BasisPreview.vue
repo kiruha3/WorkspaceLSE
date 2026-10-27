@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { DocumentLink } from '../api/types'
-const props = defineProps<{ document: DocumentLink; heading?: string; emptyText?: string }>()
-const kindLabels = { resolution: 'Постановление', decision: 'Определение', deadline_agreement: 'Подтверждение согласования срока', deadline_request: 'Запрос срока', expert_conclusion: 'Заключение эксперта', research_act: 'Акт исследования', sndz: 'СНДЗ', return_decision: 'Решение без исполнения' }
+const props = defineProps<{ document: DocumentLink; heading?: string; emptyText?: string; acceptedLabel?: string }>()
+const kindLabels = { resolution: 'Постановление', decision: 'Определение', deadline_agreement: 'Подтверждение согласования срока', deadline_request: 'Запрос срока', expert_conclusion: 'Заключение эксперта', research_act: 'Акт исследования', sndz: 'СНДЗ', return_decision: 'Решение без исполнения', letter: 'Документ переписки' }
 const selected = ref(''), previewFailed = ref(false)
 const document = computed(() => props.document && !('restricted' in props.document) ? props.document : null)
 const versions = computed(() => [...(document.value?.versions ?? [])].sort((a, b) => b.number - a.number))
@@ -21,9 +21,9 @@ watch(() => file.value?.id, () => { previewFailed.value = false })
     <p v-else-if="!document" class="muted">Доступ к документу ограничен.</p>
     <template v-else>
       <p><strong>{{ document.title || kindLabels[document.kind] }}</strong> <span class="badge">{{ document.source_kind === 'paper_original' ? 'Бумажный оригинал' : 'Загруженная копия' }}</span></p>
-      <p v-if="acceptedContext" class="muted compact">{{ accepted ? `При окончании подтверждена версия ${accepted.number}. Последующие загрузки не изменяют это подтверждение.` : 'Подтверждённая версия файла не установлена; позднейшая загрузка не считается подтверждением.' }}</p>
+      <p v-if="acceptedContext" class="muted compact">{{ accepted ? `${acceptedLabel || 'При окончании подтверждена'} версия ${accepted.number}. Последующие загрузки не изменяют это подтверждение.` : 'Подтверждённая версия файла не установлена; позднейшая загрузка не считается подтверждением.' }}</p>
       <label v-if="acceptedContext && !file && versions.length" class="version-select">Просмотреть другую версию<select v-model="selected"><option value="">Подтверждённая версия неизвестна</option><option v-for="item in versions" :key="item.id" :value="item.id">Версия {{ item.number }} · {{ item.original_name }}</option></select></label>
-      <p v-if="acceptedContext && file && file.id !== document.accepted_version_id" data-unconfirmed-file class="message">Просматриваемая версия не подтверждена этим окончанием.</p>
+      <p v-if="acceptedContext && file && file.id !== document.accepted_version_id" data-unconfirmed-file class="message">{{ acceptedLabel ? 'Просматриваемая версия не подтверждена этим событием.' : 'Просматриваемая версия не подтверждена этим окончанием.' }}</p>
       <p v-if="!versions.length" class="muted compact">{{ document.source_kind === 'paper_original' ? 'Заявлено наличие бумажного оригинала. Электронный скан пока не добавлен.' : heading ? 'Копия ещё не сохранена. Необходимо загрузить файл.' : 'Копия ещё не сохранена. Для приёмки необходимо загрузить файл.' }}</p>
       <template v-if="file">
         <label v-if="versions.length > 1" class="version-select">Версия файла<select v-model="selected"><option v-for="item in versions" :key="item.id" :value="item.id">Версия {{ item.number }} · {{ item.original_name }}</option></select></label>

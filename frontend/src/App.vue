@@ -27,11 +27,12 @@ watch(() => route.path, () => { menuOpen.value = false })
         <RouterLink to="/workspace"><UiIcon name="home" />Рабочее место</RouterLink>
         <RouterLink v-if="session.can('receipts.view')" to="/intake"><UiIcon name="file" />Приёмка материалов</RouterLink>
         <RouterLink v-if="session.can('expertise.view')" to="/expertises"><UiIcon name="folder" />Экспертизы</RouterLink>
+        <RouterLink v-if="session.correspondenceEnabled && session.can('letters.view')" to="/letters"><UiIcon name="file" />Переписка</RouterLink>
         <RouterLink v-if="session.can('employees.view')" to="/people"><UiIcon name="people" />Сотрудники</RouterLink>
         <RouterLink v-if="session.canAccessDirectory" to="/access"><UiIcon name="shield" />Учётные записи</RouterLink>
         <RouterLink v-if="session.canAny('access.roles.view','access.roles.manage')" to="/roles"><UiIcon name="shield" />Роли и права</RouterLink>
       </nav>
-      <div class="sidebar-future"><p class="sidebar-caption">Следующие этапы</p><div><UiIcon name="file" />Переписка и выдача<span>позже</span></div><div><UiIcon name="chart" />Отчётность<span>позже</span></div></div>
+      <div class="sidebar-future"><p class="sidebar-caption">Следующие этапы</p><div><UiIcon name="file" />Выдача<span>позже</span></div><div><UiIcon name="chart" />Отчётность<span>позже</span></div></div>
       <div class="sidebar-bottom"><span class="status-dot" /><span>Персональное рабочее место<small>Приёмка · регистрация · назначения</small></span></div>
     </aside>
     <div class="workspace"><header class="topbar"><div class="topbar-context"><button class="mobile-menu" aria-label="Открыть меню" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">☰</button><span class="topbar-institution">ФГБУ Абаканская ЛСЭ</span><span class="topbar-divider">/</span><span>{{ route.meta.title }}</span></div><div class="account"><span class="avatar">{{ (session.user?.employee?.full_name ?? session.user?.username ?? '').charAt(0) }}</span><div><strong>{{ session.user?.employee?.full_name ?? session.user?.username }}</strong><small>{{ session.user?.username }}</small></div><button class="icon-button" :disabled="signingOut" aria-label="Выйти из системы" title="Выйти из системы" @click="logout"><UiIcon name="logout" /></button></div></header><main class="main-content"><ApiMessage :error="logoutError" /><RouterView /></main><footer class="workspace-footer">ФГБУ Абаканская ЛСЭ<span>Персональная сессия · права проверяются сервером</span></footer></div>

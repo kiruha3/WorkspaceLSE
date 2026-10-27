@@ -5,7 +5,7 @@ export interface AccessGrant {
   role_id: string; role_name: string; assignment_id: string
 }
 export type Access = Record<string, AccessGrant[]>
-export interface CurrentUser { id: string; username: string; employee: { id: string; full_name: string } | null; access: Access }
+export interface CurrentUser { id: string; username: string; employee: { id: string; full_name: string } | null; access: Access; supported_modules?: string[] }
 export interface PermissionDefinition { code: string; label: string; module: string; scopes: Scope[] }
 export interface RolePermission { permission_code: string; scope: Scope }
 export interface Role {
@@ -38,7 +38,7 @@ export interface FileVersion {
   sha256: string; created_at: string; download_url: string; preview_url: string | null
 }
 export type ResultKind = 'expert_conclusion' | 'research_act' | 'sndz'
-export type DocumentKind = 'resolution' | 'decision' | 'deadline_agreement' | 'deadline_request' | ResultKind | 'return_decision'
+export type DocumentKind = 'resolution' | 'decision' | 'deadline_agreement' | 'deadline_request' | ResultKind | 'return_decision' | 'letter'
 export interface BasisDocument {
   accepted_version_id?: string | null
   id: string; kind: DocumentKind; title: string; source_kind: 'paper_original' | 'uploaded_copy'

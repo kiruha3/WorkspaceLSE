@@ -8,7 +8,10 @@ import BasisPreview from '../../shared/BasisPreview.vue'
 import AssignmentForm from './AssignmentForm.vue'
 import ProductionPanel from './ProductionPanel.vue'
 import ResultPanel from './ResultPanel.vue'
+import ExpertiseLetters from '../letters/ExpertiseLetters.vue'
+import { useSessionStore } from '../../stores/session'
 const api = useApi(), route = useRoute(), requests = new LatestRequest()
+const session = useSessionStore()
 const expertise = ref<Expertise | null>(null), loading = ref(false), error = ref<unknown>(null), action = ref<'assign' | 'reassign' | null>(null), success = ref('')
 const stateLabels = { in_progress: 'В производстве', suspended: 'Приостановлена', completed: 'Завершена', without_execution: 'Без исполнения' }
 const natureLabels = { primary: 'Первичная', repeated: 'Повторная', additional: 'Дополнительная' }
@@ -32,5 +35,6 @@ onBeforeUnmount(() => requests.cancel())
     <section data-assignment-history class="card stack-card"><h2>История назначений</h2><div v-for="assignment in expertise.assignment_history" :key="assignment.id" class="assignment-line"><strong>{{ assignment.employee.full_name }}</strong><small>{{ time(assignment.started_at) }} → {{ assignment.ended_at ? time(assignment.ended_at) : 'действует' }}</small><p class="muted compact">{{ assignment.reason || 'Основание не указано' }}</p></div><p v-if="!expertise.assignment_history.length" class="muted compact">Предыдущих назначений нет.</p></section><section class="card stack-card"><BasisPreview :document="expertise.basis_document" /></section>
     <ProductionPanel :key="expertise.id" :expertise="expertise" @updated="productionUpdated" />
     <ResultPanel v-if="expertise.result_readiness" :key="expertise.id" :expertise="expertise" @updated="resultUpdated" />
+    <ExpertiseLetters v-if="session.correspondenceEnabled && session.can('letters.view')" :key="`letters-${expertise.id}`" :expertise-id="expertise.id" />
   </template>
 </template>

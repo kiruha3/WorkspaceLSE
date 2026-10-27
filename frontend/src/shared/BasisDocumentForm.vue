@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { ApiError, useApi } from '../api/client'
 import { newCommandKey } from '../api/commandKey'
 import type { BasisDocument, DocumentKind, FileVersion } from '../api/types'
-const props = defineProps<{ departmentId: string; busy?: boolean; heading?: string; kindOptions?: { value: DocumentKind; label: string }[] }>()
+const props = defineProps<{ departmentId: string; busy?: boolean; heading?: string; savedNote?: string; kindOptions?: { value: DocumentKind; label: string }[] }>()
 const emit = defineEmits<{ changed: [] }>()
 const api = useApi()
 const options = computed(() => props.kindOptions ?? [{ value: 'resolution' as const, label: 'Постановление' }, { value: 'decision' as const, label: 'Определение' }])
@@ -42,6 +42,6 @@ defineExpose({ persist, dirty })
     <label>Название или известные реквизиты<input v-model="title" name="document_title" maxlength="500" required /></label>
     <p v-if="sourceKind === 'paper_original'" class="muted compact">Заявляется наличие бумажного оригинала. {{ heading ? 'Электронного файла может пока не быть.' : 'Скан можно добавить позднее в карточке поступления.' }}</p>
     <label v-else>Файл копии или фото<input name="basis_file" type="file" @change="chooseFile" /><small>{{ heading ? 'Копия подтвердит документ после успешного сохранения файла на сервере.' : 'Копия станет основанием после успешного сохранения файла на сервере.' }}</small></label>
-    <p v-if="prepared" class="message message-success" role="status">Документ подготовлен: {{ prepared.id }}. {{ prepared.versions.length ? 'Файл сохранён.' : 'Электронного файла пока нет.' }} {{ heading ? 'Событие срока сохраняется отдельно.' : 'Поступление и номер экспертизы сохраняются отдельно.' }}</p>
+    <p v-if="prepared" class="message message-success" role="status">Документ подготовлен: {{ prepared.id }}. {{ prepared.versions.length ? 'Файл сохранён.' : 'Электронного файла пока нет.' }} {{ savedNote || (heading ? 'Событие срока сохраняется отдельно.' : 'Поступление и номер экспертизы сохраняются отдельно.') }}</p>
   </fieldset>
 </template>
