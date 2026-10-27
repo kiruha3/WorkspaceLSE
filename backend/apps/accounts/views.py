@@ -45,4 +45,4 @@ class MeView(APIView):
         from apps.personnel.models import Employee
         from .policies import access_snapshot
         employee = Employee.objects.filter(user=request.user).first()
-        return Response({"id":str(request.user.id),"username":request.user.username,"employee":{"id":str(employee.id),"full_name":employee.full_name} if employee else None,"access":access_snapshot(request.user),"supported_modules":["correspondence","issuance","journal_import_preview"]})
+        return Response({"id":str(request.user.id),"username":request.user.username,"employee":{"id":str(employee.id),"full_name":employee.full_name} if employee else None,"access":access_snapshot(request.user),"supported_modules":["correspondence","issuance","journal_import_preview","journal_google_preview"]})

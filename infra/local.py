@@ -77,6 +77,8 @@ def backend(args, extra_env=None):
                 "DJANGO_DEBUG": "1", "PYTHONUTF8":"1"})
     env["CSRF_TRUSTED_ORIGINS"] = ",".join(
         f"http://{host}:5173" for host in config.get("web_hosts",["127.0.0.1","localhost"]))
+    journal=config.get("journal_source",{})
+    env.update({"AIS_JOURNAL_GOOGLE_ID":journal.get("spreadsheet_id",""),"AIS_JOURNAL_GOOGLE_GID":journal.get("gid","0"),"AIS_JOURNAL_GOOGLE_SHEET_NAME":journal.get("sheet_name","Лист1")})
     env.update(extra_env or {})
     return subprocess.call([sys.executable, *args], cwd=ROOT / "backend", env=env)
 
@@ -132,5 +134,12 @@ if __name__ == "__main__":
         config["web_hosts"] = list(dict.fromkeys(["127.0.0.1","localhost",*arguments]))
         CONNECTION.write_text(json.dumps(config),encoding="utf-8")
         print("Web origins saved; restart Django to apply. No database credentials changed.")
+    elif command == "journal-source":
+        if len(arguments)!=3 or not re.fullmatch(r"[A-Za-z0-9_-]{10,200}",arguments[0]) or not re.fullmatch(r"\d{1,10}",arguments[1]) or not arguments[2].strip():
+            raise SystemExit("Pass spreadsheet ID, numeric gid and exact sheet name. Google is read-only.")
+        config=connection()
+        config["journal_source"]={"spreadsheet_id":arguments[0],"gid":arguments[1],"sheet_name":arguments[2].strip()}
+        CONNECTION.write_text(json.dumps(config),encoding="utf-8")
+        print("Read-only journal source saved; restart Django to apply. No Google or business data changed.")
     else:
-        raise SystemExit("Commands: db-start, db-status, db-stop, web-hosts <hosts>, bootstrap [options], backend <python arguments>")
+        raise SystemExit("Commands: db-start, db-status, db-stop, web-hosts <hosts>, journal-source <id> <gid> <sheet>, bootstrap [options], backend <python arguments>")
