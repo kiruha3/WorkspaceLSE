@@ -58,12 +58,12 @@ class SpecialtyCreate(StrictSerializer):
 
 
 class SpecialtyQualify(VersionedSerializer):
-    qualified_at = serializers.DateField()
+    qualified_at = serializers.DateField(allow_null=True,required=False,default=None)
     valid_until = serializers.DateField(allow_null=True,required=False)
-    basis = serializers.CharField(allow_blank=True,required=False,default="")
+    basis = serializers.CharField()
 
     def validate(self, attrs):
-        if attrs.get("valid_until") and attrs["valid_until"] < attrs["qualified_at"]:
+        if attrs.get("valid_until") and attrs["qualified_at"] and attrs["valid_until"] < attrs["qualified_at"]:
             raise serializers.ValidationError({"valid_until":"Окончание допуска раньше его получения."})
         return attrs
 

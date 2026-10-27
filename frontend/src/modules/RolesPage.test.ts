@@ -25,6 +25,16 @@ function setup(conflict = false) {
 }
 
 describe('roles editor', () => {
+  it('opens the editor instead of leaving it below a long registry and can return to the list',async()=>{
+    const {wrapper}=setup()
+    await flushPromises()
+    await wrapper.get('[data-role="role-1"]').trigger('click')
+    expect(wrapper.find('[aria-label="Реестр ролей"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-label="Редактор роли"]').exists()).toBe(true)
+    await wrapper.get('[data-back-roles]').trigger('click')
+    expect(wrapper.find('[data-role="role-1"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
   it('groups supported actions and saves their explicit scope with the expected version', async () => {
     const { wrapper, writes } = setup()
     await flushPromises()

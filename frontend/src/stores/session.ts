@@ -3,12 +3,16 @@ import { defineStore } from 'pinia'
 import { api, ApiError } from '../api/client'
 import type { CurrentUser } from '../api/types'
 
+export const accessDirectoryActions = ['users.view','users.create','users.deactivate','access.roles.assign','access.effective.view']
+
 export const useSessionStore = defineStore('session', () => {
   const user = ref<CurrentUser | null>(null)
   const ready = ref(false)
   const error = ref('')
   const authenticated = computed(() => user.value !== null)
   const can = (code: string): boolean => Boolean(user.value?.access[code]?.length)
+  const canAny = (...codes:string[]):boolean => codes.some(can)
+  const canAccessDirectory = computed(()=>canAny(...accessDirectoryActions))
   api.onUnauthorized = () => { user.value = null }
   async function refresh(): Promise<void> {
     error.value = ''
@@ -30,5 +34,5 @@ export const useSessionStore = defineStore('session', () => {
     user.value = null
     ready.value = true
   }
-  return { user, ready, error, authenticated, can, refresh, login, logout }
+  return { user, ready, error, authenticated, can, canAny, canAccessDirectory, refresh, login, logout }
 })

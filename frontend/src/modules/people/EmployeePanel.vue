@@ -18,12 +18,13 @@ const metadataVersion = ref(props.employee.version), originalName = ref(props.em
 const error = ref<unknown>(null), success = ref(''), saving = ref(false)
 const specialties = ref<Reference[]>([]), refsError = ref<unknown>(null)
 const addingSpecialty = ref(false), specialtyId = ref(''), status = ref('training'), started = ref(''), basis = ref(''), validUntil = ref('')
-const qualifying = ref<EmployeeSpecialty | null>(null), qualifiedAt = ref(''), qualificationBasis = ref('')
+const qualifying = ref<EmployeeSpecialty | null>(null), qualifiedAt = ref(''), qualificationBasis = ref(''), qualificationValidUntil = ref('')
 const access = ref<InstanceType<typeof EmployeeAccess> | null>(null)
 const account = ref<InstanceType<typeof EmployeeAccount> | null>(null)
 const organization = ref<InstanceType<typeof EmployeeOrganization> | null>(null)
 const metadataDirty = computed(() => fullName.value !== originalName.value || active.value !== originalActive.value)
-const dirty = computed(() => metadataDirty.value || (addingSpecialty.value && Boolean(specialtyId.value || started.value || basis.value || validUntil.value)) || (qualifying.value !== null && Boolean(qualifiedAt.value || qualificationBasis.value)) || Boolean(access.value?.dirty || account.value?.dirty || organization.value?.dirty))
+const qualificationDirty = computed(() => qualifying.value !== null && Boolean(qualifiedAt.value || qualificationBasis.value || qualificationValidUntil.value !== (qualifying.value.valid_until ?? '')))
+const dirty = computed(() => metadataDirty.value || (addingSpecialty.value && Boolean(specialtyId.value || started.value || basis.value || validUntil.value)) || qualificationDirty.value || Boolean(access.value?.dirty || account.value?.dirty || organization.value?.dirty))
 useDirtyGuard(() => dirty.value, inject(routerKey, undefined))
 defineExpose({ dirty })
 function acceptMetadata(employee: Employee) {
@@ -44,7 +45,7 @@ async function saveDetails() {
   if (saving.value) return
   saving.value = true; error.value = null; success.value = ''
   try {
-    const employee = await api.request<Employee>(`/employees/${props.employee.id}/`, { method: 'PATCH', body: { expected_version: metadataVersion.value, ...(session.can('employees.update') ? { full_name: fullName.value.trim() } : {}), ...(session.can('employees.deactivate') ? { is_active: active.value } : {}) } })
+    const employee = await api.request<Employee>(`/employees/${props.employee.id}/`, { method: 'PATCH', body: { expected_version: metadataVersion.value, ...(session.can('employees.update') && fullName.value !== originalName.value ? { full_name: fullName.value.trim() } : {}), ...(session.can('employees.deactivate') && active.value !== originalActive.value ? { is_active: active.value } : {}) } })
     emit('updated', employee); acceptMetadata(employee); success.value = 'Сведения сотрудника сохранены сервером.'
   } catch (cause) { error.value = cause } finally { saving.value = false }
 }
@@ -59,14 +60,14 @@ async function addSpecialty() {
   } catch (cause) { error.value = cause } finally { saving.value = false }
 }
 function startQualify(specialty: EmployeeSpecialty) {
-  if (qualifying.value && (qualifiedAt.value || qualificationBasis.value) && !window.confirm('Заменить несохранённую форму подтверждения?')) return
-  qualifying.value = specialty; qualifiedAt.value = ''; qualificationBasis.value = ''; error.value = null; success.value = ''
+  if (qualificationDirty.value && !window.confirm('Заменить несохранённую форму подтверждения?')) return
+  qualifying.value = specialty; qualifiedAt.value = ''; qualificationBasis.value = ''; qualificationValidUntil.value = specialty.valid_until ?? ''; error.value = null; success.value = ''
 }
 async function qualify() {
-  if (!qualifying.value || saving.value) return
+  if (!qualifying.value || saving.value || !qualificationBasis.value.trim() || !session.can('specialties.qualify')) return
   saving.value = true; error.value = null; success.value = ''
   try {
-    const specialty = await api.request<EmployeeSpecialty>(`/employee-specialties/${qualifying.value.id}/qualify/`, { method: 'POST', body: { expected_version: qualifying.value.version, qualified_at: qualifiedAt.value, basis: qualificationBasis.value } })
+    const specialty = await api.request<EmployeeSpecialty>(`/employee-specialties/${qualifying.value.id}/qualify/`, { method: 'POST', body: { expected_version: qualifying.value.version, qualified_at: qualifiedAt.value || null, ...(qualificationValidUntil.value !== (qualifying.value.valid_until ?? '') ? {valid_until:qualificationValidUntil.value || null} : {}), basis: qualificationBasis.value.trim() } })
     emit('updated', { ...props.employee, specialties: props.employee.specialties.map(item => item.id === specialty.id ? specialty : item) })
     qualifying.value = null; qualifiedAt.value = ''; qualificationBasis.value = ''; success.value = 'Квалификация подтверждена сервером.'
   } catch (cause) { error.value = cause } finally { saving.value = false }
@@ -96,7 +97,12 @@ onMounted(async () => {
     <div class="section-heading subsection"><div><h3>Специальности и обучение</h3><p class="muted compact">Обучение по одной специальности не отменяет полученную квалификацию по другой.</p></div><button v-if="session.can('specialties.training.manage')" :disabled="saving" @click="addingSpecialty = !addingSpecialty">Добавить специальность</button></div>
     <div class="table-scroll"><table><thead><tr><th>Специальность</th><th>Состояние</th><th>Известные даты</th><th>Основание</th><th>Действие</th></tr></thead><tbody><tr v-for="specialty in employee.specialties" :key="specialty.id"><td><strong>{{ specialty.specialty.code }}</strong><small>{{ specialty.specialty.name }}</small></td><td><span class="badge" :class="specialty.status === 'qualified' ? 'badge-green' : 'badge-amber'">{{ specialty.status === 'qualified' ? 'Квалификация получена' : specialty.status === 'training' ? 'Обучение' : 'Не подтверждено' }}</span><small v-if="specialty.status !== 'qualified'">Не допускает назначения</small></td><td><small>Обучение: {{ specialty.training_started_at ?? 'не указано' }}</small><small>Получена: {{ specialty.qualified_at ?? 'не указано' }}</small><small>Срок: {{ specialty.valid_until ?? 'не указан' }}</small></td><td>{{ specialty.basis || 'Не указано' }}</td><td><button v-if="specialty.status !== 'qualified' && session.can('specialties.qualify')" :data-qualify="specialty.id" :disabled="saving" @click="startQualify(specialty)">Подтвердить квалификацию</button><span v-else class="muted">—</span></td></tr><tr v-if="!employee.specialties.length"><td colspan="5" class="state">Специальности пока не внесены.</td></tr></tbody></table></div>
     <form v-if="addingSpecialty" class="inset-form form-grid" @submit.prevent="addSpecialty"><h4>Новая специальность</h4><ApiMessage :error="refsError" /><div class="form-columns"><label>Специальность<select v-model="specialtyId" required><option value="">Выберите из справочника</option><option v-for="item in specialties.filter(s => s.is_active)" :key="item.id" :value="item.id">{{ item.code }} · {{ item.name }}</option></select></label><label>Состояние<select v-model="status"><option value="training">Обучение</option><option value="unknown_legacy">Исторические сведения, не подтверждены</option></select></label><label>Начало обучения, если известно<input v-model="started" type="date" /></label><label>Окончание срока, если известно<input v-model="validUntil" type="date" /></label></div><label>Основание<textarea v-model="basis" rows="2" /></label><p class="muted compact">Получение квалификации подтверждается отдельным действием уполномоченного сотрудника.</p><button class="button-primary align-start" :disabled="saving || !specialtyId">Сохранить специальность</button></form>
-    <form v-if="qualifying" data-confirm-qualification class="inset-form form-grid" @submit.prevent="qualify"><h4>Подтверждение квалификации {{ qualifying.specialty.code }}</h4><p class="muted compact">Явная фиксация получения специальности на основании подтверждённых сведений.</p><div class="form-columns"><label>Дата получения<input v-model="qualifiedAt" name="qualified_at" type="date" required /></label><label>Основание<input v-model="qualificationBasis" name="qualification_basis" required /></label></div><div class="button-row"><button class="button-primary" :disabled="saving || !qualifiedAt || !qualificationBasis.trim()">Подтвердить получение</button><button type="button" :disabled="saving" @click="qualifying = null">Отмена</button></div></form>
+    <form v-if="qualifying" data-confirm-qualification class="inset-form form-grid" @submit.prevent="qualify">
+      <h4>Подтверждение квалификации {{ qualifying.specialty.code }}</h4>
+      <p class="muted compact">Если дата неизвестна, оставьте поле пустым: система сохранит её неизвестной. Явное подтверждение с основанием допускает назначение по специальности при выполнении остальных условий.</p>
+      <div class="form-columns"><label>Дата получения, если известна<input v-model="qualifiedAt" name="qualified_at" type="date" /></label><label>Срок действия, если известен<input v-model="qualificationValidUntil" name="qualification_valid_until" type="date" /><small>Сохранённый срок можно уточнить или явно очистить по подтверждённым сведениям.</small></label><label>Основание<input v-model="qualificationBasis" name="qualification_basis" required /></label></div>
+      <div class="button-row"><button class="button-primary" :disabled="saving || !qualificationBasis.trim()">Подтвердить получение</button><button type="button" :disabled="saving" @click="qualifying = null">Отмена</button></div>
+    </form>
     <EmployeeAccess v-if="session.can('access.roles.view') || session.can('access.roles.assign') || session.can('access.effective.view')" ref="access" :employee-id="employee.id" />
   </section>
 </template>

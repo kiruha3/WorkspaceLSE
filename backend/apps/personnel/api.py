@@ -111,6 +111,9 @@ class SpecialtyQualifyView(GenericAPIView):
         check_version(item,data.pop("expected_version"))
         if item.status == "qualified":
             raise ValidationError("Специальность уже подтверждена; нужна отдельная процедура корректировки.")
+        expiry = data.get("valid_until",item.valid_until)
+        if expiry and data["qualified_at"] and expiry < data["qualified_at"]:
+            raise ValidationError({"valid_until":"Сохранённый срок раньше даты получения. Уточните срок или явно очистите его."})
         before = SpecialtyOutput(item).data
         for key,value in data.items():
             setattr(item,key,value)
@@ -238,8 +241,9 @@ class EmployeeAccountView(GenericAPIView):
             raise ValidationError({"password":exc.messages}) from exc
         user = User.objects.create_user(**data)
         employee.user = user
-        employee.version += 1
-        employee.save()
+        # Account linkage is an independent subresource, absent from EmployeeOutput.
+        # Do not invalidate a concurrent draft of full_name/is_active.
+        employee.save(update_fields=["user"])
         audit(request.user,"employee.account.create",employee,account_data(user))
         return Response(account_data(user),status=201)
 
@@ -259,3 +263,13 @@ class EmployeeAccountView(GenericAPIView):
         user.save(update_fields=["is_active"])
         audit(request.user,"employee.account.status",employee,{"before":before,"after":account_data(user)},serializer.validated_data["reason"])
         return Response(account_data(user))
+
+
+class AccessEmployeeDirectoryView(GenericAPIView):
+    def get(self,request):
+        require_any(request.user,"users.view","users.create","users.deactivate","access.roles.assign","access.effective.view")
+        queryset = Employee.objects.all()
+        if search := request.query_params.get("search","").strip():
+            queryset = queryset.filter(full_name__icontains=search)
+        page = self.paginate_queryset(queryset)
+        return self.get_paginated_response([{"id":str(item.id),"full_name":item.full_name,"is_active":item.is_active} for item in page])

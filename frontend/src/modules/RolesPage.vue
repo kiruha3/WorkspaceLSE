@@ -51,6 +51,10 @@ function edit(role: Role | null) {
   permissions.value = Object.fromEntries((role?.permissions ?? []).map(p => [p.permission_code, p.scope]))
   error.value = null; success.value = ''; editing.value = true
 }
+function closeEditor() {
+  if (saving.value || !confirmLeave()) return
+  editing.value = false; selected.value = null; error.value = null; success.value = ''
+}
 function remember(role: Role) {
   const index = list.value.results.findIndex(item => item.id === role.id)
   if (index >= 0) list.value.results[index] = role
@@ -89,9 +93,9 @@ onBeforeUnmount(() => listRequest.cancel())
 </script>
 
 <template>
-  <div class="page-heading"><div><p class="eyebrow">Управление доступом</p><h1>Роли и права</h1><p class="muted">Поддерживаемые действия, явные области и несколько ролей у одного сотрудника.</p></div><button v-if="canManage" class="button-primary" :disabled="saving" @click="edit(null)">+ Создать роль</button></div>
-  <div class="split-layout">
-    <section class="card registry-pane" aria-label="Реестр ролей">
+  <div class="page-heading"><div><p class="eyebrow">Управление доступом</p><h1>Роли и права</h1><p class="muted">Поддерживаемые действия, явные области и несколько ролей у одного сотрудника.</p></div><button v-if="editing" data-back-roles :disabled="saving" @click="closeEditor">← К списку ролей</button><button v-else-if="canManage" class="button-primary" :disabled="saving" @click="edit(null)">+ Создать роль</button></div>
+  <div :class="{'split-layout':!editing}">
+    <section v-if="!editing" class="card registry-pane" aria-label="Реестр ролей">
       <form class="toolbar" @submit.prevent="load(1)"><label class="grow">Поиск ролей<input v-model="search" placeholder="Название или назначение" type="search" /></label><button :disabled="loading">Найти</button></form>
       <ApiMessage :error="listError" />
       <p v-if="loading" class="state" aria-live="polite">Загрузка ролей…</p>

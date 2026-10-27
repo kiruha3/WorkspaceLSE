@@ -5,6 +5,29 @@ import { json, page, role, sessionWith } from '../../test/fixtures'
 import EmployeeAccess from './EmployeeAccess.vue'
 
 describe('employee role assignments', () => {
+  it('assigns departments for a mixed role without narrowing its institution-wide actions', async()=>{
+    let payload: unknown
+    const mixed = {...role,permissions:[{permission_code:'employees.view',scope:'institution'},{permission_code:'employees.update',scope:'departments'}]}
+    const client = new ApiClient(async(input,init)=>{
+      const path=String(input)
+      if(path.endsWith('/csrf/')) return json({csrf_token:'token'})
+      if(init?.method==='POST'){payload=JSON.parse(String(init.body));return json({id:'a-new',role:{id:role.id,name:role.name},scope_limit:'institution',department_ids:['d-4'],valid_from:null,valid_to:null,is_active:true,reason:'Совмещение',version:1})}
+      if(path.includes('/references/')) return json(page([{id:'d-4',code:'4',name:'Отдел 4',is_active:true,version:1}]))
+      if(path.includes('/employees/')) return json([])
+      return json(page([mixed]))
+    })
+    const wrapper=mount(EmployeeAccess,{props:{employeeId:'employee-1'},global:{plugins:[sessionWith('access.roles.assign')],provide:{[apiKey as symbol]:client}}})
+    await flushPromises()
+    await wrapper.get('[name="assignment_role"]').setValue('role-1')
+    await wrapper.get('[name="scope_limit"]').setValue('institution')
+    expect(wrapper.find('[name="assignment_department"]').exists()).toBe(true)
+    await wrapper.get('[name="assignment_department"]').setValue(['d-4'])
+    await wrapper.get('[name="assignment_reason"]').setValue('Совмещение')
+    await wrapper.get('[data-assign-role]').trigger('submit')
+    await flushPromises()
+    expect(payload).toEqual({role_id:'role-1',scope_limit:'institution',department_ids:['d-4'],valid_from:null,valid_to:null,reason:'Совмещение'})
+    wrapper.unmount()
+  })
   it('keeps multiple roles and assigns an explicit department limit with a reason', async () => {
     const assignments = [
       { id: 'a-1', role: { id: 'head', name: 'Руководитель отдела' }, scope_limit: 'departments', department_ids: ['d-4'], valid_from: null, valid_to: null, is_active: true, reason: 'Назначение', version: 1 },

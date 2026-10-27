@@ -4,6 +4,7 @@ from apps.accounts.api import PermissionsView, RoleListView, RoleDetailView, Rol
 from apps.personnel.api import EmployeeListView, EmployeeDetailView, EmployeeSpecialtiesView, SpecialtyQualifyView, EmployeeRolesView, EmployeeEffectiveView
 from apps.references.api import ReferenceListView, ReferenceDetailView
 from apps.personnel.api import EmployeeOrgAssignmentsView, OrgAssignmentDetailView, EmployeeRoleDetailView, EmployeeAccountView
+from apps.personnel.api import AccessEmployeeDirectoryView
 
 urlpatterns = [
     path("api/v1/auth/csrf/",csrf_view),
@@ -11,6 +12,7 @@ urlpatterns = [
     path("api/v1/auth/logout/",logout_view),
     path("api/v1/me/",MeView.as_view()),
     path("api/v1/permissions/",PermissionsView.as_view()),
+    path("api/v1/access/employees/",AccessEmployeeDirectoryView.as_view()),
     path("api/v1/roles/",RoleListView.as_view()),
     path("api/v1/roles/<uuid:pk>/",RoleDetailView.as_view()),
     path("api/v1/roles/<uuid:pk>/permissions/",RolePermissionsView.as_view()),

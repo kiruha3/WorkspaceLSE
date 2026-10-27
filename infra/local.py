@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import re
 import subprocess
 import sys
 
@@ -74,6 +75,8 @@ def backend(args, extra_env=None):
                 "PGDATABASE": config["dbname"], "PGUSER": config["user"],
                 "PGPASSWORD": config["password"], "DJANGO_SECRET_KEY": config["django_secret"],
                 "DJANGO_DEBUG": "1", "PYTHONUTF8":"1"})
+    env["CSRF_TRUSTED_ORIGINS"] = ",".join(
+        f"http://{host}:5173" for host in config.get("web_hosts",["127.0.0.1","localhost"]))
     env.update(extra_env or {})
     return subprocess.call([sys.executable, *args], cwd=ROOT / "backend", env=env)
 
@@ -102,5 +105,12 @@ if __name__ == "__main__":
         sys.exit(backend(arguments))
     elif command == "bootstrap":
         sys.exit(bootstrap(arguments))
+    elif command == "web-hosts":
+        if not arguments or any(not re.fullmatch(r"[A-Za-z0-9.-]+",host) for host in arguments):
+            raise SystemExit("Pass IPv4 addresses or hostnames, without protocol or port.")
+        config = connection()
+        config["web_hosts"] = list(dict.fromkeys(["127.0.0.1","localhost",*arguments]))
+        CONNECTION.write_text(json.dumps(config),encoding="utf-8")
+        print("Web origins saved; restart Django to apply. No database credentials changed.")
     else:
-        raise SystemExit("Commands: db-start, db-status, db-stop, bootstrap [options], backend <python arguments>")
+        raise SystemExit("Commands: db-start, db-status, db-stop, web-hosts <hosts>, bootstrap [options], backend <python arguments>")

@@ -68,6 +68,33 @@ def test_training_form_cannot_directly_claim_qualification_or_duplicate(employee
     assert EmployeeSpecialty.objects.count() == 1
 
 
+def test_authorized_confirmation_allows_unknown_qualification_date_with_basis(employee_factory,grant):
+    from datetime import date
+    from apps.personnel.services import qualification_eligibility
+    actor = employee_factory()
+    target = employee_factory()
+    grant(actor,"specialties.qualify")
+    specialty = Specialty.objects.create(code="18.1",name="Транспорт")
+    item = EmployeeSpecialty.objects.create(employee=target,specialty=specialty,status="unknown_legacy")
+    url = f"/api/v1/employee-specialties/{item.id}/qualify/"
+    response = client_for(actor).post(url,{"expected_version":1,"qualified_at":None,"basis":"Получение подтверждено ответственным; дата неизвестна"},content_type="application/json")
+    assert response.status_code == 200
+    item.refresh_from_db()
+    assert item.qualified_at is None and item.status == "qualified"
+    assert qualification_eligibility(target,specialty,date(2026,10,28))["eligible"] is True
+
+
+def test_unknown_date_confirmation_still_requires_basis(employee_factory,grant):
+    actor = employee_factory()
+    grant(actor,"specialties.qualify")
+    specialty = Specialty.objects.create(code="18.1",name="Транспорт")
+    item = EmployeeSpecialty.objects.create(employee=actor,specialty=specialty,status="training")
+    response = client_for(actor).post(f"/api/v1/employee-specialties/{item.id}/qualify/",{"expected_version":1,"qualified_at":None,"basis":""},content_type="application/json")
+    assert response.status_code == 400
+    item.refresh_from_db()
+    assert item.status == "training"
+
+
 def test_employee_updates_cannot_self_assign_roles_or_deactivate_without_right(employee_factory, grant):
     actor = employee_factory()
     grant(actor,"employees.update")
@@ -112,3 +139,33 @@ def test_reference_extension_is_versioned_and_deactivation_not_deletion(employee
     assert client.patch(url,{"expected_version":1,"is_active":False},content_type="application/json").status_code == 200
     assert not Specialty.objects.get(id=item_id).is_active
     assert client.delete(url).status_code == 405
+
+
+def test_department_training_right_can_read_options_without_global_reference_right(employee_factory,grant):
+    department = Department.objects.create(code="3",name="Отдел 3")
+    actor = employee_factory(department=department)
+    grant(actor,"specialties.training.manage","departments",departments=[department])
+    Specialty.objects.create(code="18.1",name="Транспорт")
+    client = client_for(actor)
+    assert client.get("/api/v1/references/specialties/").status_code == 200
+    assert client.get("/api/v1/references/positions/").status_code == 403
+    assert client.post("/api/v1/references/specialties/",{"code":"99.1","name":"Нет"},content_type="application/json").status_code == 403
+
+
+def test_qualification_validates_retained_expiry_before_database_write(employee_factory,grant):
+    from datetime import date
+    actor = employee_factory()
+    grant(actor,"specialties.qualify")
+    specialty = Specialty.objects.create(code="18.1",name="Транспорт")
+    item = EmployeeSpecialty.objects.create(employee=actor,specialty=specialty,status="training",valid_until=date(2026,9,30))
+    url = f"/api/v1/employee-specialties/{item.id}/qualify/"
+    client = client_for(actor)
+    response = client.post(url,{"expected_version":1,"qualified_at":"2026-10-01","basis":"Подтверждение"},content_type="application/json")
+    assert response.status_code == 400
+    assert "valid_until" in response.json()["field_errors"]
+    item.refresh_from_db()
+    assert item.version == 1 and item.status == "training"
+    response = client.post(url,{"expected_version":1,"qualified_at":"2026-10-01","valid_until":None,"basis":"Подтверждение без ограничения срока"},content_type="application/json")
+    assert response.status_code == 200
+    item.refresh_from_db()
+    assert item.valid_until is None

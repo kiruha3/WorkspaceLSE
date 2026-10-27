@@ -2,7 +2,7 @@ import json
 from django.core.serializers.json import DjangoJSONEncoder
 from rest_framework.exceptions import APIException
 from apps.audit.models import AuditEvent
-from .policies import can
+from .policies import can, permission_scopes
 from rest_framework.exceptions import PermissionDenied
 
 
@@ -25,3 +25,14 @@ def audit(actor, action, obj, changes, reason=""):
 def require_any(user, *actions):
     if not any(can(user,action) for action in actions):
         raise PermissionDenied("Нет права на просмотр этого справочника.")
+
+
+def require_any_scope(user, *actions):
+    """Shared form options require a valid grant, not an absent object context.
+
+    Never use this for commands or employee/document data: those require their
+    own per-object scope checks.
+    """
+    scopes = permission_scopes(user)
+    if not any(scopes.get(action) and scopes[action].rules for action in actions):
+        raise PermissionDenied("Нет права на просмотр вариантов этой формы.")

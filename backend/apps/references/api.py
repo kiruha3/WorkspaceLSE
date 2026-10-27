@@ -6,7 +6,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 from rest_framework.exceptions import NotFound, ValidationError
 from apps.accounts.policies import require
-from apps.accounts.services import audit, check_version, require_any
+from apps.accounts.services import audit, check_version, require_any_scope
 from apps.accounts.serializers import StrictSerializer, VersionedSerializer
 from .models import Department, Position, Specialty
 
@@ -43,7 +43,7 @@ class ReferenceListView(GenericAPIView):
             options += ["employees.org_assignments.manage"]
         elif catalog == "specialties":
             options += ["specialties.training.manage","specialties.qualify"]
-        require_any(request.user,*options)
+        require_any_scope(request.user,*options)
         queryset = model.objects.all()
         if search := request.query_params.get("search","").strip():
             queryset = queryset.filter(Q(name__icontains=search)|Q(code__icontains=search))

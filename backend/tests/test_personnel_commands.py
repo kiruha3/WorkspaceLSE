@@ -89,3 +89,28 @@ def test_dept_edit_right_does_not_spread_from_institution_view(employee_factory,
     assert response.status_code == 403
     target.refresh_from_db()
     assert target.full_name != "Чужой отдел"
+
+
+def test_access_only_admin_gets_minimal_directory_not_personnel_cards(employee_factory,grant):
+    actor = employee_factory()
+    target = employee_factory(full_name="Для администрирования")
+    grant(actor,"access.roles.assign")
+    client = client_for(actor)
+    response = client.get("/api/v1/access/employees/?search=администрирования")
+    assert response.status_code == 200
+    assert response.json()["count"] == 1
+    assert response.json()["results"] == [{"id":str(target.id),"full_name":"Для администрирования","is_active":True}]
+    assert client.get(f"/api/v1/employees/{target.id}/").status_code == 403
+    assert client.get("/api/v1/employees/").status_code == 403
+
+
+def test_creating_account_does_not_invalidate_independent_employee_metadata_draft(employee_factory,grant):
+    from apps.personnel.models import Employee
+    actor = employee_factory()
+    target = Employee.objects.create(full_name="До изменения")
+    grant(actor,"users.create")
+    grant(actor,"employees.update")
+    client = client_for(actor)
+    assert client.post(f"/api/v1/employees/{target.id}/account/",{"username":"draft-user","password":"Personal-draft-test-password9"},content_type="application/json").status_code == 201
+    response = client.patch(f"/api/v1/employees/{target.id}/",{"expected_version":1,"full_name":"Черновик сохранён"},content_type="application/json")
+    assert response.status_code == 200
