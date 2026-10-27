@@ -9,7 +9,7 @@ from apps.expertises.policies import require_work
 from apps.expertises.models import Expertise
 from apps.references.api import reference_data
 from apps.references.models import Department, LetterKind, LetterJournal, DispatchChannel, ControlClosureReason
-from .models import Letter, LetterRevision, LetterAttachment
+from .models import Letter, LetterRevision, LetterAttachment, LetterRegistration, LetterDispatch, LetterDelivery, LetterReceipt, ControlEvent
 from .policies import letter_scope_queryset, require_letter, visible_works, material_queryset
 from .serializers import LetterCreate, DraftInput, AttachmentInput, letter_data, letter_summary, person_data
 from .drafts import create_letter, save_draft, attach_document
@@ -17,9 +17,15 @@ from .drafts import create_letter, save_draft, attach_document
 
 def loaded(queryset=None):
     queryset = Letter.objects.all() if queryset is None else queryset
-    revisions = LetterRevision.objects.select_related("kind", "material", "actor", "parent__current_revision").prefetch_related("expertises", "recipients")
+    revisions = LetterRevision.objects.select_related("kind", "material", "actor", "parent__current_revision", "parent__registration").prefetch_related("expertises", "recipients")
     attachments = LetterAttachment.objects.select_related("document", "actor").prefetch_related("document__versions")
-    return queryset.select_related("department", "responsible", "current_revision").prefetch_related(Prefetch("revisions", queryset=revisions), Prefetch("attachments", queryset=attachments))
+    dispatches = LetterDispatch.objects.select_related("actor", "channel", "evidence_document").prefetch_related("recipients", "evidence_document__versions", "files__file_version__document__versions")
+    deliveries = LetterDelivery.objects.select_related("actor", "evidence_document").prefetch_related("evidence_document__versions")
+    events = ControlEvent.objects.select_related("actor", "closure_reason", "reply__current_revision")
+    return queryset.select_related("department", "responsible", "current_revision", "registration__journal", "registration__actor", "control", "receipt_fact__actor", "receipt_fact__evidence_document").prefetch_related(
+        Prefetch("revisions", queryset=revisions), Prefetch("attachments", queryset=attachments), Prefetch("dispatches", queryset=dispatches),
+        Prefetch("dispatches__deliveries", queryset=deliveries), "registration__files__file_version__document__versions", "receipt_fact__evidence_document__versions",
+        "assignment_history__actor", "assignment_history__previous", "assignment_history__responsible", "current_revision__recipients", Prefetch("control__events", queryset=events))
 
 
 def command_response(request, result, *, status=200):
@@ -48,9 +54,13 @@ class LetterListView(GenericAPIView):
             else: queryset = queryset.filter(current_revision__expertises=work_id)
         if state := request.query_params.get("state"):
             if state not in ("draft", "registered", "partially_sent", "sent"): raise ValidationError({"state": "Неизвестное состояние."})
-            if state != "draft": queryset = queryset.none()
+            from .queries import with_letter_state
+            queryset = with_letter_state(queryset).filter(computed_state=state)
+        from .queries import filter_dates, filter_control
+        queryset = filter_dates(queryset, request.query_params)
+        if request.query_params.get("control_status"): queryset = filter_control(queryset, request.user, request.query_params["control_status"], scopes)
         if search := request.query_params.get("search", "").strip():
-            queryset = queryset.filter(Q(current_revision__subject__icontains=search) | Q(current_revision__sender_name__icontains=search) | Q(current_revision__external_number__icontains=search))
+            queryset = queryset.filter(Q(current_revision__subject__icontains=search) | Q(current_revision__sender_name__icontains=search) | Q(current_revision__external_number__icontains=search) | Q(registration__registration_number__icontains=search))
         page = self.paginate_queryset(loaded(queryset))
         return self.get_paginated_response([letter_data(item, request.user, scopes) for item in page])
 
@@ -89,13 +99,16 @@ class LetterOptionsView(GenericAPIView):
         org_ids = set(employee.org_assignments.filter(Q(valid_from__isnull=True) | Q(valid_from__lte=today), Q(valid_to__isnull=True) | Q(valid_to__gte=today)).values_list("department_id", flat=True)) if employee else set()
         linked_ids = set(visible_works(request.user, scopes).values_list("department_id", flat=True))
         departments = [d for d in Department.objects.all() if draft.allows(employee_id=None, department_ids=[d.pk]) or (d.pk in org_ids | linked_ids and draft.allows(employee_id=str(employee.pk) if employee else None, department_ids=[d.pk]))]
+        from apps.personnel.models import Employee
+        from .commands import can_assign_employee
+        employees = [p for p in Employee.objects.filter(is_active=True).select_related("user").prefetch_related("org_assignments") if can_assign_employee(request.user, p, scopes)]
         return Response({
             "kinds": [reference_data(r) for r in LetterKind.objects.all()],
             "journals": [reference_data(r) for r in LetterJournal.objects.all()],
             "channels": [reference_data(r) for r in DispatchChannel.objects.all()],
             "closure_reasons": [reference_data(r) for r in ControlClosureReason.objects.all()],
             "departments": [reference_data(r) for r in departments],
-            "employees": [person_data(employee)] if employee else [],
+            "employees": [person_data(p) for p in employees],
         })
 
 

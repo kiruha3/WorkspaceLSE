@@ -1,21 +1,13 @@
 from django.db import transaction
-from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import ValidationError
 from apps.accounts.commands import execute_once
 from apps.accounts.policies import active_employee, permission_scopes
 from apps.accounts.services import audit, check_version, require_any_scope
 from apps.documents.models import Document
 from apps.documents.policies import require_document
-from .models import Letter, LetterRevision, LetterRecipient, LetterAttachment
+from .models import Letter, LetterRevision, LetterRecipient, LetterAttachment, LetterRegistration
 from .policies import require_letter, require_links, require_create_department
-
-
-def locked_letter(actor, letter_id, action):
-    letter = get_object_or_404(Letter.objects.select_for_update(), pk=letter_id)
-    scopes = permission_scopes(actor)
-    require_letter(actor, "letters.view", letter, scopes)
-    require_letter(actor, action, letter, scopes)
-    return letter
+from .locking import locked_letter, lock_letters
 
 
 def checked_reference(reference, previous_ids, field):
@@ -26,13 +18,13 @@ def checked_reference(reference, previous_ids, field):
     return current
 
 
-def append_revision(letter, actor, data, reason):
+def append_revision(letter, actor, data, reason, *, parent_id=None):
     values = data.copy(); ids = values.pop("expertise_ids"); recipients = values.pop("recipients")
     if letter.direction == "outgoing" and values["received_on"]:
         raise ValidationError({"received_on": "Получение фиксируется у входящего письма, доставка — отдельным действием."})
     require_links(actor, {**values, "expertise_ids": ids})
     values["kind"] = checked_reference(values["kind"], set(letter.revisions.values_list("kind_id", flat=True)), "kind_id")
-    parent_id = letter.current_revision.parent_id if letter.current_revision_id else None
+    parent_id = letter.current_revision.parent_id if letter.current_revision_id else parent_id
     if not parent_id and values["reply_completeness"]:
         raise ValidationError({"reply_completeness": "Для полноты ответа нужна явная связь с исходным письмом."})
     revision = LetterRevision.objects.create(letter=letter, number=letter.revisions.count() + 1, actor=active_employee(actor), reason=reason, parent_id=parent_id, **values)
@@ -57,13 +49,20 @@ def create_letter(*, actor, data, key, payload):
         values = data.copy(); department = values.pop("department"); direction = values.pop("direction")
         reason = values.pop("reason"); parent_id = values.pop("parent_id")
         if parent_id:
-            raise ValidationError({"parent_id": "Связанные ответы станут доступны после включения регистрации переписки."})
+            from django.shortcuts import get_object_or_404
+            parent = get_object_or_404(Letter, pk=parent_id)
+            parent = lock_letters([parent.pk])[parent.pk]
+            require_letter(actor, "letters.view", parent)
+            require_letter(actor, "letters.draft", parent)
+            require_letter(actor, "letters.reply", parent)
+            if parent.direction == direction or not LetterRegistration.objects.filter(letter=parent).exists():
+                raise ValidationError({"parent_id": "Нужен зарегистрированный документ противоположного направления."})
         scopes = permission_scopes(actor)
         require_create_department(actor, department, values["expertise_ids"], scopes)
         department = checked_reference(department, set(), "department_id")
         letter = Letter.objects.create(direction=direction, department=department, responsible=active_employee(actor), created_by=active_employee(actor))
         require_letter(actor, "letters.view", letter, scopes)
-        revision = append_revision(letter, actor, values, reason)
+        revision = append_revision(letter, actor, values, reason, parent_id=parent_id)
         audit(actor, "letters.draft", letter, {"revision_id": revision.pk}, reason)
         return {"id": str(revision.pk), "letter_id": str(letter.pk)}
     result = execute_once(actor=actor, action="letters.create", key=key, payload=payload, operation=operation)
@@ -75,6 +74,8 @@ def save_draft(*, actor, letter_id, data, key, payload):
     letter = locked_letter(actor, letter_id, "letters.draft")
     def operation():
         values = data.copy(); check_version(letter, values.pop("expected_version")); reason = values.pop("reason")
+        if LetterRegistration.objects.filter(letter=letter).exists():
+            raise ValidationError("Зарегистрированное содержание заморожено. Используйте отдельные действия с письмом.")
         revision = append_revision(letter, actor, values, reason)
         letter.version += 1; letter.save(update_fields=["version"])
         audit(actor, "letters.draft", letter, {"revision_id": revision.pk}, reason)

@@ -38,11 +38,13 @@ def letter_scope_queryset(user, action, scopes=None):
 
 def letter_context(letter, user, action, scopes=None):
     scopes = permission_scopes(user) if scopes is None else scopes
-    employee = active_employee(user)
-    own = employee is not None and letter.responsible_id == employee.pk
+    # The request's fresh scope snapshot already checked actor/user activity.
+    # Do not reload the same employee for every button on every registry row.
+    employee_id = next((scope.actor_employee_id for scope in scopes.values()), None)
+    own = employee_id is not None and str(letter.responsible_id) == employee_id
     if not own and action in ("letters.view", "control.view", "documents.view") and letter.current_revision_id:
-        own = visible_works(user, scopes).filter(letter_revisions=letter.current_revision_id, assignments__employee=employee, assignments__ended_at__isnull=True).exists() if employee else False
-    return {"employee_id": str(employee.pk) if own else None, "department_ids": [letter.department_id] if letter.department_id else []}
+        own = visible_works(user, scopes).filter(letter_revisions=letter.current_revision_id, assignments__employee_id=employee_id, assignments__ended_at__isnull=True).exists() if employee_id else False
+    return {"employee_id": employee_id if own else None, "department_ids": [letter.department_id] if letter.department_id else []}
 
 
 def require_letter(user, action, letter, scopes=None):

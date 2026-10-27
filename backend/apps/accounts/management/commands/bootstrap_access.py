@@ -32,6 +32,14 @@ TEMPLATES["Делопроизводитель"].update({code:"institution" for c
 TEMPLATES["Руководитель отдела"]["receipts.view"]="departments"
 TEMPLATES["Эксперт"].update({code:"own" for code in ("expertise.result.draft","expertise.return_without_execution")})
 
+CORRESPONDENCE_NEW_RIGHTS = {
+    "Эксперт": {code:"own" for code in ("letters.reply","letters.attach","letters.mark_received","letters.mark_delivered","control.view","control.reopen")},
+    "Делопроизводитель": {code:"institution" for code in ("letters.reply","letters.attach","letters.mark_received","letters.mark_delivered","control.view","control.assign","control.reopen")},
+    "Руководитель отдела": {code:"departments" for code in ("control.view","control.assign","control.reopen","letters.draft","letters.reply","letters.attach","letters.register","letters.mark_sent","letters.mark_received","letters.mark_delivered","control.close")},
+}
+for template, permissions in CORRESPONDENCE_NEW_RIGHTS.items():
+    TEMPLATES[template].update(permissions)
+
 STAFF = [
     ("Власова Т.В.","3","head",["16.1","16.2"]),
     ("Миндибекова Т.М.","3","deputy",["1.1","3.1"]),

@@ -22,7 +22,8 @@ def can_document(user,action,document):
     # letter and the document action must match their own current scopes.
     if scopes.get("letters.view"):
         from apps.correspondence.policies import letter_scope_queryset
-        letters=letter_scope_queryset(user,"letters.view",scopes).filter(attachments__document=document)
+        letters=letter_scope_queryset(user,"letters.view",scopes).filter(
+            Q(attachments__document=document)|Q(dispatches__evidence_document=document)|Q(dispatches__deliveries__evidence_document=document)|Q(receipt_fact__evidence_document=document)|Q(registration__files__file_version__document=document)|Q(dispatches__files__file_version__document=document))
         return letter_scope_queryset(user,"documents.view",scopes).filter(pk__in=letters).exists()
     return False
 
