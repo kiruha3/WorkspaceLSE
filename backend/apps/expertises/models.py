@@ -1,7 +1,7 @@
 import uuid
 from django.conf import settings
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q,F
 
 
 class ComplexGroup(models.Model):
@@ -48,3 +48,23 @@ class ExpertAssignment(models.Model):
     class Meta:
         ordering = ["started_at","id"]
         constraints = [models.UniqueConstraint(fields=["expertise","employee"], condition=Q(ended_at__isnull=True), name="one_current_work_assignment")]
+
+
+class Suspension(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    expertise=models.ForeignKey(Expertise,related_name="suspensions",on_delete=models.PROTECT)
+    suspended_on=models.DateField()
+    resumed_on=models.DateField(null=True,blank=True)
+    reason=models.TextField()
+    resume_reason=models.TextField(blank=True)
+    actor=models.ForeignKey(settings.AUTH_USER_MODEL,related_name="recorded_suspensions",on_delete=models.PROTECT)
+    resumed_by=models.ForeignKey(settings.AUTH_USER_MODEL,related_name="recorded_resumptions",null=True,blank=True,on_delete=models.PROTECT)
+    created_at=models.DateTimeField(auto_now_add=True)
+    resumed_recorded_at=models.DateTimeField(null=True,blank=True)
+
+    class Meta:
+        ordering=["suspended_on","created_at","id"]
+        constraints=[
+            models.UniqueConstraint(fields=["expertise"],condition=Q(resumed_on__isnull=True),name="one_open_work_suspension"),
+            models.CheckConstraint(condition=Q(resumed_on__isnull=True)|Q(resumed_on__gte=F("suspended_on")),name="ordered_suspension_dates"),
+        ]

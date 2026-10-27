@@ -42,10 +42,15 @@ class WorkFilters(serializers.Serializer):
     employee_id = serializers.UUIDField(required=False)
     received_from = serializers.DateField(required=False)
     received_to = serializers.DateField(required=False)
+    state = serializers.ChoiceField(choices=["in_progress","suspended","completed","without_execution"],required=False)
+    calendar_days_min=serializers.IntegerField(min_value=0,max_value=365000,required=False)
+    calendar_days_max=serializers.IntegerField(min_value=0,max_value=365000,required=False)
 
     def validate(self, data):
         if data.get("received_from") and data.get("received_to") and data["received_from"]>data["received_to"]:
             raise serializers.ValidationError({"received_to":"Конец периода раньше начала."})
+        if "calendar_days_min" in data and "calendar_days_max" in data and data["calendar_days_min"]>data["calendar_days_max"]:
+            raise serializers.ValidationError({"calendar_days_max":"Верхняя граница меньше нижней."})
         return data
 
 
@@ -67,10 +72,13 @@ class ExpertiseOutput(serializers.ModelSerializer):
     assignment_history = serializers.SerializerMethodField()
     allowed_actions = serializers.SerializerMethodField()
     basis_document = serializers.SerializerMethodField()
+    production=serializers.SerializerMethodField()
+    suspensions=serializers.SerializerMethodField()
+    deadline_events=serializers.SerializerMethodField()
 
     class Meta:
         model = Expertise
-        fields = ["id","registration_number","historical_number","sequence","year","category_code","department","specialty","receipt","material","appointment_nature","is_commission","complex_group","state","version","current_assignments","assignment_history","allowed_actions","basis_document"]
+        fields = ["id","registration_number","historical_number","sequence","year","category_code","department","specialty","receipt","material","appointment_nature","is_commission","complex_group","state","version","current_assignments","assignment_history","allowed_actions","basis_document","production","suspensions","deadline_events"]
 
     def get_department(self,obj): return {"id":str(obj.department_id),"code":obj.department.code,"name":obj.department.name}
     def get_specialty(self,obj): return {"id":str(obj.specialty_id),"code":obj.specialty.code,"name":obj.specialty.name}
@@ -84,7 +92,17 @@ class ExpertiseOutput(serializers.ModelSerializer):
         scopes=self.context["scopes"];context=work_context(obj,self.context["user"],scopes)
         if obj.state not in ("in_progress","suspended"): return []
         action = "expertise.reassign" if any(a.ended_at is None for a in obj.assignments.all()) else "expertise.assign"
-        return [action] if scopes.get(action,AccessScope()).allows(**context) else []
+        result=[action] if scopes.get(action,AccessScope()).allows(**context) else []
+        production_action="expertise.suspend" if obj.state=="in_progress" else "expertise.resume"
+        if scopes.get(production_action,AccessScope()).allows(**context):result.append(production_action)
+        return result
+    def get_production(self,obj):
+        from .production import production_summary
+        return production_summary(obj)
+    def get_suspensions(self,obj):
+        from .production_serializers import SuspensionOutput
+        return SuspensionOutput(obj.suspensions.all(),many=True).data
+    def get_deadline_events(self,obj):return []
     def get_basis_document(self,obj):
         document=obj.receipt.basis_document
         if document is None: return None

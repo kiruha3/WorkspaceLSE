@@ -44,11 +44,11 @@
 - Suspension DTO `{id,suspended_on,resumed_on:null|string,reason,resume_reason,created_at,resumed_recorded_at:null|string,actor:{id,full_name},resumed_by:null|{id,full_name}}`.
 - `allowed_actions` appends expertise.suspend for in_progress, resume for suspended, deadline.record once Task2 implemented. Registry validates `state`, `calendar_days_min/max` nonnegative max365000; filters before pagination, includes boundaries, reversed range400.
 
-- [ ] Step 1: Tests state transitions/version/audit and same-key replay after later resume; own/department/institution actions remain independent; sibling unaffected; invalid early/future/backward dates don't persist command result. `calculate_days(2026-10-01,[(03,06),(08,None)],2026-10-10)` = calendar10/paused6/active4; same-day closed pause0; no intervals10/0/10. Closed-without-ending unknown counts. Registry state/calendar range matches count/detail and reversed400. Concurrent connections same-version one success/409.
-- [ ] Step 2: Run focused tests, expected missing API/model RED, not environment failure.
-- [ ] Step 3: Implement lock-first validation/DB interval constraints and idempotency; replays don't mutate work. Prefetch intervals for lists; date filtering stays PostgreSQL-scoped before pagination. Keep current allowed-actions tests valid for profiles lacking new rights.
-- [ ] Step 4: Full backend suite, migration/check clean; expected all passing.
-- [ ] Step 5: Commit `feat: track production suspensions and calendar history`.
+- [x] Step 1: Tests state transitions/version/audit and same-key replay after later resume; own/department/institution actions remain independent; sibling unaffected; invalid early/future/backward dates don't persist command result. `calculate_days(2026-10-01,[(03,06),(08,None)],2026-10-10)` = calendar10/paused6/active4; same-day closed pause0; no intervals10/0/10. Closed-without-ending unknown counts. Registry state/calendar range matches count/detail and reversed400. Concurrent connections same-version one success/409.
+- [x] Step 2: Run focused tests, expected missing API/model RED, not environment failure.
+- [x] Step 3: Implement lock-first validation/DB interval constraints and idempotency; replays don't mutate work. Prefetch intervals for lists; date filtering stays PostgreSQL-scoped before pagination. Keep current allowed-actions tests valid for profiles lacking new rights.
+- [x] Step 4: Full backend suite, migration/check clean; expected all passing.
+- [x] Step 5: Commit `feat: track production suspensions and calendar history`.
 
 ### Task 2: Исходный запрошенный и согласованный сроки
 
