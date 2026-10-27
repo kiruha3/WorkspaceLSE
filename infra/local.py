@@ -67,14 +67,27 @@ def db_start():
     print(f"Project PostgreSQL ready on 127.0.0.1:{config['port']}; database {config['dbname']}.")
 
 
-def backend(args):
+def backend(args, extra_env=None):
     config = connection()
     env = os.environ.copy()
     env.update({"PGHOST": config["host"], "PGPORT": str(config["port"]),
                 "PGDATABASE": config["dbname"], "PGUSER": config["user"],
                 "PGPASSWORD": config["password"], "DJANGO_SECRET_KEY": config["django_secret"],
-                "DJANGO_DEBUG": "1"})
+                "DJANGO_DEBUG": "1", "PYTHONUTF8":"1"})
+    env.update(extra_env or {})
     return subprocess.call([sys.executable, *args], cwd=ROOT / "backend", env=env)
+
+
+def bootstrap(args):
+    login_file = RUNTIME / "local-login.json"
+    if login_file.exists():
+        login = json.loads(login_file.read_text(encoding="utf-8"))
+    else:
+        login = {"username":"setup","password":secrets.token_urlsafe(24)}
+        login_file.write_text(json.dumps(login),encoding="utf-8")
+    return backend(["manage.py","bootstrap_access","--username",login["username"],
+                    "--full-name","Ответственный за настройку","--no-input",*args],
+                   {"AIS_BOOTSTRAP_PASSWORD":login["password"]})
 
 
 if __name__ == "__main__":
@@ -87,5 +100,7 @@ if __name__ == "__main__":
         run_pg("pg_ctl", "-D", DATA, "stop", "-m", "fast", "-w", "-t", "30")
     elif command == "backend":
         sys.exit(backend(arguments))
+    elif command == "bootstrap":
+        sys.exit(bootstrap(arguments))
     else:
-        raise SystemExit("Commands: db-start, db-status, db-stop, backend <python arguments>")
+        raise SystemExit("Commands: db-start, db-status, db-stop, bootstrap [options], backend <python arguments>")

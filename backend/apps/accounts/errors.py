@@ -9,7 +9,9 @@ def exception_handler(exc, context):
         return None
     code = "request_error"
     fields = {}
-    if isinstance(exc, (NotAuthenticated, AuthenticationFailed)):
+    if response.status_code == 409:
+        code = getattr(exc,"default_code","conflict")
+    elif isinstance(exc, (NotAuthenticated, AuthenticationFailed)):
         code = "auth_required"
     elif isinstance(exc, PermissionDenied):
         code = "csrf_failed" if "CSRF" in str(exc) else "permission_denied"

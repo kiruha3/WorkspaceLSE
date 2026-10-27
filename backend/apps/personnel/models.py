@@ -23,6 +23,7 @@ class EmployeeOrgAssignment(models.Model):
     valid_from = models.DateField(null=True, blank=True)
     valid_to = models.DateField(null=True, blank=True)
     reason = models.TextField(blank=True)
+    version = models.PositiveIntegerField(default=1)
 
     class Meta:
         constraints = [models.CheckConstraint(condition=Q(valid_from__isnull=True)|Q(valid_to__isnull=True)|Q(valid_to__gte=F("valid_from")), name="ordered_employment_dates")]
@@ -58,6 +59,7 @@ class EmployeeRole(models.Model):
     valid_to = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     reason = models.TextField(blank=True)
+    version = models.PositiveIntegerField(default=1)
 
     class Meta:
         constraints = [models.CheckConstraint(condition=Q(valid_from__isnull=True)|Q(valid_to__isnull=True)|Q(valid_to__gte=F("valid_from")), name="ordered_role_grant_dates")]

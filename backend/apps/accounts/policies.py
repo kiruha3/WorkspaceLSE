@@ -29,7 +29,9 @@ class AccessRule:
     def query(self, actor_employee_id, *, employee_field="pk", department_field="org_assignments__department_id"):
         def predicate(scope):
             if scope == "institution":
-                return Q()
+                # A concrete true predicate: empty Q() is neutral even in OR,
+                # so OR-ing it with the default deny filter would keep deny.
+                return Q(pk__isnull=False)
             if scope == "own":
                 return Q(**{employee_field: actor_employee_id})
             if scope == "departments":

@@ -18,6 +18,12 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
 ]
 AUTH_USER_MODEL = "accounts.User"
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME":"django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME":"django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME":"django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME":"django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
 DATABASES = {"default": {
     "ENGINE": "django.db.backends.postgresql",
     "NAME": os.getenv("PGDATABASE", "ais_lse"),
@@ -31,6 +37,7 @@ LANGUAGE_CODE = "ru"
 TIME_ZONE = "Asia/Krasnoyarsk"
 USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+STATIC_URL = "/static/"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
