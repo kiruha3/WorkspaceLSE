@@ -37,7 +37,8 @@ export interface FileVersion {
   id: string; number: number; original_name: string; content_type: string; size: number
   sha256: string; created_at: string; download_url: string; preview_url: string | null
 }
-export type DocumentKind = 'resolution' | 'decision' | 'deadline_agreement' | 'deadline_request'
+export type ResultKind = 'expert_conclusion' | 'research_act' | 'sndz'
+export type DocumentKind = 'resolution' | 'decision' | 'deadline_agreement' | 'deadline_request' | ResultKind | 'return_decision'
 export interface BasisDocument {
   id: string; kind: DocumentKind; title: string; source_kind: 'paper_original' | 'uploaded_copy'
   department_id: string | null; version: number; versions: FileVersion[]
@@ -53,7 +54,7 @@ export interface ExpertAssignment {
 }
 export interface AssignmentCandidate { id: string; full_name: string; eligible: boolean; code: string; message: string }
 export interface Production {
-  as_of: string; method: 'calendar_inclusive_pause_half_open_v1'
+  as_of: string; counted_through: string | null; method: 'calendar_inclusive_pause_half_open_v1'
   calendar_days: number | null; paused_days: number | null; active_calendar_days: number | null
   initial_due_on: string | null; agreed_due_on: string | null; current_due_on: string | null
   last_requested_due_on: string | null; overdue_calendar_days: number | null
@@ -68,6 +69,29 @@ export interface DeadlineEvent {
   id: string; kind: DeadlineKind; recorded_on: string; due_on: string; reason: string; created_at: string
   actor: { id: string; full_name: string }; document: DocumentLink
 }
+export interface ResultIssue { code: string; field: string; message: string }
+export interface ResultPayload {
+  kind: ResultKind | null; completed_on: string | null; document_id: string | null; complexity_level: number | null
+  questions: number | null; categorical: number | null; probable: number | null; unresolved: number | null
+  statistics_complete: boolean; sndz_reason_id: string | null; sndz_comment: string
+  unresolved_allocations: { reason_id: string; count: number; comment: string; document_id: string | null }[]
+  allocations_complete: boolean; note: string
+}
+export interface ResultRevision extends Omit<ResultPayload, 'document_id' | 'sndz_reason_id' | 'unresolved_allocations'> {
+  id: string; number: number; document: DocumentLink; sndz_reason: Reference | null
+  unresolved_allocations: { reason: Reference; count: number; comment: string; document: DocumentLink }[]
+  actor: { id: string; full_name: string }; created_at: string; reason: string
+}
+export interface WorkClosure {
+  id: string; number: number; kind: 'completed' | 'without_execution'; ended_on: string; document: DocumentLink
+  result_id: string | null; return_reason: Reference | null; comment: string
+  actor: { id: string; full_name: string }; created_at: string; reason: string
+}
+export interface ResultOptions {
+  result_kinds: { code: ResultKind; name: string }[]; complexity_groups: { code: string; name: string }[]
+  sndz_reasons: Reference[]; unresolved_reasons: Reference[]; return_reasons: Reference[]
+}
+export interface ExpertiseCommandResponse { event: { id: string }; expertise: Expertise }
 export interface Expertise {
   id: string; registration_number: string; historical_number: string; sequence: number; year: number; category_code: string
   department: Pick<Reference, 'id' | 'code' | 'name'>; specialty: Pick<Reference, 'id' | 'code' | 'name'>
@@ -76,4 +100,6 @@ export interface Expertise {
   state: 'in_progress' | 'suspended' | 'completed' | 'without_execution'; version: number
   current_assignments: ExpertAssignment[]; assignment_history: ExpertAssignment[]; allowed_actions: string[]; basis_document: DocumentLink
   production: Production; suspensions: Suspension[]; deadline_events: DeadlineEvent[]
+  result: ResultRevision | null; result_history: ResultRevision[]; closure: WorkClosure | null; closure_history: WorkClosure[]
+  result_readiness: { completion_blockers: ResultIssue[]; report_gaps: ResultIssue[] }
 }

@@ -7,6 +7,7 @@ import ApiMessage from '../../shared/ui/ApiMessage.vue'
 import BasisPreview from '../../shared/BasisPreview.vue'
 import AssignmentForm from './AssignmentForm.vue'
 import ProductionPanel from './ProductionPanel.vue'
+import ResultPanel from './ResultPanel.vue'
 const api = useApi(), route = useRoute(), requests = new LatestRequest()
 const expertise = ref<Expertise | null>(null), loading = ref(false), error = ref<unknown>(null), action = ref<'assign' | 'reassign' | null>(null), success = ref('')
 const stateLabels = { in_progress: 'В производстве', suspended: 'Приостановлена', completed: 'Завершена', without_execution: 'Без исполнения' }
@@ -20,6 +21,7 @@ async function load() {
 }
 function updated(value: Expertise) { requests.cancel(); loading.value = false; expertise.value = value; action.value = null; success.value = 'Назначения сохранены сервером. Номер работы не изменён.' }
 function productionUpdated(value: Expertise) { requests.cancel(); loading.value = false; expertise.value = value; success.value = 'Событие производства сохранено сервером.' }
+function resultUpdated(value: Expertise) { requests.cancel(); loading.value = false; expertise.value = value; success.value = 'Сведения о результате сохранены сервером.' }
 watch(() => route.params.id, () => { if (route.path.startsWith('/expertises/')) { action.value = null; expertise.value = null; success.value = ''; void load() } }, { immediate: true })
 onBeforeUnmount(() => requests.cancel())
 </script>
@@ -29,5 +31,6 @@ onBeforeUnmount(() => requests.cancel())
     <section class="card stack-card"><div class="section-heading"><div><h2>Текущие исполнители</h2><p class="muted compact">{{ expertise.is_commission ? 'Комиссия выполняет одну работу под одним номером.' : 'Назначение по специальности этой работы.' }}</p></div><div class="button-row"><button v-if="expertise.allowed_actions.includes('expertise.assign') && !action" data-start-assignment class="button-primary" @click="action = 'assign'">Назначить эксперта{{ expertise.is_commission ? 'ов' : '' }}</button><button v-if="expertise.allowed_actions.includes('expertise.reassign') && !action" data-start-assignment @click="action = 'reassign'">Перепоручить</button></div></div><div data-current-assignments><div v-for="assignment in expertise.current_assignments" :key="assignment.id" class="assignment-line"><strong>{{ assignment.employee.full_name }}</strong><small>Назначен: {{ time(assignment.started_at) }}</small><p class="muted compact">{{ assignment.reason || 'Основание не указано' }}</p></div><p v-if="!expertise.current_assignments.length" class="muted">Исполнитель ещё не назначен. Это отдельный признак, состояние работы — {{ stateLabels[expertise.state].toLowerCase() }}.</p></div><AssignmentForm v-if="action" :key="`${expertise.id}-${action}`" :expertise="expertise" :action="action" @updated="updated" @cancel="action = null" /></section>
     <section data-assignment-history class="card stack-card"><h2>История назначений</h2><div v-for="assignment in expertise.assignment_history" :key="assignment.id" class="assignment-line"><strong>{{ assignment.employee.full_name }}</strong><small>{{ time(assignment.started_at) }} → {{ assignment.ended_at ? time(assignment.ended_at) : 'действует' }}</small><p class="muted compact">{{ assignment.reason || 'Основание не указано' }}</p></div><p v-if="!expertise.assignment_history.length" class="muted compact">Предыдущих назначений нет.</p></section><section class="card stack-card"><BasisPreview :document="expertise.basis_document" /></section>
     <ProductionPanel :key="expertise.id" :expertise="expertise" @updated="productionUpdated" />
+    <ResultPanel v-if="expertise.result_readiness" :key="expertise.id" :expertise="expertise" @updated="resultUpdated" />
   </template>
 </template>

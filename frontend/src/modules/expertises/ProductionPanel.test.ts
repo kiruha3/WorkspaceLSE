@@ -7,7 +7,7 @@ import { basis, expertise, testRouter } from '../../test/intakeFixtures'
 import ExpertisePage from './ExpertisePage.vue'
 
 afterEach(() => vi.restoreAllMocks())
-const production = { as_of: '2026-10-28', method: 'calendar_inclusive_pause_half_open_v1', calendar_days: 10, paused_days: 6, active_calendar_days: 4, initial_due_on: null, agreed_due_on: '2026-11-06', current_due_on: '2026-11-06', last_requested_due_on: '2026-11-12', overdue_calendar_days: 0 }
+const production = { as_of: '2026-10-28', counted_through: '2026-10-28', method: 'calendar_inclusive_pause_half_open_v1', calendar_days: 10, paused_days: 6, active_calendar_days: 4, initial_due_on: null, agreed_due_on: '2026-11-06', current_due_on: '2026-11-06', last_requested_due_on: '2026-11-12', overdue_calendar_days: 0 }
 const work = { ...expertise, receipt: { ...expertise.receipt, received_at: '2026-10-19' }, production, suspensions: [], deadline_events: [], allowed_actions: ['expertise.suspend', 'expertise.deadline.record'] } as Expertise
 const fileVersion = { id: 'file-agreement', number: 1, original_name: 'agreement.pdf', content_type: 'application/pdf', size: 8, sha256: 'abc', created_at: '2026-10-28T00:00:00Z', download_url: '/agreement/download/', preview_url: '/agreement/preview/' }
 async function open(transport: typeof fetch, path = '/expertises/work-1') {
@@ -23,6 +23,14 @@ async function fillPause(wrapper: Awaited<ReturnType<typeof open>>['wrapper']) {
 }
 
 describe('production work controls', () => {
+  it('labels the fixed closed count and clipped open pause without inventing a resumption', async () => {
+    const pause = { id: 'pause', suspended_on: '2026-10-23', resumed_on: null, reason: 'Материалы', resume_reason: '', actor: { id: 'u', full_name: 'Эксперт' }, resumed_by: null, created_at: '2026-10-23T00:00:00Z', resumed_recorded_at: null }
+    const { wrapper } = await open(async () => json({ ...work, state: 'completed', allowed_actions: [], production: { ...production, counted_through: '2026-10-25' }, suspensions: [pause] }))
+    expect(wrapper.get('[data-counted-through]').text()).toContain('2026-10-25')
+    expect(wrapper.get('[data-suspension-history]').text()).toContain('Ограничена окончанием 2026-10-25')
+    expect(wrapper.get('[data-suspension-history]').text()).not.toContain('Возобновление внёс')
+    wrapper.unmount()
+  })
   it('shows server counts and distinct requested, agreed and unknown initial dates without granting session-wide actions', async () => {
     const { wrapper } = await open(async () => json({ ...work, allowed_actions: [] }))
     expect(wrapper.get('[data-production]').text()).toContain('Календарные дни')

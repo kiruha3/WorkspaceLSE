@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="UTF-8"><title>ТЕСТ · нативный повтор результата</title></head><body><div id="app"></div>
+<script type="module">
+import {createApp,h,ref} from 'vue'
+import {createPinia} from 'pinia'
+import ResultPanel from '/src/modules/expertises/ResultPanel.vue'
+import {ApiClient,apiKey} from '/src/api/client.ts'
+import {expertise} from '/src/test/intakeFixtures.ts'
+import '/src/shared/styles/tokens.css'
+import '/src/shared/styles/main.css'
+// Actual Vue panel; isolated transport never reaches or mutates the backend.
+const original={...expertise,receipt:{...expertise.receipt,received_at:'2026-10-01'},allowed_actions:['expertise.result.draft']}
+const refreshed={...original,version:3,receipt:{...original.receipt,received_at:'2026-10-06'}}
+const work=ref(original),writes=ref([])
+const options={result_kinds:[{code:'expert_conclusion',name:'Заключение эксперта'}],complexity_groups:[],sndz_reasons:[],unresolved_reasons:[],return_reasons:[]}
+const json=value=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}})
+const transport=async(path,request)=>{
+  if(path.endsWith('/csrf/'))return json({csrf_token:'fixture-token'})
+  if(path.endsWith('/result-options/'))return json(options)
+  writes.value.push({body:JSON.parse(request.body),key:new Headers(request.headers).get('Idempotency-Key')})
+  if(writes.value.length===1)throw new TypeError('ТЕСТ · ответ выполненной команды потерян')
+  return json({event:{id:'saved-result'},expertise:refreshed})
+}
+const app=createApp({setup:()=>()=>h('main',{style:'margin:24px;max-width:1100px'},[
+  h('h1','Изолированный тест нативного повтора результата'),h('p','Учебная фикстура; настоящие данные и сервер не используются.'),
+  h('button',{onClick:()=>work.value=refreshed},'Обновить: поступление уточнено на 06.10'),
+  h('p',{id:'native-result'},`Команд: ${writes.value.length}; идентичный повтор: ${writes.value.length===2&&JSON.stringify(writes.value[0])===JSON.stringify(writes.value[1])?'ПРОЙДЕНО':'НЕТ'}`),
+  h(ResultPanel,{expertise:work.value,onUpdated:value=>work.value=value})
+])})
+app.use(createPinia());app.provide(apiKey,new ApiClient(transport));app.mount('#app')
+</script></body></html>
