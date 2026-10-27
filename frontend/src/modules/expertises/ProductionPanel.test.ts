@@ -123,6 +123,61 @@ describe('production work controls', () => {
     wrapper.unmount()
   })
 
+  it('preserves a lost deadline command for whitespace-only reason edits after reload', async () => {
+    const writes: { body: string; key: string | null }[] = []
+    let version = 1
+    const { wrapper } = await open(async (input, init) => {
+      if (String(input).endsWith('/csrf/')) return json({ csrf_token: 'token' })
+      if (init?.method === 'POST') {
+        writes.push({ body: String(init.body), key: new Headers(init.headers).get('Idempotency-Key') })
+        if (writes.length === 1) { version = 2; throw new TypeError('Ответ потерян') }
+        return json({ event: { id: 'deadline-1' }, expertise: { ...work, version } })
+      }
+      return json({ ...work, version })
+    })
+    await wrapper.get('[data-production-deadline]').trigger('click')
+    await wrapper.get('[name="due_on"]').setValue('2026-11-12')
+    await wrapper.get('[name="production_reason"]').setValue('Основание срока')
+    await wrapper.get('[data-production-form]').trigger('submit'); await flushPromises()
+    await wrapper.findAll('button').find(button => button.text() === 'Обновить серверные сведения')!.trigger('click'); await flushPromises()
+    await wrapper.get('[name="production_reason"]').setValue('  Основание срока  ')
+    await wrapper.get('[data-production-form]').trigger('submit'); await flushPromises()
+    expect(writes).toHaveLength(2)
+    expect(writes[1]).toEqual(writes[0])
+    wrapper.unmount()
+  })
+
+  it('preserves a prepared agreement attempt for whitespace-only document title edits', async () => {
+    const writes: { body: string; key: string | null }[] = []
+    let version = 1, documents = 0
+    const { wrapper } = await open(async (input, init) => {
+      if (String(input).endsWith('/csrf/')) return json({ csrf_token: 'token' })
+      if (String(input).endsWith('/documents/')) {
+        documents++
+        return json({ ...basis, id: 'agreement-1', kind: 'deadline_agreement', title: 'Согласование' }, 201)
+      }
+      if (init?.method === 'POST') {
+        writes.push({ body: String(init.body), key: new Headers(init.headers).get('Idempotency-Key') })
+        if (writes.length === 1) { version = 2; throw new TypeError('Ответ потерян') }
+        return json({ event: { id: 'deadline-1' }, expertise: { ...work, version } })
+      }
+      return json({ ...work, version })
+    })
+    await wrapper.get('[data-production-deadline]').trigger('click')
+    await wrapper.get('[name="deadline_kind"]').setValue('agreement')
+    await wrapper.get('[name="due_on"]').setValue('2026-11-12')
+    await wrapper.get('[name="production_reason"]').setValue('Основание срока')
+    await wrapper.get('[name="document_title"]').setValue('Согласование')
+    await wrapper.get('[data-production-form]').trigger('submit'); await flushPromises()
+    await wrapper.findAll('button').find(button => button.text() === 'Обновить серверные сведения')!.trigger('click'); await flushPromises()
+    await wrapper.get('[name="document_title"]').setValue('  Согласование  ')
+    await wrapper.get('[data-production-form]').trigger('submit'); await flushPromises()
+    expect(documents).toBe(1)
+    expect(writes).toHaveLength(2)
+    expect(writes[1]).toEqual(writes[0])
+    wrapper.unmount()
+  })
+
   it('retains conflict drafts and uses a new key and current version only after a payload edit', async () => {
     const writes: { body: Record<string, unknown>; key: string | null }[] = []
     let version = 1

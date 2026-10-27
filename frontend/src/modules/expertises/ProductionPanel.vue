@@ -54,7 +54,7 @@ const valid = computed(() => {
 })
 const conflictWithFreshVersion = computed(() => error.value instanceof ApiError && error.value.status === 409 && attempt.value && attempt.value.body.expected_version !== props.expertise.version)
 function invalidateAttempt() { attempt.value = null; uncertain.value = false }
-watch([reason, factualOn, dueOn, kind, documentId], invalidateAttempt, { flush: 'sync' })
+watch([() => reason.value.trim(), factualOn, dueOn, kind, documentId], invalidateAttempt, { flush: 'sync' })
 watch(kind, value => { documentId.value = value === 'agreement' ? 'new' : '' }, { flush: 'sync' })
 function start(value: Action) {
   action.value = value; reason.value = ''; factualOn.value = today(); dueOn.value = ''; kind.value = 'initial'; documentId.value = ''; error.value = null; invalidateAttempt()
@@ -113,7 +113,7 @@ function time(value: string) { return new Intl.DateTimeFormat('ru-RU', { timeZon
         </template>
       </fieldset>
       <p class="muted compact">Фактические даты — от поступления до сегодняшнего дня учреждения (Asia/Krasnoyarsk). Для прошлого события укажите причину. Срок исполнения может быть будущим.</p>
-      <div class="button-row"><button type="submit" class="button-primary" :disabled="saving || !valid">{{ saving ? 'Сохранение…' : recovering ? 'Повторить ту же попытку' : 'Сохранить событие' }}</button><button type="button" :disabled="saving" @click="cancel">Отмена</button></div>
+      <div class="button-row"><button type="submit" class="button-primary" :formnovalidate="recovering" :disabled="saving || !valid">{{ saving ? 'Сохранение…' : recovering ? 'Повторить ту же попытку' : 'Сохранить событие' }}</button><button type="button" :disabled="saving" @click="cancel">Отмена</button></div>
     </form>
     <section data-suspension-history class="subsection"><h3>Приостановки и возобновления</h3><div v-for="pause in expertise.suspensions" :key="pause.id" class="assignment-line"><strong>{{ pause.suspended_on }} → {{ pause.resumed_on || 'Открытая приостановка' }}</strong><p class="compact">{{ pause.reason }}</p><small>Приостановку внёс {{ pause.actor.full_name }} · {{ time(pause.created_at) }}</small><template v-if="pause.resumed_on"><p class="compact">{{ pause.resume_reason }}</p><small>Возобновление внёс {{ pause.resumed_by?.full_name || 'Неизвестно' }}{{ pause.resumed_recorded_at ? ` · ${time(pause.resumed_recorded_at)}` : '' }}</small></template></div><p v-if="!expertise.suspensions.length" class="muted compact">Приостановок пока нет.</p></section>
     <section data-deadline-history class="subsection"><h3>История сроков</h3><div v-for="event in expertise.deadline_events" :key="event.id" class="assignment-line"><strong>{{ labels[event.kind] }} · {{ event.recorded_on }}</strong><p class="compact">Срок исполнения: {{ event.due_on }} · {{ event.reason }}</p><small>Внёс {{ event.actor.full_name }} · {{ time(event.created_at) }}</small><BasisPreview v-if="event.document" :document="event.document" :heading="event.kind === 'agreement' ? 'Документ согласования срока' : 'Документ события срока'" empty-text="Документ не указан." /><p v-else class="muted compact">Документ не указан.</p></div><p v-if="!expertise.deadline_events.length" class="muted compact">Событий срока пока нет.</p></section>

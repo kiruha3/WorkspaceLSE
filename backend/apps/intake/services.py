@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import ValidationError
 from apps.accounts.policies import active_employee,require
@@ -52,6 +53,8 @@ def amend_receipt(*,actor,receipt_id,data):
     before={key:str(getattr(receipt,key+"_id")) if key in ("department","basis_document") else str(getattr(receipt,key)) for key in data}
     for key,value in data.items():setattr(receipt,key,value)
     require(actor,"receipts.amend",**receipt_context(receipt))
+    if "received_at" in data and receipt.expertises.filter(Q(suspensions__suspended_on__lt=receipt.received_at)|Q(deadline_events__recorded_on__lt=receipt.received_at)|Q(deadline_events__due_on__lt=receipt.received_at)).exists():
+        raise ValidationError({"received_at":"Дата поступления позже уже внесённого события производства или срока. Уточните исходные документы; история автоматически не переписывается."})
     if receipt.status=="accepted":validate_basis(receipt)
     receipt.version+=1;receipt.save()
     audit(actor,"receipt.amend",receipt,{"before":before,"fields":list(data),"version":receipt.version},reason)

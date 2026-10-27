@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="UTF-8"><title>ТЕСТ · нативный повтор команды</title></head><body><div id="app"></div>
+<script type="module">
+import {createApp,h,ref} from 'vue'
+import ProductionPanel from '/src/modules/expertises/ProductionPanel.vue'
+import {ApiClient,apiKey} from '/src/api/client.ts'
+import {expertise} from '/src/test/intakeFixtures.ts'
+import '/src/shared/styles/tokens.css'
+import '/src/shared/styles/main.css'
+// Isolated browser fixture: never contacts or mutates the real backend.
+const original={...expertise,receipt:{...expertise.receipt,received_at:'2026-10-01'},allowed_actions:['expertise.suspend'],suspensions:[],deadline_events:[]}
+const current={...original,version:3,suspensions:[{id:'pause',suspended_on:'2026-10-03',resumed_on:'2026-10-06',reason:'ТЕСТ',resume_reason:'ТЕСТ',actor:{id:'actor',full_name:'Тестовый эксперт'},resumed_by:{id:'actor',full_name:'Тестовый эксперт'},created_at:'2026-10-03T00:00:00Z',resumed_recorded_at:'2026-10-06T00:00:00Z'}]}
+const work=ref(original),writes=ref([])
+const transport=async(path,options)=>{
+  if(path.endsWith('/csrf/'))return new Response(JSON.stringify({csrf_token:'fixture-token'}),{headers:{'Content-Type':'application/json'}})
+  writes.value.push({body:JSON.parse(options.body),key:new Headers(options.headers).get('Idempotency-Key')})
+  if(writes.value.length===1)throw new TypeError('ТЕСТ · ответ выполненной команды потерян')
+  return new Response(JSON.stringify({event:{id:'pause'},expertise:current}),{headers:{'Content-Type':'application/json'}})
+}
+const app=createApp({setup:()=>()=>h('main',{style:'margin:24px;max-width:1100px'},[
+  h('h1','Изолированный тест нативной отправки формы'),h('p','Учебная фикстура; настоящие данные и сервер не используются.'),
+  h('button',{id:'refresh-fixture',onClick:()=>work.value=current},'Обновить: другая сессия возобновила 06.10'),
+  h('p',{id:'native-result'},`Команд: ${writes.value.length}; идентичный повтор: ${writes.value.length===2&&JSON.stringify(writes.value[0])===JSON.stringify(writes.value[1])?'ПРОЙДЕНО':'НЕТ'}`),
+  h(ProductionPanel,{expertise:work.value,onUpdated:value=>work.value=value})
+])})
+app.provide(apiKey,new ApiClient(transport));app.mount('#app')
+</script></body></html>

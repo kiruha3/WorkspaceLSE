@@ -36,9 +36,18 @@ def validate_event_date(work,value,field):
     if value>timezone.localdate():raise ValidationError({field:"Фактическая дата не может быть будущей."})
 
 
+def locked_work(expertise_id):
+    from apps.intake.models import Receipt
+    # Receipt first, then work: date amendments and every production command
+    # share the same lock without a receipt/work lock-order inversion.
+    receipt_id=get_object_or_404(Expertise.objects.only("receipt_id"),pk=expertise_id).receipt_id
+    Receipt.objects.select_for_update().get(pk=receipt_id)
+    return get_object_or_404(Expertise.objects.select_for_update(),pk=expertise_id)
+
+
 @transaction.atomic
 def _transition(*,actor,expertise_id,data,key,payload,kind):
-    work=get_object_or_404(Expertise.objects.select_for_update(),pk=expertise_id)
+    work=locked_work(expertise_id)
     action="expertise."+kind
     require_work(actor,"expertise.view",work)
     require_work(actor,action,work)
@@ -80,7 +89,7 @@ def resume_work(**kwargs):return _transition(**kwargs,kind="resume")
 def record_deadline(*,actor,expertise_id,data,key,payload):
     from apps.documents.models import Document
     from apps.documents.policies import require_document
-    work=get_object_or_404(Expertise.objects.select_for_update(),pk=expertise_id)
+    work=locked_work(expertise_id)
     action="expertise.deadline.record"
     require_work(actor,"expertise.view",work)
     require_work(actor,action,work)

@@ -13,7 +13,7 @@ const uploadKey = ref('')
 watch(file, () => { uploadKey.value = '' }, { flush: 'sync' })
 const payload = computed(() => ({ kind: kind.value, title: title.value.trim(), source_kind: sourceKind.value, department_id: props.departmentId || null }))
 const dirty = computed(() => Boolean(title.value || file.value || prepared.value || kind.value !== options.value[0]!.value || sourceKind.value !== 'paper_original'))
-watch([payload, file], () => emit('changed'), { flush: 'sync' })
+watch([() => JSON.stringify(payload.value), file], () => emit('changed'), { flush: 'sync' })
 function chooseFile(event: Event) { file.value = (event.target as HTMLInputElement).files?.[0] ?? null }
 async function persist(): Promise<BasisDocument> {
   if (!title.value.trim()) throw new ApiError(400, 'validation_error', props.heading ? 'Укажите название документа.' : 'Укажите название документа-основания.', { title: ['Обязательное поле'] })

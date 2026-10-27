@@ -83,7 +83,7 @@
 - [x] Step 1: Component RED tests for rights, pause/resume, request versus effective deadline, required evidence upload and persisted preview, retained drafts on conflicts, stable replay through unchanged reload and payload-edits reset, race with old GET after successful mutation; filters restored. Existing full frontend suite remains green.
 - [x] Step 2: Implement consistent green full-width card panel/history, method/as_of shown; generic document creation must not relabel agreement as original постановление. No hard-coded role switcher or direct date mutations.
 - [x] Step 3: Full frontend tests/typecheck/build and full serialized backend suite. Browser own demo expert2 card pause→request/agreement→resume; head without expert authority no self-service bypass, clerk allowed by institution grant. Demo files labelled not real court data.
-- [ ] Step 4: Commit `feat: connect production history and deadline forms in Vue`, one fresh whole-slice review, one TDD fix pass for Important/Critical, preserve minor/rulings in tracked verification record. Keep branch and servers; no push. Entire goal remains active.
+- [x] Step 4: Commit `feat: connect production history and deadline forms in Vue`, one fresh whole-slice review, one TDD fix pass for Important/Critical, preserve minor/rulings in tracked verification record. Keep branch and servers; no push. Entire goal remains active.
 
 ## Further required goal work
 
