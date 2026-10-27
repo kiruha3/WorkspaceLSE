@@ -12,6 +12,10 @@ class Permission:
 
 
 PERMISSIONS = {item.code: item for item in [
+    Permission("receipts.view", "Просматривать поступления", "Приёмка"),
+    Permission("receipts.create", "Создавать поступления", "Приёмка", ("departments","institution")),
+    Permission("receipts.accept", "Принимать поступления", "Приёмка", ("departments","institution")),
+    Permission("receipts.amend", "Уточнять поступления", "Приёмка", ("departments","institution")),
     Permission("employees.view", "Просматривать сотрудников", "Сотрудники"),
     Permission("employees.create", "Добавлять сотрудников", "Сотрудники", ("institution",)),
     Permission("employees.update", "Изменять сведения сотрудников", "Сотрудники", ("departments", "institution")),

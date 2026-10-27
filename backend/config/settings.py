@@ -9,6 +9,7 @@ ROOT_URLCONF = "config.urls"
 INSTALLED_APPS = [
     "django.contrib.auth", "django.contrib.contenttypes", "django.contrib.sessions",
     "rest_framework", "apps.accounts", "apps.references", "apps.personnel", "apps.audit",
+    "apps.documents", "apps.intake",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -38,6 +39,8 @@ TIME_ZONE = "Asia/Krasnoyarsk"
 USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 STATIC_URL = "/static/"
+MEDIA_ROOT = BASE_DIR.parent / "media"
+MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE",str(50*1024*1024)))
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"

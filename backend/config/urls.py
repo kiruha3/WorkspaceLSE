@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path,include
 from apps.accounts.views import csrf_view, login_view, logout_view, MeView
 from apps.accounts.api import PermissionsView, RoleListView, RoleDetailView, RolePermissionsView
 from apps.personnel.api import EmployeeListView, EmployeeDetailView, EmployeeSpecialtiesView, SpecialtyQualifyView, EmployeeRolesView, EmployeeEffectiveView
@@ -7,6 +7,8 @@ from apps.personnel.api import EmployeeOrgAssignmentsView, OrgAssignmentDetailVi
 from apps.personnel.api import AccessEmployeeDirectoryView
 
 urlpatterns = [
+    path("api/v1/",include("apps.documents.urls")),
+    path("api/v1/",include("apps.intake.urls")),
     path("api/v1/auth/csrf/",csrf_view),
     path("api/v1/auth/login/",login_view),
     path("api/v1/auth/logout/",logout_view),

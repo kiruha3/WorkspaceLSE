@@ -34,3 +34,13 @@ def test_bootstrap_requires_explicit_password_without_partial_user_creation(monk
     with pytest.raises(CommandError):
         call_command("bootstrap_access",username="setup",full_name="Настройка",no_input=True)
     assert not django_user_model.objects.exists()
+
+
+def test_new_clerk_template_supports_intake_but_rerun_does_not_restore_removed_right(monkeypatch):
+    monkeypatch.setenv("AIS_BOOTSTRAP_PASSWORD","Long-unique-bootstrap-password9")
+    call_command("bootstrap_access",username="setup",full_name="Настройка",no_input=True,stdout=StringIO())
+    role=Role.objects.get(name="Делопроизводитель")
+    assert set(role.permissions.filter(permission_code__startswith="receipts.").values_list("permission_code",flat=True))=={"receipts.view","receipts.create","receipts.accept","receipts.amend"}
+    role.permissions.filter(permission_code="receipts.accept").delete()
+    call_command("bootstrap_access",username="setup",full_name="Настройка",no_input=True,stdout=StringIO())
+    assert not role.permissions.filter(permission_code="receipts.accept").exists()

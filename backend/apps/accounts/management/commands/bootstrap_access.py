@@ -28,6 +28,9 @@ TEMPLATES = {
     "Руководитель учреждения": {code:"institution" for code in ["employees.view","expertise.view","documents.view","letters.view","reports.form151.run","reports.form151.download"]},
 }
 
+TEMPLATES["Делопроизводитель"].update({code:"institution" for code in ["receipts.view","receipts.create","receipts.accept","receipts.amend"]})
+TEMPLATES["Руководитель отдела"]["receipts.view"]="departments"
+
 STAFF = [
     ("Власова Т.В.","3","head",["16.1","16.2"]),
     ("Миндибекова Т.М.","3","deputy",["1.1","3.1"]),
