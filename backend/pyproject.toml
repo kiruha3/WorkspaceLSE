@@ -1,0 +1,19 @@
+[project]
+name = "ais-lse-backend"
+version = "0.1.0"
+description = "Django API for Abakan forensic laboratory"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "Django>=5.2,<5.3",
+  "djangorestframework>=3.16,<4",
+  "psycopg[binary]>=3.2,<4",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.3,<10", "pytest-django>=4.9,<5"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"

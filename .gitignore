@@ -12,5 +12,6 @@ dist/
 !.env.example
 media/
 backups/
+.runtime/
 *.sqlite3
 *.sqlite3-journal
