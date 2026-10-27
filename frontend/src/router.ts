@@ -11,6 +11,8 @@ import ExpertisesPage from './modules/expertises/ExpertisesPage.vue'
 import ExpertisePage from './modules/expertises/ExpertisePage.vue'
 import LettersPage from './modules/letters/LettersPage.vue'
 import LetterPage from './modules/letters/LetterPage.vue'
+import IssuePackagesPage from './modules/issuance/IssuePackagesPage.vue'
+import IssuePackagePage from './modules/issuance/IssuePackagePage.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -24,6 +26,9 @@ export const router = createRouter({
     { path: '/expertises/:id', component: ExpertisePage, meta: { permission: 'expertise.view', title: 'Рабочая карточка' } },
     { path: '/letters', component: LettersPage, meta: { permission: 'letters.view', supportedModule: 'correspondence', title: 'Журнал переписки' } },
     { path: '/letters/:id', component: LetterPage, meta: { permission: 'letters.view', supportedModule: 'correspondence', title: 'Карточка письма' } },
+    { path: '/issue-packages', component: IssuePackagesPage, meta: { permission: 'issue.view', supportedModule: 'issuance', title: 'Журнал выдачи' } },
+    { path: '/issue-packages/new', component: IssuePackagePage, meta: { permission: 'issue.view', supportedModule: 'issuance', title: 'Подготовка комплекта' } },
+    { path: '/issue-packages/:id', component: IssuePackagePage, meta: { permission: 'issue.view', supportedModule: 'issuance', title: 'Комплект материала' } },
     { path: '/roles', component: RolesPage, meta: { permissionsAny: ['access.roles.view','access.roles.manage'], title: 'Роли и права' } },
     { path: '/access', component: AccessPeoplePage, meta: { permissionsAny: accessDirectoryActions, title: 'Учётные записи' } },
     { path: '/people', component: PeoplePage, meta: { permission: 'employees.view', title: 'Сотрудники' } },
@@ -35,6 +40,7 @@ router.beforeEach(async to => {
   if (!session.ready) { try { await session.refresh() } catch { return to.path === '/login' ? true : '/login' } }
   if (!session.authenticated && to.path !== '/login') return '/login'
   if (to.meta.supportedModule === 'correspondence' && !session.correspondenceEnabled) return { path: '/workspace', query: { denied: '1' } }
+  if (to.meta.supportedModule === 'issuance' && !session.issuanceEnabled) return { path: '/workspace', query: { denied: '1' } }
   if (to.meta.permission && !session.can(String(to.meta.permission))) return { path: '/workspace', query: { denied: '1' } }
   if (Array.isArray(to.meta.permissionsAny) && !session.canAny(...to.meta.permissionsAny)) return {path:'/workspace',query:{denied:'1'}}
   return true

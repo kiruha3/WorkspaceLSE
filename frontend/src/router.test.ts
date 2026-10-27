@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { router } from './router'
 describe('business routes', () => {
+  it('registers issue package routes with read and capability gates, including the explicit material entry', () => {
+    for (const path of ['/issue-packages', '/issue-packages/new', '/issue-packages/package-1']) {
+      const target = router.resolve(path)
+      expect(target.meta.permission).toBe('issue.view')
+      expect(target.meta.supportedModule).toBe('issuance')
+    }
+  })
   it('registers correspondence with independent read and server capability gates', () => {
     for (const path of ['/letters', '/letters/letter-1']) {
       const target = router.resolve(path)

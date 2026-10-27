@@ -14,6 +14,7 @@ export const useSessionStore = defineStore('session', () => {
   const canAny = (...codes:string[]):boolean => codes.some(can)
   const canAccessDirectory = computed(()=>canAny(...accessDirectoryActions))
   const correspondenceEnabled = computed(() => Boolean(user.value?.supported_modules?.includes('correspondence')))
+  const issuanceEnabled = computed(() => Boolean(user.value?.supported_modules?.includes('issuance')))
   api.onUnauthorized = () => { user.value = null }
   async function refresh(): Promise<void> {
     error.value = ''
@@ -35,5 +36,5 @@ export const useSessionStore = defineStore('session', () => {
     user.value = null
     ready.value = true
   }
-  return { user, ready, error, authenticated, can, canAny, canAccessDirectory, correspondenceEnabled, refresh, login, logout }
+  return { user, ready, error, authenticated, can, canAny, canAccessDirectory, correspondenceEnabled, issuanceEnabled, refresh, login, logout }
 })

@@ -38,7 +38,7 @@ export interface FileVersion {
   sha256: string; created_at: string; download_url: string; preview_url: string | null
 }
 export type ResultKind = 'expert_conclusion' | 'research_act' | 'sndz'
-export type DocumentKind = 'resolution' | 'decision' | 'deadline_agreement' | 'deadline_request' | ResultKind | 'return_decision' | 'letter'
+export type DocumentKind = 'resolution' | 'decision' | 'deadline_agreement' | 'deadline_request' | ResultKind | 'return_decision' | 'letter' | 'expert_subscription' | 'cover_letter' | 'notification' | 'invoice'
 export interface BasisDocument {
   accepted_version_id?: string | null
   id: string; kind: DocumentKind; title: string; source_kind: 'paper_original' | 'uploaded_copy'

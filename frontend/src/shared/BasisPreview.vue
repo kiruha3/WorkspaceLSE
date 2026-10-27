@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { DocumentLink } from '../api/types'
 const props = defineProps<{ document: DocumentLink; heading?: string; emptyText?: string; acceptedLabel?: string }>()
-const kindLabels = { resolution: 'Постановление', decision: 'Определение', deadline_agreement: 'Подтверждение согласования срока', deadline_request: 'Запрос срока', expert_conclusion: 'Заключение эксперта', research_act: 'Акт исследования', sndz: 'СНДЗ', return_decision: 'Решение без исполнения', letter: 'Документ переписки' }
+const kindLabels = { resolution: 'Постановление', decision: 'Определение', deadline_agreement: 'Подтверждение согласования срока', deadline_request: 'Запрос срока', expert_conclusion: 'Заключение эксперта', research_act: 'Акт исследования', sndz: 'СНДЗ', return_decision: 'Решение без исполнения', letter: 'Документ переписки', expert_subscription: 'Подписка эксперта', cover_letter: 'Сопроводительное', notification: 'Уведомление', invoice: 'Счёт' }
 const selected = ref(''), previewFailed = ref(false)
 const document = computed(() => props.document && !('restricted' in props.document) ? props.document : null)
 const versions = computed(() => [...(document.value?.versions ?? [])].sort((a, b) => b.number - a.number))

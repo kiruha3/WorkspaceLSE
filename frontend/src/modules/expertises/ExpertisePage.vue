@@ -9,6 +9,7 @@ import AssignmentForm from './AssignmentForm.vue'
 import ProductionPanel from './ProductionPanel.vue'
 import ResultPanel from './ResultPanel.vue'
 import ExpertiseLetters from '../letters/ExpertiseLetters.vue'
+import ExpertiseIssueStatus from '../issuance/ExpertiseIssueStatus.vue'
 import { useSessionStore } from '../../stores/session'
 const api = useApi(), route = useRoute(), requests = new LatestRequest()
 const session = useSessionStore()
@@ -36,5 +37,6 @@ onBeforeUnmount(() => requests.cancel())
     <ProductionPanel :key="expertise.id" :expertise="expertise" @updated="productionUpdated" />
     <ResultPanel v-if="expertise.result_readiness" :key="expertise.id" :expertise="expertise" @updated="resultUpdated" />
     <ExpertiseLetters v-if="session.correspondenceEnabled && session.can('letters.view')" :key="`letters-${expertise.id}`" :expertise-id="expertise.id" />
+    <ExpertiseIssueStatus v-if="session.issuanceEnabled" :key="`issue-${expertise.id}`" :expertise-id="expertise.id" :material-id="expertise.material.id" />
   </template>
 </template>
