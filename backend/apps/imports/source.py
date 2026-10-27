@@ -8,8 +8,10 @@ from io import BytesIO,StringIO
 from itertools import zip_longest
 from pathlib import PureWindowsPath
 from zipfile import ZipFile,BadZipFile
+from xml.etree import ElementTree
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
+from openpyxl.utils.cell import coordinate_to_tuple
 from .types import SourceRow,ParsedJournal
 from .normalization import normalize_rows
 
@@ -45,7 +47,7 @@ def source_rows(records):
         if index<=3:continue
         raw={get_column_letter(i+1):cell_text(values[i]) if i<len(values) else None for i in range(28)}
         # A and computed Z/AA/AB alone are template placeholders, not records.
-        if not any(str(raw.get(get_column_letter(i+1)) or "").strip() for i in range(1,24)):continue
+        if not any(str(raw.get(column) or "").strip() or column in formulas for column in (get_column_letter(i+1) for i in range(1,24))):continue
         extra={get_column_letter(i+1):cell_text(value) for i,value in enumerate(values) if i>=28 and value is not None and str(value)!=""}
         rows.append(SourceRow(index,raw,formulas,extra))
     if not rows:raise JournalSourceError("В первом листе нет строк журнала.")
@@ -81,6 +83,33 @@ def validate_zip(content):
         raise JournalSourceError("Файл не является читаемым XLSX.") from error
 
 
+def sheet_date_serials(content,sheet):
+    """Validate physical coordinates and retain numeric date values before coercion.
+
+    openpyxl 3.1 read-only cells have already mapped styled serial 60 to Feb 28.
+    This narrow XML pass preserves C/P values (including formula caches); it is
+    not a second workbook reader. The pinned adapter uses its first worksheet's
+    resolved package path so renamed/reordered worksheet parts still work.
+    """
+    dates={};row_number=0;column_number=0
+    with ZipFile(BytesIO(content)) as archive,archive.open(sheet._worksheet_path) as stream:
+        for event,element in ElementTree.iterparse(stream,events=("start","end")):
+            tag=element.tag.rsplit("}",1)[-1]
+            if event=="start" and tag=="row":
+                row_number=int(element.get("r",row_number+1));column_number=0
+                if not 1<=row_number<=MAX_ROWS:raise JournalSourceError("В источнике больше допустимых строк.")
+            elif event=="end" and tag=="c":
+                address=element.get("r")
+                actual_row,column_number=coordinate_to_tuple(address) if address else (row_number,column_number+1)
+                if actual_row!=row_number or not 1<=column_number<=MAX_COLUMNS:raise JournalSourceError("Координаты ячеек выходят за допустимые границы.")
+                if column_number in (3,16) and element.get("t","n")=="n":
+                    value=element.find("{*}v")
+                    if value is not None and value.text is not None:dates[f"{get_column_letter(column_number)}{row_number}"]=value.text
+                element.clear()
+            elif event=="end" and tag=="row":element.clear()
+    return dates
+
+
 def read_xlsx(content):
     validate_zip(content)
     values_book=formula_book=None
@@ -89,11 +118,14 @@ def read_xlsx(content):
         formula_book=load_workbook(BytesIO(content),read_only=True,data_only=False,keep_links=False)
         if not values_book.worksheets:raise JournalSourceError("В XLSX нет первого листа.")
         sheet=values_book.worksheets[0];formulas_sheet=formula_book.worksheets[0]
-        if sheet.max_row and sheet.max_row>MAX_ROWS or sheet.max_column and sheet.max_column>MAX_COLUMNS:raise JournalSourceError("Размер первого листа превышает допустимые границы.")
+        dates=sheet_date_serials(content,sheet)
+        # Producer-supplied dimensions may understate the data. Physical bounds
+        # above are checked before iteration allocates or skips any cells.
+        sheet.reset_dimensions();formulas_sheet.reset_dimensions()
         def records():
             for cells,source_cells in zip_longest(sheet.iter_rows(),formulas_sheet.iter_rows(),fillvalue=()):
                 formulas={get_column_letter(i+1):str(cell.value) for i,cell in enumerate(source_cells) if cell.data_type=="f"}
-                yield [cell.value for cell in cells],formulas
+                yield [dates.get(getattr(cell,"coordinate",None),cell.value) for cell in cells],formulas
         return source_rows(records()),sheet.title,"1904" if values_book.epoch.year==1904 else "1900"
     except JournalSourceError:raise
     except Exception as error:

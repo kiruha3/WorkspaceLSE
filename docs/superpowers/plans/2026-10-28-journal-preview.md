@@ -43,9 +43,9 @@
 
 **Interfaces:** ConsumeTask1ParsedJournal.to_dict andpureparser. `create_preview(*,actor,upload,reason,key)->{id,batch_id}` minimalreceipt; `batch_data(batch,user)->BatchDTO`, `row_data(row)->RowDTO` exactspec. institution-onlybothrightsforcreate, resultsviewforreads. GETlist/detail/rows/source andPOSTpreview; filterssearch/severityerror|warning|info/stateknownenum, exactbatchnoapply. Batchuploaded_byUser; filesprotectedserveonlyafterrights. preservefilebytes/writes/auditatomicfail.
 
-- [ ] Step1 RED tests exactAPI201/DTO/storedrows/sourcebytes/4existingbusinesstablecountsunchanged; no keys/reason/forbiddenfields400, samekeyfreshsameid/audit/file1, differentbody409, currentview/previewrevocation403, departmentnotgrantinstitution; paginatedfilters/count/globalrawsummary, malformedfilefailednoDB/storage/auditreceipt, auditfailurecleansnewfileonly; two simultaneoussamekeyonebatch/file/audit. Runnewtests expected404RED.
-- [ ] Step2 implementmodels/migration/services/API/currentrights+capabilityjournal_import_previewonlyread/createready; no apply route. Addtwoinitialtemplatepermissionsonlynewroles, explicit--enable-import-previewDEMOclerk/refusereal/preserveedits. Fullbackendregressionsoneprocess.
-- [ ] Step3 focusedthenfullbackend/check/migrations/diff/task-done; commit `feat: store immutable journal import previews`.
+- [x] Step1 RED tests exactAPI201/DTO/storedrows/sourcebytes/4existingbusinesstablecountsunchanged; no keys/reason/forbiddenfields400, samekeyfreshsameid/audit/file1, differentbody409, currentview/previewrevocation403, departmentnotgrantinstitution; paginatedfilters/count/globalrawsummary, malformedfilefailednoDB/storage/auditreceipt, auditfailurecleansnewfileonly; two simultaneoussamekeyonebatch/file/audit. Runnewtests expected404RED.
+- [x] Step2 implementmodels/migration/services/API/currentrights+capabilityjournal_import_previewonlyread/createready; no apply route. Addtwoinitialtemplatepermissionsonlynewroles, explicit--enable-import-previewDEMOclerk/refusereal/preserveedits. Fullbackendregressionsoneprocess.
+- [x] Step3 focusedthenfullbackend/check/migrations/diff/task-done; commit `feat: store immutable journal import previews`.
 
 ### Task 3: Vue рабочее место и приёмка снимка
 
@@ -53,9 +53,9 @@
 
 **Interfaces:** ConsumeTask2exactBatchDTO/RowDTO/endpoints. Moduleflag+imports.results.viewnav, imports.previewform. File/reason/keybeforePOST, normalizedretryoriginalbodykey/dirtyguard, safeURLfiltersreturn/cancelLatestGET. Rowdetailsraw/facts/diagnosticswithoutv-html; sourceURLonlyserverpath. Neverrenderfakeapplysuccess.
 
-- [ ] Step1 RED components exactmultipart/key/reason, pending/success/servererrors/fileloss403409/changedfilekey/dirtyguard; module/actiongates, URLsearch/severity/statepagination/counts, rowdetailsandunknowns, oldGETdiscardafterroutechange. ExpectedmissingcomponentsRED.
-- [ ] Step2 implementexistingfullwidthdesignwithclearpreviewnotappliedandnextreconciliationcallout; no additionalNodeprocesses.
-- [ ] Step3 fullfrontend/type/build, actualIABDEMOcsvupload→list→detail/filter→rowraw/facts→download, repeatedreadonlyscope/no mutationtoexistingworks. CurrentownerXLSXonlyCLIuntilfreshsourceconfirmed.
-- [ ] Step4 onefreshwhole-slicereviewfromccb7a8c, mainregradeoneImportant/CriticalTDDfixpass/fullgates; recordrulings/minors, keepbranch/nopush, taskdone. Overallgoalactiveforhistoricalapply/reports/documents/policies.
+- [x] Step1 RED components exactmultipart/key/reason, pending/success/servererrors/fileloss403409/changedfilekey/dirtyguard; module/actiongates, URLsearch/severity/statepagination/counts, rowdetailsandunknowns, oldGETdiscardafterroutechange. ExpectedmissingcomponentsRED.
+- [x] Step2 implementexistingfullwidthdesignwithclearpreviewnotappliedandnextreconciliationcallout; no additionalNodeprocesses.
+- [x] Step3 fullfrontend/type/build, actualIABDEMOcsvupload→list→detail/filter→rowraw/facts→download, repeatedreadonlyscope/no mutationtoexistingworks. CurrentownerXLSXonlyCLIuntilfreshsourceconfirmed.
+- [x] Step4 onefreshwhole-slicereviewfromccb7a8c, mainregradeoneImportant/CriticalTDDfixpass/fullgates; recordrulings/minors, keepbranch/nopush, taskdone. Overallgoalactiveforhistoricalapply/reports/documents/policies.
 
 Self-review: Task1producesalltype/parserfieldsTask2persists; Task2ownsfile/rights/capability/CLIappregistration beforeTask3consumes. FiveReviewFocusinputs coveredbyTask1orTask2/3tests. No unownedapplyorreportfunction; explicitlynextplanratherthanunimplementedpromiseinUI. Onefinalreview/inlineexecutionpreservedperownerinstructiontocontinue.

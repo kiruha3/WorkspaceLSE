@@ -92,3 +92,43 @@ def test_cli_defaults_to_summary_and_never_prints_case_text(tmp_path):
     assert "текст дела" not in out.getvalue()
     out=StringIO();call_command("preview_journal",str(path),include_rows=True,stdout=out)
     assert json.loads(out.getvalue())["rows"][0]["raw"]["J"]=="ДЕМО · текст дела не для общего лога"
+
+
+def test_stale_xlsx_dimensions_never_hide_rows_or_columns():
+    content=xlsx_source([row(Q=2),row(B="152/4-1-26"),row(B="153/4-1-26")],dimension="A1:P4")
+    parsed=parse_journal(content,"journal.xlsx")
+    assert [item.source_row for item in parsed.rows]==[4,5,6]
+    assert parsed.rows[0].raw["Q"]=="2" and parsed.rows[0].facts["questions"]==2
+
+
+@pytest.mark.parametrize("limit",["rows","columns"])
+def test_stale_xlsx_dimensions_do_not_bypass_actual_limits(monkeypatch,limit):
+    from apps.imports import source
+    if limit=="rows":
+        monkeypatch.setattr(source,"MAX_ROWS",4)
+        content=xlsx_source([row(),row(B="152/4-1-26")],dimension="A1:AB4")
+    else:
+        content=xlsx_source([row(AC="За границей")],dimension="A1:AB4")
+        monkeypatch.setattr(source,"MAX_COLUMNS",28)
+    with pytest.raises(JournalSourceError):parse_journal(content,"journal.xlsx")
+
+
+def test_uncached_business_formula_keeps_row_but_template_formula_does_not():
+    content=xlsx_source([row(),{"C":0},{"A":3,"Z":0}],formula={"C5":("1+1",None),"Z6":("1-1",None)})
+    parsed=parse_journal(content,"journal.xlsx")
+    assert [item.source_row for item in parsed.rows]==[4,5]
+    item=parsed.rows[1]
+    assert item.raw["C"] is None and item.formulas=={"C":"=1+1"}
+    assert {"registration_invalid","formula_cache_missing"} <= {d.code for d in item.diagnostics}
+
+
+@pytest.mark.parametrize("serial,normal1900,normal1904",[(59,"1900-02-28","1904-02-29"),(60,None,"1904-03-01"),(61,"1900-03-01","1904-03-02")])
+@pytest.mark.parametrize("date1904",[False,True])
+@pytest.mark.parametrize("cached",[False,True])
+def test_date_formatted_serials_keep_original_and_reject_phantom_1900_date(serial,normal1900,normal1904,date1904,cached):
+    content=xlsx_source([row(C=serial,P=serial)],date1904=date1904,date_styles={"C4","P4"},formula={"P4":("30+30",serial)} if cached else None)
+    item=parse_journal(content,"journal.xlsx").rows[0]
+    assert item.raw["C"]==str(serial) and item.raw["P"]==str(serial)
+    expected=normal1904 if date1904 else normal1900
+    assert item.facts["received_on"]==expected and item.facts["completed_on"]==expected
+    if expected is None:assert {tuple(d.columns) for d in item.diagnostics if d.code=="date_invalid"}=={("C",),("P",)}

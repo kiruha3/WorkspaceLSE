@@ -123,3 +123,20 @@ def test_audit_failure_rolls_back_rows_and_removes_only_its_new_file(employee_fa
     from apps.imports.models import ImportBatch
     assert ImportBatch.objects.count()==1 and set(path for path in tmp_path.rglob("*") if path.is_file())==before
     assert CommandReceipt.objects.filter(action="imports.preview").count()==1
+
+
+def test_partial_file_write_failure_removes_owned_bytes_not_previous_source(employee_factory,grant,settings,tmp_path,monkeypatch):
+    settings.MEDIA_ROOT=tmp_path;client,_=preview_setup(employee_factory,grant)
+    first=send_preview(client);assert first.status_code==201
+    before={path:path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()}
+    from django.core.files.base import ContentFile
+    def broken_chunks(self,*args,**kwargs):
+        yield self.read(8)
+        raise OSError("DEMO disk write failed")
+    monkeypatch.setattr(ContentFile,"chunks",broken_chunks)
+    with pytest.raises(OSError):send_preview(client,key="failed-write")
+    from apps.imports.models import ImportBatch,ImportRow
+    assert {path:path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()}==before
+    assert ImportBatch.objects.count()==1 and ImportRow.objects.count()==1
+    assert AuditEvent.objects.filter(action="imports.preview").count()==1
+    assert CommandReceipt.objects.filter(action="imports.preview").count()==1
