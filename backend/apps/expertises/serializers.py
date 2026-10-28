@@ -82,10 +82,11 @@ class ExpertiseOutput(serializers.ModelSerializer):
     closure_history=serializers.SerializerMethodField()
     result_readiness=serializers.SerializerMethodField()
     historical=serializers.SerializerMethodField()
+    case_details=serializers.SerializerMethodField()
 
     class Meta:
         model = Expertise
-        fields = ["id","origin_kind","historical","registration_number","registration_department_code","historical_number","sequence","year","category_code","department","specialty","receipt","material","appointment_nature","is_commission","complex_group","state","version","current_assignments","assignment_history","allowed_actions","basis_document","production","suspensions","deadline_events","result","result_history","closure","closure_history","result_readiness"]
+        fields = ["id","origin_kind","historical","case_details","registration_number","registration_department_code","historical_number","sequence","year","category_code","department","specialty","receipt","material","appointment_nature","is_commission","complex_group","state","version","current_assignments","assignment_history","allowed_actions","basis_document","production","suspensions","deadline_events","result","result_history","closure","closure_history","result_readiness"]
 
     def get_department(self,obj): return {"id":str(obj.department_id),"code":obj.department.code,"name":obj.department.name}
     def get_specialty(self,obj): return {"id":str(obj.specialty_id),"code":obj.specialty.code,"name":obj.specialty.name} if obj.specialty_id else None
@@ -144,6 +145,9 @@ class ExpertiseOutput(serializers.ModelSerializer):
     def get_historical(self,obj):
         from .history import historical_output
         return historical_output(obj,self.context["user"],self.context["scopes"])
+    def get_case_details(self,obj):
+        from .case_details import case_details_output
+        return case_details_output(obj,self.context['user'],self.context['scopes'])
     def get_production(self,obj):
         from .production import production_summary
         return production_summary(obj)

@@ -3,6 +3,7 @@ from apps.accounts.views import csrf_view, login_view, logout_view, MeView
 from apps.accounts.api import PermissionsView, RoleListView, RoleDetailView, RolePermissionsView
 from apps.personnel.api import EmployeeListView, EmployeeDetailView, EmployeeSpecialtiesView, SpecialtyQualifyView, EmployeeRolesView, EmployeeEffectiveView
 from apps.references.api import ReferenceListView, ReferenceDetailView
+from apps.references.history import ReferenceHistoryView
 from apps.personnel.api import EmployeeOrgAssignmentsView, OrgAssignmentDetailView, EmployeeRoleDetailView, EmployeeAccountView
 from apps.personnel.api import AccessEmployeeDirectoryView
 from apps.reports.api import Form151View
@@ -37,4 +38,5 @@ urlpatterns = [
     path("api/v1/employee-specialties/<uuid:pk>/qualify/",SpecialtyQualifyView.as_view()),
     path("api/v1/references/<str:catalog>/",ReferenceListView.as_view()),
     path("api/v1/references/<str:catalog>/<uuid:pk>/",ReferenceDetailView.as_view()),
+    path("api/v1/references/<str:catalog>/<uuid:pk>/history/",ReferenceHistoryView.as_view()),
 ]

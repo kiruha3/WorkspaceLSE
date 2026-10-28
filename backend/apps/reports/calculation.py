@@ -69,7 +69,7 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
         ("methodical",[7],"Учебно-методическая работа отсутствует в этом журнале.","methodical_register"),
         ("lawsuits",[8],"Иски к учреждению и выплаты отсутствуют в этом журнале.","lawsuits_register"),
         ("plan",[6],"Нет разбивки годового плана по специальностям." if plan is not None else f"Не указан годовой план на {year}.","state_assignment_plan")]:
-        if mode=='journal' or args[0]!='reasons':gap(*args)
+        if mode=='journal' or args[0] not in ('reasons','decree3214'):gap(*args)
     if not opening_balances_complete:gap("openingCoverage",[1],"Не подтверждена полнота журнала: остатки на начало и конец оставлены пустыми.","opening_balances_complete")
     for row in rows:
         f,raw=row.facts,row.raw; state=f.get("state");returned=state=="without_execution"
@@ -137,7 +137,7 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
         put(6,"E",[finish,state_assignment,False if returned else None if kind is None else True])
         for col,condition in [("F",sndz),("G",expertise),("M",research)]:put(6,col,[finish,state_assignment,condition])
         for col,code in zip("HIJKL","12345"):put(6,col,[finish,state_assignment,expertise,None if conflict or not category else category==code])
-        organ=AUTHORITIES.get(label(f.get("authority_type")))
+        organ=f['authority_group'] if mode=='registry' and 'authority_group' in f else AUTHORITIES.get(label(f.get("authority_type")))
         for col,target in zip("UVW",("legal","individual","other")):
             match=None if organ is None else organ not in ("legal","individual") if target=="other" else organ==target
             put(1,col,[finish,research,match])
@@ -152,6 +152,10 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
         for col,n in zip("DEFGH",(q,None if cat is None or prob is None else cat+prob,cat,prob,unresolved)):
             put(2,col,[finish,is_kind("result")],None if inconsistent else n)
         if mode=='registry':
+            decree=f.get('decree3214')
+            put(1,'P',[finish,expertise],None if type(decree) is not bool else int(decree))
+            if finish is not False and expertise is True and type(decree) is not bool:
+                gap('decree3214',[1],'Признак выполнения по3214-р не подтверждён. Категория1/5 его не определяет.','case_details.decree3214',row.source_row)
             sndz_reason=f.get('sndz_reason');return_reason=f.get('return_reason')
             allocated=unresolved_counts(f,inconsistent=inconsistent)
             for code,col in SNDZ_COLUMNS.items():put(1,col,[finish,sndz],None if sndz_reason not in SNDZ_COLUMNS else int(sndz_reason==code))

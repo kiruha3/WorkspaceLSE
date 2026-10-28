@@ -166,7 +166,8 @@ def test_period_demo_and_unknown_specialty_preserve_reason_totals(accepted_work)
 
 @pytest.mark.django_db
 def test_empty_registry_has_known_reason_zeroes_and_journal_shape_unchanged():
-    result=report();assert len(result['cells'])==804
+    result=report();assert len(result['cells'])==816
+    assert cell(result,1,'P108')['value']==0
     assert cell(result,1,'G108')['value']==0 and cell(result,2,'I107')['value']==0 and cell(result,4,'T107')['value']==0
     sample=ReportRecord('row',{'registration_number':'1/3-1-26','received_on':'2026-01-01','source_end_on':'2026-02-01','state':'completed','category_code':'1','specialty_code':'1.1','result_kind':'sndz'}, {})
     old=calculate([sample],2026,10)

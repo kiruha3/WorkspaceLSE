@@ -241,3 +241,44 @@ class HistoricalParticipant(models.Model):
     class Meta:
         ordering=["employee__full_name","id"]
         constraints=[models.UniqueConstraint(fields=["history","employee"],name="one_historical_participant")]
+
+
+class WorkCaseDetails(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    expertise=models.OneToOneField(Expertise,related_name='case_details',on_delete=models.PROTECT)
+    authority_type=models.ForeignKey('references.AuthorityType',null=True,blank=True,on_delete=models.PROTECT)
+    authority_name=models.TextField(blank=True)
+    official=models.TextField(blank=True)
+    contact=models.TextField(blank=True)
+    case_number=models.CharField(max_length=500,blank=True)
+    case_description=models.TextField(blank=True)
+    basis_text=models.TextField(blank=True)
+    inventory=models.TextField(blank=True)
+    questions_text=models.TextField(blank=True)
+    decree3214=models.BooleanField(null=True,blank=True,default=None)
+    decree_document=models.ForeignKey('documents.Document',null=True,blank=True,on_delete=models.PROTECT)
+    decree_basis=models.TextField(blank=True)
+    created_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    created_at=models.DateTimeField(auto_now_add=True)
+    updated_at=models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints=[models.CheckConstraint(condition=
+            Q(decree3214=True,decree_document__isnull=False)&~Q(decree_basis='') |
+            (Q(decree3214=False)|Q(decree3214__isnull=True))&Q(decree_document__isnull=True,decree_basis=''),
+            name='case_decree_has_typed_basis')]
+
+
+class CaseDetailsRevision(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    details=models.ForeignKey(WorkCaseDetails,related_name='revisions',on_delete=models.PROTECT)
+    number=models.PositiveIntegerField()
+    actor=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    created_at=models.DateTimeField(auto_now_add=True)
+    reason=models.TextField()
+    before=models.JSONField()
+    after=models.JSONField()
+
+    class Meta:
+        ordering=['number','id']
+        constraints=[models.UniqueConstraint(fields=['details','number'],name='unique_case_details_revision')]

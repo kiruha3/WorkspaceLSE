@@ -17,6 +17,7 @@ import ImportPreviewsPage from './modules/imports/ImportPreviewsPage.vue'
 import ImportPreviewPage from './modules/imports/ImportPreviewPage.vue'
 import ReconciliationPage from './modules/imports/ReconciliationPage.vue'
 import ReportsPage from './modules/reports/ReportsPage.vue'
+import ReferencesPage from './modules/references/ReferencesPage.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -24,6 +25,7 @@ export const router = createRouter({
     { path: '/', redirect: '/workspace' },
     { path: '/login', component: LoginPage, meta: { title: 'Вход' } },
     { path: '/workspace', component: HomePage, meta: { title: 'Рабочее место' } },
+    { path: '/references', component: ReferencesPage, meta: { permissionsAny: ['references.view','references.manage'], title: 'Справочники' } },
     { path: '/reports', component: ReportsPage, meta: { permissionsAny: ['reports.form151.run'], title: 'Отчёт 15.1' } },
     { path: '/intake', component: IntakePage, meta: { permission: 'receipts.view', title: 'Приёмка материалов' } },
     { path: '/receipts/:id', component: ReceiptPage, meta: { permission: 'receipts.view', title: 'Поступление' } },

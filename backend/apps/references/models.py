@@ -60,3 +60,12 @@ class DispatchChannel(Reference):
 
 class ControlClosureReason(Reference):
     rule = models.CharField(max_length=20, default="other", choices=[("reply_sent", "Ответ отправлен"), ("reply_received", "Ответ получен"), ("withdrawn", "Отозван"), ("not_required", "Не требуется"), ("other", "Иное решение")])
+
+
+class AuthorityType(Reference):
+    REPORT_GROUPS = [(code, name) for code, name in (
+        ('court', 'Суды'), ('sk', 'Следственный комитет'), ('mvd', 'МВД'),
+        ('fsb', 'ФСБ'), ('fts', 'ФТС'), ('fssp', 'ФССП'),
+        ('individual', 'Физические лица'), ('legal', 'Юридические лица'), ('other', 'Иные'),
+    )]
+    report_group = models.CharField(max_length=20, choices=REPORT_GROUPS, null=True, blank=True)

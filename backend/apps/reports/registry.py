@@ -16,7 +16,7 @@ from django.utils import timezone
 from apps.expertises.models import Expertise,WorkClosure,UnresolvedAllocation,HistoricalUnresolvedAllocation
 from .calculation import calculate
 
-VERSION='form151-registry-v3'
+VERSION='form151-registry-v4'
 RESULT_FIELDS=('result_kind','completed_on','return_decided_on','complexity_level','questions','categorical','probable','unresolved','authority_type')
 COUNT_FIELDS=('complexity_level','questions','categorical','probable','unresolved')
 
@@ -44,6 +44,7 @@ def calculate_registry(*,year,month,opening_balances_complete=False):
     fields=('id','registration_number','category_code','state','origin_kind','receipt__received_at','department__code',
             'specialty__code','material__is_demo','appointment_nature','is_commission','historical__statistics_confirmed',
             'historical__sndz_reason__code','historical__return_reason__code','historical__allocations_complete',
+            'case_details__id','case_details__authority_type__report_group','case_details__decree3214','case_details__updated_at',
             'historical__source_row_id','historical__source_row__batch_id','historical__source_row__source_row',
             *('historical__'+field for field in RESULT_FIELDS))
     stored=list(Expertise.objects.annotate(accepted=Subquery(accepted),historical_allocations=ArraySubquery(historical_allocations)).order_by('id').values(*fields,'accepted','historical_allocations'))
@@ -54,6 +55,8 @@ def calculate_registry(*,year,month,opening_balances_complete=False):
         key=str(item['id']);closure=item['accepted']
         facts={field:item['historical__'+field] for field in RESULT_FIELDS}
         facts.update(sndz_reason=item['historical__sndz_reason__code'],return_reason=item['historical__return_reason__code'],allocations_complete=item['historical__allocations_complete'],unresolved_allocations=item['historical_allocations'])
+        facts['decree3214']=item['case_details__decree3214']
+        if item['case_details__id'] is not None:facts['authority_group']=item['case_details__authority_type__report_group']
         facts.update(registration_number=item['registration_number'],received_on=item['receipt__received_at'],
             category_code=item['category_code'],state=item['state'],department_code=item['department__code'],specialty_code=item['specialty__code'])
         if closure:

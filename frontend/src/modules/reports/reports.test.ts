@@ -35,6 +35,12 @@ it('defaults to live registry without requesting snapshots and links work proven
   expect(wrapper.text()).toContain('Учебных работ исключено: 6')
   expect(wrapper.find('a[href="/expertises/work-1"]').exists()).toBe(true)
 })
+it('shows the explicit 3214 cell and provenance from case metadata in registry mode',async()=>{
+ const live={...result,source:{type:'registry',id:null,name:'Рабочая база АИС',row_count:1,calculated_at:'2026-10-28T03:00:00Z',data_revision:'test',excluded_demo_count:0},records:{'work-1':{id:'work-1',registration_number:'151/1-1-26'}},cells:[{sheet:'Раздел 1',address:'P108',value:1,rows:['work-1']}]}
+ const {wrapper}=await open(async()=>json(live),['expertise.view','reports.form151.run'],'/reports');await wrapper.get('form').trigger('submit');await flushPromises()
+ expect(wrapper.findAll('th').map(c=>c.text())).toContain('В рамках 3214-р');expect(wrapper.text()).not.toContain('повторность и 3214-р ещё не рассчитываются')
+ expect(wrapper.findAll('td').some(td=>td.find('button.report-number').exists()&&td.get('button.report-number').text()==='1'&&td.attributes('title')?.includes('151/1-1-26'))).toBe(true)
+})
 it('invalidates registry result when switching source mode and does not save a download error',async()=>{
   const {wrapper}=await open(async input=>String(input).includes('/imports/')?json(page([batch])):String(input).includes('/xlsx/')?json({code:'command_conflict',message:'Данные изменились. Пересчитайте.'},409):json(result),['expertise.view','imports.results.view','reports.form151.run','reports.form151.download'],'/reports')
   await wrapper.get('form').trigger('submit');await flushPromises()

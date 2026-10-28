@@ -30,7 +30,8 @@ watch(() => route.path, () => { menuOpen.value = false })
         <RouterLink v-if="session.correspondenceEnabled && session.can('letters.view')" to="/letters"><UiIcon name="file" />Переписка</RouterLink>
         <RouterLink v-if="session.issuanceEnabled && session.can('issue.view')" to="/issue-packages"><UiIcon name="folder" />Выдача материалов</RouterLink>
         <RouterLink v-if="session.importPreviewEnabled && session.can('imports.results.view')" to="/imports"><UiIcon name="file" />Источники журнала</RouterLink>
-        <RouterLink v-if="session.can('reports.form151.run') && session.can('imports.results.view')" to="/reports"><UiIcon name="chart" />Отчёт 15.1</RouterLink>
+        <RouterLink v-if="session.can('reports.form151.run') && session.canAny('imports.results.view','expertise.view')" to="/reports"><UiIcon name="chart" />Отчёт 15.1</RouterLink>
+        <RouterLink v-if="session.canAny('references.view','references.manage')" to="/references"><UiIcon name="folder" />Справочники</RouterLink>
         <RouterLink v-if="session.can('employees.view')" to="/people"><UiIcon name="people" />Сотрудники</RouterLink>
         <RouterLink v-if="session.canAccessDirectory" to="/access"><UiIcon name="shield" />Учётные записи</RouterLink>
         <RouterLink v-if="session.canAny('access.roles.view','access.roles.manage')" to="/roles"><UiIcon name="shield" />Роли и права</RouterLink>

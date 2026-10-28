@@ -12,7 +12,20 @@ export interface Role {
   id: string; name: string; description: string; is_active: boolean; version: number
   permissions: RolePermission[]; assignment_count: number
 }
-export interface Reference { id: string; code: string; name: string; is_active: boolean; version: number }
+export interface Reference { id: string; code: string; name: string; is_active: boolean; version: number; report_group?: string | null; direction?: 'incoming' | 'outgoing'; department_id?: string | null; rule?: string }
+export interface FactRevision { id: string; number?: number; action?: string; actor: { id: string; full_name: string } | null; created_at: string; reason: string; before?: Record<string,unknown>; after?: Record<string,unknown>; changes?: Record<string,unknown> }
+export interface CaseDetails {
+  id: string | null; source: 'typed' | 'history' | 'new'; can_edit: boolean; edit_permission: string
+  authority_type: Reference | null; authority_type_raw: string; authority_name: string; official: string; contact: string
+  case_number: string; case_description: string; basis_text: string; inventory: string; questions_text: string
+  decree3214: boolean | null; decree_document_id: string | null; decree_document: DocumentLink; decree_basis: string; revisions: FactRevision[]
+}
+export interface CaseDetailsOptions { authority_types: Reference[]; initial_authority_type_id: string | null; retained_authority_type_ids: string[] }
+export interface CaseDetailsPayload {
+  expected_version: number; reason: string; authority_type_id: string | null; authority_name: string; official: string; contact: string
+  case_number: string; case_description: string; basis_text: string; inventory: string; questions_text: string
+  decree3214: boolean | null; decree_document_id: string | null; decree_basis: string
+}
 export interface OrgAssignment {
   id: string; department: Pick<Reference, 'id' | 'code' | 'name'>
   position: Pick<Reference, 'id' | 'code' | 'name'>; valid_from: string | null; valid_to: string | null
@@ -115,6 +128,7 @@ export interface HistoricalWork {
 export interface HistoricalReportOptions { specialties: Reference[]; sndz_reasons: Reference[]; return_reasons: Reference[]; unresolved_reasons: Reference[] }
 export interface HistoricalReportPayload { expected_version: number; reason: string; specialty_id: string | null; correction_kind: 'result' | 'return'; result?: Omit<ResultPayload,'document_id'>; return_data?: { decided_on: string | null; return_reason_id: string | null; comment: string } }
 export interface Expertise {
+  case_details?: CaseDetails
   id: string; registration_number: string; registration_department_code?: string | null; historical_number: string; sequence: number; year: number; category_code: string
   origin_kind: 'native' | 'historical'; historical: HistoricalWork | null
   department: Pick<Reference, 'id' | 'code' | 'name'>; specialty: Pick<Reference, 'id' | 'code' | 'name'> | null
