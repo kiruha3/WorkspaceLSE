@@ -1,4 +1,6 @@
 from urllib.parse import urlencode
+import hashlib,json
+from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
@@ -11,6 +13,7 @@ from apps.imports.policies import require_preview_read
 from apps.imports.models import ImportBatch
 from .calculation import calculate
 from .xlsx import export_xlsx
+from .plan_snapshot import read_plan_snapshot
 
 
 class Parameters(serializers.Serializer):
@@ -26,7 +29,6 @@ class Parameters(serializers.Serializer):
         if data['source']=='journal' and 'delay_reason_policy' in self.initial_data:raise ValidationError({'delay_reason_policy':'Снимок журнала не содержит структурированных причин длительности. Выберите рабочую базу АИС.'})
         if data['source']=='journal' and 'batch_id' not in data:raise ValidationError({'batch_id':'Выберите снимок журнала.'})
         if data['source']=='registry' and 'batch_id' in data:raise ValidationError({'batch_id':'Рабочая база рассчитывается без подмены снимком.'})
-        if data['source']=='journal' and 'expected_revision' in data:raise ValidationError({'expected_revision':'Проверка редакции применяется к рабочей базе.'})
         return data
 
     def to_internal_value(self,data):
@@ -53,16 +55,20 @@ class Form151View(GenericAPIView):
             from .registry import calculate_registry
             try:report=calculate_registry(**args)
             except ValueError as error:raise ValidationError({'report':str(error)}) from error
-            if expected and expected!=report['data_revision']:raise CommandConflict('Рабочие данные изменились после расчёта. Пересчитайте отчёт перед скачиванием.')
             params={'source':'registry','expected_revision':report['data_revision'],'delay_reason_policy':report['delay_reason_policy']}
         else:
             require_preview_read(request.user)
             batch=get_object_or_404(ImportBatch,pk=args.pop('batch_id'))
-            try:report=calculate(batch.rows.all(),**args)
+            rows=list(batch.rows.all());plan=read_plan_snapshot(args['year'])
+            try:report=calculate(rows,plan_snapshot=plan,**args)
             except ValueError as error:raise ValidationError({"report":str(error)}) from error
-            report["source"]={"type":"journal","id":str(batch.id),"name":batch.source_name,"sheet_name":batch.sheet_name,"row_count":batch.row_count,
+            revision=hashlib.sha256(json.dumps({'version':report['version'],'rules_version':report['rules_version'],'plan':plan,'batch_id':str(batch.pk),'sha256':batch.source_sha256,
+                'rows':[{'id':str(row.pk),'source_row':row.source_row,'facts':row.facts,'raw':row.raw} for row in rows]},sort_keys=True,cls=DjangoJSONEncoder).encode()).hexdigest()
+            report['data_revision']=revision
+            report["source"]={"type":"journal","id":str(batch.id),'data_revision':revision,"name":batch.source_name,"sheet_name":batch.sheet_name,"row_count":batch.row_count,
                 "sha256":batch.source_sha256,"observed_at":batch.source_observed_at,"created_at":batch.created_at,"origin_url":batch.origin_url,"parser_version":batch.parser_version}
-            params={'batch_id':str(batch.id)}
+            params={'batch_id':str(batch.id),'expected_revision':revision}
+        if expected and expected!=report['data_revision']:raise CommandConflict('Данные или годовой план изменились после расчёта. Пересчитайте отчёт перед скачиванием.')
         params.update(year=report['year'],month=report['month'],opening_balances_complete=str(report['opening_balances_complete']).lower())
         report["download_url"]="/api/v1/reports/form151/xlsx/?"+urlencode(params)
         if self.download:

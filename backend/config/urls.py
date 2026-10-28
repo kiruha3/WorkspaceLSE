@@ -7,8 +7,10 @@ from apps.references.history import ReferenceHistoryView
 from apps.personnel.api import EmployeeOrgAssignmentsView, OrgAssignmentDetailView, EmployeeRoleDetailView, EmployeeAccountView
 from apps.personnel.api import AccessEmployeeDirectoryView
 from apps.reports.api import Form151View
+from apps.reports.plan_api import ReportPlanView
 
 urlpatterns = [
+    path('api/v1/report-plans/<int:year>/',ReportPlanView.as_view()),
     path("api/v1/reports/form151/",Form151View.as_view()),
     path("api/v1/reports/form151/xlsx/",Form151View.as_view(download=True)),
     path("api/v1/",include("apps.imports.urls")),

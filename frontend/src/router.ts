@@ -17,6 +17,8 @@ import ImportPreviewsPage from './modules/imports/ImportPreviewsPage.vue'
 import ImportPreviewPage from './modules/imports/ImportPreviewPage.vue'
 import ReconciliationPage from './modules/imports/ReconciliationPage.vue'
 import ReportsPage from './modules/reports/ReportsPage.vue'
+import ReportPlansPage from './modules/reports/ReportPlansPage.vue'
+import {reportPlanReadActions,institutionPermission} from './api/reportPlans'
 import ReferencesPage from './modules/references/ReferencesPage.vue'
 
 export const router = createRouter({
@@ -27,6 +29,7 @@ export const router = createRouter({
     { path: '/workspace', component: HomePage, meta: { title: 'Рабочее место' } },
     { path: '/references', component: ReferencesPage, meta: { permissionsAny: ['references.view','references.manage'], title: 'Справочники' } },
     { path: '/reports', component: ReportsPage, meta: { permissionsAny: ['reports.form151.run'], title: 'Отчёт 15.1' } },
+    { path:'/report-plans',component:ReportPlansPage,meta:{institutionPermissionsAny:reportPlanReadActions,title:'Годовые планы'} },
     { path: '/intake', component: IntakePage, meta: { permission: 'receipts.view', title: 'Приёмка материалов' } },
     { path: '/receipts/:id', component: ReceiptPage, meta: { permission: 'receipts.view', title: 'Поступление' } },
     { path: '/expertises', component: ExpertisesPage, meta: { permission: 'expertise.view', title: 'Реестр экспертиз' } },
@@ -49,6 +52,7 @@ router.beforeEach(async to => {
   const session = useSessionStore()
   if (!session.ready) { try { await session.refresh() } catch { return to.path === '/login' ? true : '/login' } }
   if (!session.authenticated && to.path !== '/login') return '/login'
+  if(Array.isArray(to.meta.institutionPermissionsAny)&&!to.meta.institutionPermissionsAny.some(action=>institutionPermission(session.user,String(action))))return {path:'/workspace',query:{denied:'1'}}
   if (to.meta.supportedModule === 'correspondence' && !session.correspondenceEnabled) return { path: '/workspace', query: { denied: '1' } }
   if (to.meta.supportedModule === 'issuance' && !session.issuanceEnabled) return { path: '/workspace', query: { denied: '1' } }
   if (to.meta.supportedModule === 'journal_import_preview' && !session.importPreviewEnabled) return { path: '/workspace', query: { denied: '1' } }

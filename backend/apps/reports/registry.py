@@ -15,8 +15,9 @@ from django.contrib.postgres.expressions import ArraySubquery
 from django.utils import timezone
 from apps.expertises.models import Expertise,WorkClosure,UnresolvedAllocation,HistoricalUnresolvedAllocation,PreviousConclusion,TimingReason
 from .calculation import calculate
+from .plan_snapshot import coherent_snapshot
 
-VERSION='form151-registry-v7'
+VERSION='form151-registry-v8'
 RESULT_FIELDS=('result_kind','completed_on','return_decided_on','complexity_level','questions','categorical','probable','unresolved','authority_type')
 COUNT_FIELDS=('complexity_level','questions','categorical','probable','unresolved')
 
@@ -56,7 +57,8 @@ def calculate_registry(*,year,month,opening_balances_complete=False,delay_reason
             'timing__notification_sent','timing__notification_on','timing__extension_requested','timing__request_on','timing__deadline_breached',
             'historical__source_row_id','historical__source_row__batch_id','historical__source_row__source_row',
             *('historical__'+field for field in RESULT_FIELDS))
-    stored=list(Expertise.objects.annotate(accepted=Subquery(accepted),historical_allocations=ArraySubquery(historical_allocations),previous=ArraySubquery(previous),timing_reasons=ArraySubquery(timing_reasons)).order_by('id').values(*fields,'accepted','historical_allocations','previous','timing_reasons'))
+    query=Expertise.objects.annotate(accepted=Subquery(accepted),historical_allocations=ArraySubquery(historical_allocations),previous=ArraySubquery(previous),timing_reasons=ArraySubquery(timing_reasons))
+    stored,plan=coherent_snapshot(query,(*fields,'accepted','historical_allocations','previous','timing_reasons'),year)
     rows=[];records={};extra=[];excluded=0;fingerprint=[]
     for item in stored:
         if item['material__is_demo']:
@@ -87,7 +89,7 @@ def calculate_registry(*,year,month,opening_balances_complete=False,delay_reason
         fingerprint.append(item)
         if item['state'] in ('in_progress','suspended') and (facts['completed_on'] or facts['return_decided_on']):
             extra.append(key)
-    report=calculate(rows,year,month,opening_balances_complete,mode='registry',delay_reason_policy=delay_reason_policy)
+    report=calculate(rows,year,month,opening_balances_complete,mode='registry',delay_reason_policy=delay_reason_policy,plan_snapshot=plan)
     for gap in report['gaps']:
         if gap['code']=='deadlines':gap['message']='Причины превышения 30 дней и учёт согласований в форме 15.1 ещё не сопоставлены.'
         if gap['code']=='returnDate':gap.update(message='Не указана дата решения без исполнения. Дата выдачи не заменяет её.',fields='return_decided_on / WorkClosure.ended_on')
@@ -95,7 +97,7 @@ def calculate_registry(*,year,month,opening_balances_complete=False,delay_reason
         if gap['code']=='questions':gap['fields']='questions, categorical, probable, unresolved'
         if gap['code']=='specialty':gap['fields']='specialty_id'
     if extra:report['gaps'].append({'code':'unaccepted_end','sections':list(range(1,7)),'message':'У открытой работы сохранена историческая дата окончания. Без закрытого состояния она не включена в законченные работы.','fields':'state / completed_on / return_decided_on','rows':extra})
-    revision=hashlib.sha256(json.dumps({'version':VERSION,'rules_version':report['rules_version'],'delay_reason_policy':report['delay_reason_policy'],'records':fingerprint,'excluded_demo_count':excluded},sort_keys=True,cls=DjangoJSONEncoder).encode()).hexdigest()
+    revision=hashlib.sha256(json.dumps({'version':VERSION,'rules_version':report['rules_version'],'delay_reason_policy':report['delay_reason_policy'],'plan':plan,'records':fingerprint,'excluded_demo_count':excluded},sort_keys=True,cls=DjangoJSONEncoder).encode()).hexdigest()
     report.update(version=VERSION,records=records,data_revision=revision,
         source={'type':'registry','id':None,'name':'Рабочая база АИС','row_count':len(rows),'excluded_demo_count':excluded,'data_revision':revision,'calculated_at':timezone.now().isoformat()})
     return report

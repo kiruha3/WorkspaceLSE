@@ -28,7 +28,7 @@ def test_six_sections_have_hand_checked_counts_and_plan():
         row(B="153/4-6-26", O="Акт экспертного исследования", N="2", Q="3", R="3", E="Физ.лица"),
         row(B="154/4-1-26", D="Без исполнения", P="", X="выдано 10.03.2026"),
         row(B="155/4-1-26", D="В работе", P="", O="")]
-    result = report(records, opening_balances_complete=True)
+    result = report(records, opening_balances_complete=True,plan_snapshot={'id':'confirmed-plan','year':2026,'total':294,'version':1,'basis_text':'Подтверждено владельцем','document_id':None,'lines':[]})
     for sec, addr, expected in [(1,"E108",4),(1,"F108",1),(1,"J108",1),(1,"K108",1),
         (1,"Q108",1),(1,"S108",1),(1,"T108",1),(1,"V108",1),
         (2,"D107",5),(2,"E107",4),(2,"F107",4),(2,"G107",0),(2,"H107",1),

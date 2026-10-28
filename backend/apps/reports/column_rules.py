@@ -3,7 +3,7 @@
 Keep the rules version in export fingerprints when these interpretations change.
 No domain reads here: the calculation and explanations share one source snapshot.
 """
-RULES_VERSION='form151-column-rules-v3'
+RULES_VERSION='form151-column-rules-v4'
 
 SOURCE_FIELDS={
  'registry':{
@@ -71,7 +71,7 @@ BASE={
  },
  5:{'D':('Всего законченных заключений эксперта.','ended kind','ended'),'L':('Всего законченных актов экспертных исследований.','ended kind','ended')},
  6:{
-  'D':('Годовой план учреждения: 294 работы на 2026 год по подтверждению владельца. Разбивка по специальностям не задана.','','annual'),
+  'D':('Подтверждённый годовой план выбранного года и редакции: общий итог из плана учреждения; строки специальностей из явного распределения. Родительская строка суммируется только при известных дочерних планах.','','annual'),
   'E':('Всего закончено работ госзадания по категориям 1 и 5: заключения и полный СНДЗ; возвраты исключены.','ended kind category','ended'),
   'F':('Полный СНДЗ по работам госзадания категорий 1 и 5.','ended kind category','ended'),
   'G':('Заключения эксперта по работам госзадания категорий 1 и 5.','ended kind category','ended'),
@@ -99,7 +99,7 @@ def explanations(mode,*,delay_reason_policy=None):
  }
  def add(section,column,meaning,fields,when='ended',unit='работа',unknown=(),limitations=()):
   rules.append({'section':section,'column':column,'official_column':ord(column)-ord('C'),'meaning':meaning,'unit':unit,
-   'sources':[*[sources.get(f,'Подтверждённый владельцем годовой план 2026' if f=='plan' else f) for f in fields.split()],sources['specialty']], 'period':period[when],
+   'sources':[*[sources.get(f,'StateAssignmentPlan.total / version / StateAssignmentPlanLine.count выбранного года' if f=='plan' else f) for f in fields.split()],sources['specialty']], 'period':period[when],
    'unknown':['Если подходящая запись может изменить показатель, но нужные сведения неизвестны, вся зависимая ячейка остаётся пустой.',*unknown],
    'limitations':['Итог считается один раз по регистрационной работе, не сложением родительских и дочерних строк специальностей. Неизвестность не равна нулю.',*limitations]})
  for section,columns in BASE.items():
@@ -117,7 +117,9 @@ def explanations(mode,*,delay_reason_policy=None):
    if section==4 and col=='O':limits.append('В рабочей базе дата выдачи не заменяет дату решения без исполнения.' if mode=='registry' else 'Это историческое правило чтения отметки возврата, не создание нового решения в АИС.')
    if section==5:limits.append('Тип органа не определяется по свободному названию или номеру дела. «Иные» — известная группа вне перечисленных, а не неизвестный тип.')
    if section==6:
-    if col=='D':fields='plan';unknown.append('План другого года и планы по специальностям неизвестны.')
+    if col=='D':
+     fields='plan';unknown.append('План выбранного года, конкретная строка или дочерний план не заданы; несопоставленная специальность с ненулевым или неизвестным значением делает зависимые подытоги неизвестными.')
+     limits.append('Общий план не вычисляется из неполной разбивки. Пустое значение не равно нулю; явный0 сохраняется. При изменении плана требуется пересчитать отчёт и выгрузку.')
     else:limits.append('Госзадание определяется категориями 1 и 5 по правилу владельца, не признаком 3214-р и не суммой оплаты.')
    add(section,col,meaning,fields,when,unit='вопрос' if section==2 else 'работа в год' if section==6 and col=='D' else 'работа',unknown=unknown,limitations=limits)
  if mode=='registry':

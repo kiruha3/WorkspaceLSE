@@ -5,6 +5,13 @@ import { ApiClient,apiKey } from '../../api/client'
 import { json,page,sessionWith } from '../../test/fixtures'
 import { useSessionStore } from '../../stores/session'
 enableAutoUnmount(afterEach)
+it('shows the selected-year server plan and links plan gaps without substituting a hardcoded total',async()=>{
+ const live={...result,year:2027,from:'2027-01-01',to:'2027-10-31',plan_summary:{id:'annual',year:2027,total:10,version:2,basis_text:'Утверждённый план нового года',document_id:null,known_sum:7,unallocated:3,line_count:2,known_line_count:2,unknown_line_count:0},source:{type:'registry',id:null,name:'АИС',row_count:0,calculated_at:'2026-10-28T03:00:00Z',data_revision:'abc',excluded_demo_count:0},cells:[],gaps:[{code:'planAllocation',sections:[6],message:'Не распределено3',fields:'plan.lines',rows:[],plan_year:2027}]}
+ const {wrapper}=await open(async()=>json(live),['expertise.view','reports.form151.run'],'/reports');await wrapper.get('[name="year"]').setValue('2027');await wrapper.get('form').trigger('submit');await flushPromises()
+ const summary=wrapper.get('[data-report-plan]');expect(summary.text()).toContain('10');expect(summary.text()).toContain('редакция 2');expect(summary.text()).toContain('Утверждённый план нового года')
+ expect(summary.get('a').attributes('href')).toBe('/report-plans?year=2027');expect(wrapper.get('.report-gap a').attributes('href')).toBe('/report-plans?year=2027');expect(wrapper.text()).not.toContain('План 2026 — 294')
+ await wrapper.get('[name="year"]').setValue('2028');expect(wrapper.find('[data-report-plan]').exists()).toBe(false)
+})
 it('selects a counting policy, labels the server result and discards an obsolete mode response',async()=>{
  const paths:string[]=[];let resolve!:(value:Response)=>void;let pending=false
  const live={...result,delay_reason_policy:'all',source:{type:'registry',id:null,name:'АИС',row_count:1,calculated_at:'2026-10-28T03:00:00Z',data_revision:'abc',excluded_demo_count:0},cells:[],gaps:[]}
@@ -31,7 +38,7 @@ const batch={id:'batch-1',source_name:'Журнал Google',source_origin:'googl
 const result={status:'preliminary',version:'v1',year:2026,month:9,from:'2026-01-01',to:'2026-09-30',source:{id:'batch-1',name:'Журнал Google',sha256:'abc',row_count:472,created_at:batch.created_at},download_url:'/api/v1/reports/form151/xlsx/?batch_id=batch-1&year=2026&month=9',cells:[{sheet:'Раздел 1',address:'J108',value:321,rows:[4]}],section_coverage:[{section:1,filled:10,unavailable:2,status:'Частично'}],gaps:[{code:'dates',sections:[1],message:'Не указана дата окончания',fields:'P',rows:[4]}]}
 async function open(transport:typeof fetch,actions=['imports.results.view','reports.form151.run','reports.form151.download'],initial='/reports?batch_id=batch-1'){
   const component=(await import('./ReportsPage.vue')).default
-  const pinia=sessionWith(...actions),router=createRouter({history:createMemoryHistory(),routes:[{path:'/reports',component},{path:'/imports',component:{template:'<p>Источники</p>'}},{path:'/imports/:id',component:{template:'<p>Снимок</p>'}},{path:'/expertises',component:{template:'<p>Реестр</p>'}},{path:'/expertises/:id',component:{template:'<p>Карточка</p>'}}]})
+  const pinia=sessionWith(...actions),router=createRouter({history:createMemoryHistory(),routes:[{path:'/reports',component},{path:'/report-plans',component:{template:'<p>Планы</p>'}},{path:'/imports',component:{template:'<p>Источники</p>'}},{path:'/imports/:id',component:{template:'<p>Снимок</p>'}},{path:'/expertises',component:{template:'<p>Реестр</p>'}},{path:'/expertises/:id',component:{template:'<p>Карточка</p>'}}]})
   await router.push(initial);await router.isReady()
   const wrapper=mount(component,{global:{plugins:[pinia,router],provide:{[apiKey as symbol]:new ApiClient(transport)}}})
   await flushPromises();return {wrapper,pinia}

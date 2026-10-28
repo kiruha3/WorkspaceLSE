@@ -26,7 +26,7 @@ def test_rules_describe_real_period_units_evidence_and_sndz_uncertainty():
  decree=find(report,1,'P');assert 'decree3214' in ' '.join(decree['sources']) and '1 и 5' in ' '.join(decree['limitations'])
  return_rule=find(report,4,'O');assert 'выдачи' in ' '.join(return_rule['limitations']) and 'решения' in return_rule['period']
  stock=find(report,1,'D');assert 'полноты' in ' '.join(stock['unknown']) and 'текущую организацию' in stock['meaning']
- plan=find(report,6,'D');assert '294' in plan['meaning'] and '2026' in plan['meaning']
+ plan=find(report,6,'D');assert 'выбранного года' in plan['meaning'] and 'StateAssignmentPlan' in ' '.join(plan['sources'])
 
 def test_journal_rules_do_not_advertise_registry_only_fields(accepted_work):
  from types import SimpleNamespace

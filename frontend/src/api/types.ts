@@ -14,6 +14,13 @@ export interface Role {
 }
 export interface Reference { id: string; code: string; name: string; is_active: boolean; version: number; report_group?: string | null; direction?: 'incoming' | 'outgoing'; department_id?: string | null; rule?: string }
 export interface FactRevision { id: string; number?: number; action?: string; actor: { id: string; full_name: string } | null; created_at: string; reason: string; before?: Record<string,unknown>; after?: Record<string,unknown>; changes?: Record<string,unknown> }
+export interface StateAssignmentPlan {
+ id:string|null;year:number;total:number|null;basis_text:string;document_id:string|null;document:DocumentLink;version:number;can_edit:boolean;
+ lines:{id:string;specialty:Reference;count:number|null}[];revisions:FactRevision[];specialties:Reference[];retained_specialty_ids:string[]
+}
+export interface StateAssignmentPlanPayload {
+ expected_version:number;reason:string;total:number|null;basis_text:string;document_id:string|null;lines:{specialty_id:string;count:number|null}[]
+}
 export interface CaseDetails {
   id: string | null; source: 'typed' | 'history' | 'new'; can_edit: boolean; edit_permission: string
   authority_type: Reference | null; authority_type_raw: string; authority_name: string; official: string; contact: string

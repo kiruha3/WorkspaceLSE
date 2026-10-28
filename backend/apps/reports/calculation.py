@@ -6,8 +6,9 @@ from .reason_columns import SNDZ_COLUMNS,UNRESOLVED_COLUMNS,RETURN_COLUMNS,EXTRA
 from .repeat_columns import repeat_summary,GROUPS
 from . import column_rules
 from . import timing_columns
+from .plan_columns import plan_cells
 
-VERSION = "form151-journal-v1"
+VERSION = "form151-journal-v2"
 SPECIALTIES = {"1.1": [11], "3.1": [13,14], "13.1": [49,50], "16.1": [58,59], "16.2": [58,60], "18.1": [65], "19.1": [66,67]}
 COLUMNS = {1: "D E F J K L M N O Q R S T U V W X", 2: "D E F G H", 3: "D E F", 4: "D E F G O", 5: "D E F G H I J K L M N O P Q R", 6: "D E F G H I J K L M"}
 AUTHORITIES = {"арбитражные суды":"court", "суды общей юрисдикции":"court", "следственные органы ск рф":"sk", "органы мвд россии":"mvd", "органы фсб россии":"fsb", "федеральная таможенная служба россии":"fts", "органы фтс россии":"fts", "органы фссп россии":"fssp", "физ.лица":"individual", "юр.лица":"legal"}
@@ -40,7 +41,7 @@ def return_date(facts, raw):
     return values[0], False, False
 
 
-def calculate(rows, year, month, opening_balances_complete=False, *, mode="journal",delay_reason_policy=None):
+def calculate(rows, year, month, opening_balances_complete=False, *, mode="journal",delay_reason_policy=None,plan_snapshot=None):
     if mode not in ("journal","registry"):raise ValueError("Неизвестный источник расчёта.")
     if delay_reason_policy not in (None,'all','primary'):raise ValueError('Неизвестный способ подсчёта причин длительности.')
     policy=timing_columns.DELAY_REASON_POLICY if delay_reason_policy is None else delay_reason_policy
@@ -56,13 +57,13 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
         if not number or number in numbers:raise ValueError("Повтор или пустой текущий регистрационный номер: расчёт остановлен.")
         numbers.add(number)
     physical=lambda section,r: r if section in (1,5) else r-1
-    cells={};gaps={};plan=294 if year==2026 else None
+    cells={};gaps={};plan_values,plan_summary,plan_gaps=plan_cells(plan_snapshot,year,SPECIALTIES);plan=plan_summary['total']
     for section,columns in COLUMNS.items():
         columns=[*columns.split(),*(EXTRA_COLUMNS.get(section,()) if mode=='registry' else ())]
         for r in sorted({108,*[i for rs in SPECIALTIES.values() for i in rs]}):
             for col in columns:
                 addr=f"{col}{physical(section,r)}"
-                cells[section,addr]={"sheet":f"Раздел {section}","address":addr,"value":(plan if r==108 else None) if section==6 and col=="D" else 0,"rows":[]}
+                cells[section,addr]={"sheet":f"Раздел {section}","address":addr,"value":plan_values[r-1] if section==6 and col=="D" else 0,"rows":[]}
     def gap(code,sections,message,fields="",source_row=None):
         item=gaps.setdefault(code,{"code":code,"sections":sections,"message":message,"fields":fields,"rows":[]})
         if source_row is not None and source_row not in item["rows"]:item["rows"].append(source_row)
@@ -72,9 +73,9 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
         ("repeated",[4],"Нет подтверждённых признаков повторности и проверки прежних выводов.","appointment_nature, previous_conclusion"),
         ("decree3214",[1],"Нет признака выполнения по распоряжению 3214-р.","decree3214"),
         ("methodical",[7],"Учебно-методическая работа отсутствует в этом журнале.","methodical_register"),
-        ("lawsuits",[8],"Иски к учреждению и выплаты отсутствуют в этом журнале.","lawsuits_register"),
-        ("plan",[6],"Нет разбивки годового плана по специальностям." if plan is not None else f"Не указан годовой план на {year}.","state_assignment_plan")]:
+        ("lawsuits",[8],"Иски к учреждению и выплаты отсутствуют в этом журнале.","lawsuits_register")]:
         if mode=='journal' or args[0] not in ('reasons','decree3214','repeated','deadlines'):gap(*args)
+    for item in plan_gaps:gaps[item['code']]=item
     if not opening_balances_complete:gap("openingCoverage",[1],"Не подтверждена полнота журнала: остатки на начало и конец оставлены пустыми.","opening_balances_complete")
     for row in rows:
         f,raw=row.facts,row.raw; state=f.get("state");returned=state=="without_execution"
@@ -219,4 +220,4 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
     for section in range(1,9):
         group=[c for c in result_cells if c["sheet"]==f"Раздел {section}"]
         coverage.append({"section":section,"filled":sum(c["value"] is not None for c in group),"unavailable":sum(c["value"] is None for c in group),"status":"Частично" if section<=6 else "Пропущен"})
-    return {"version":VERSION,"rules_version":column_rules.RULES_VERSION,"column_rules":column_rules.explanations(mode,delay_reason_policy=policy),'delay_reason_policy':policy if mode=='registry' else None,"status":"preliminary","year":year,"month":month,"from":start.isoformat(),"to":end.isoformat(),"opening_balances_complete":opening_balances_complete,"state_assignment_annual_plan":plan,"cells":result_cells,"gaps":list(gaps.values()),"section_coverage":coverage}
+    return {"version":VERSION,"rules_version":column_rules.RULES_VERSION,"column_rules":column_rules.explanations(mode,delay_reason_policy=policy),'delay_reason_policy':policy if mode=='registry' else None,"status":"preliminary","year":year,"month":month,"from":start.isoformat(),"to":end.isoformat(),"opening_balances_complete":opening_balances_complete,"state_assignment_annual_plan":plan,"plan_summary":plan_summary,"cells":result_cells,"gaps":list(gaps.values()),"section_coverage":coverage}
