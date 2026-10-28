@@ -8,7 +8,8 @@ from wsgiref.util import FileWrapper
 def spa_application(api, root: Path):
     root = root.resolve()
     index = root / 'index.html'
-    if not index.is_file():
+    resolved_index = index.resolve()
+    if not resolved_index.is_relative_to(root) or not resolved_index.is_file():
         raise FileNotFoundError('Build frontend/dist before acceptance serving')
 
     def application(env, start):
@@ -18,7 +19,7 @@ def spa_application(api, root: Path):
         decoded = unquote(path)
         invalid = '\x00' in decoded or '\\' in decoded or '..' in decoded.split('/')
         asset = decoded == '/assets' or decoded.startswith('/assets/')
-        target = (root / decoded.lstrip('/')).resolve() if asset and not invalid else index
+        target = (root / decoded.lstrip('/')).resolve() if asset and not invalid else index.resolve()
         if invalid or not target.is_relative_to(root) or not target.is_file():
             body = b'Not found'
             start('404 Not Found', [('Content-Type', 'text/plain'), ('Content-Length', str(len(body)))])

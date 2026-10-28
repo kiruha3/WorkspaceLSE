@@ -110,6 +110,40 @@ def test_missing_compiled_frontend_is_explicit(tmp_path):
     with pytest.raises(FileNotFoundError):spa_application(lambda e,s:[],tmp_path)
 
 
+def outside_index_alias(index,outside,monkeypatch):
+    try:
+        index.symlink_to(outside)
+    except OSError as error:
+        if getattr(error,'winerror',None)!=1314:raise
+        # Windows without symlink privilege: keep real bytes/WSGI handling and
+        # substitute only the filesystem's resolved-path answer. Do not elevate.
+        index.write_bytes(outside.read_bytes())
+        resolve=Path.resolve
+        def resolve_alias(path,*args,**kwargs):
+            return outside if path==index else resolve(path,*args,**kwargs)
+        monkeypatch.setattr(Path,'resolve',resolve_alias)
+
+
+def test_spa_rejects_an_initial_index_symlink_outside_dist(tmp_path,monkeypatch):
+    dist=tmp_path/'dist';dist.mkdir()
+    outside=tmp_path/'not-a-build.html';outside.write_bytes(b'private outside dist')
+    outside_index_alias(dist/'index.html',outside,monkeypatch)
+    with pytest.raises(FileNotFoundError):
+        spa_application(lambda e,s:[],dist)
+
+
+def test_spa_rechecks_index_replaced_by_outside_symlink_after_start(tmp_path,monkeypatch):
+    dist=tmp_path/'dist';dist.mkdir()
+    index=dist/'index.html';index.write_bytes(b'<html>Real compiled app</html>')
+    outside=tmp_path/'not-a-build.html';outside.write_bytes(b'private outside dist')
+    app=spa_application(lambda e,s:[],dist)
+    index.unlink()
+    outside_index_alias(index,outside,monkeypatch)
+    value=call(app,'/expertises/example/documents')
+    assert value['status']=='404 Not Found'
+    assert b'private outside dist' not in value['body']
+
+
 @pytest.mark.django_db
 def test_identity_fixtures_do_not_create_ready_business_facts():
     from full_workflow_support import create_people
