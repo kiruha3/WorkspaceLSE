@@ -30,7 +30,7 @@ it('posts only a source preview with explicit reason/file/key, never applies bus
   const writes:{path:string;body:FormData;key:string|null}[]=[]
   const {wrapper}=await open('/imports',async(input,init)=>{if(String(input).endsWith('/csrf/'))return json({csrf_token:'t'});if(init?.method==='POST'){writes.push({path:String(input),body:init.body as FormData,key:new Headers(init.headers).get('Idempotency-Key')});return json({event:{id:'event-1'},batch},201)}return json(page([batch]))})
   await wrapper.get('[data-new-import-preview]').trigger('click');const file=await choose(wrapper);await wrapper.get('[name="import_reason"]').setValue('  Проверить первый лист  ');await wrapper.get('[data-import-upload]').trigger('submit');await flushPromises()
-  expect(writes).toHaveLength(1);expect(writes[0]!.path).toBe('/api/v1/imports/preview/');expect(writes[0]!.key).toBeTruthy();const uploaded=writes[0]!.body.get('file') as File;expect(uploaded.name).toBe(file.name);expect(uploaded.size).toBe(4);expect(await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.readAsText(uploaded)})).toBe('demo');expect(writes[0]!.body.get('reason')).toBe('Проверить первый лист');expect(wrapper.text()).toContain('рабочие записи ещё не созданы');expect(wrapper.find('[data-apply-import]').exists()).toBe(false)
+  expect(writes).toHaveLength(1);expect(writes[0]!.path).toBe('/api/v1/imports/preview/');expect(writes[0]!.key).toBeTruthy();const uploaded=writes[0]!.body.get('file') as File;expect(uploaded.name).toBe(file.name);expect(uploaded.size).toBe(4);expect(await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.readAsText(uploaded)})).toBe('demo');expect(writes[0]!.body.get('reason')).toBe('Проверить первый лист');expect(wrapper.get('[data-preview-created] a').attributes('href')).toBe('/imports/batch-1');expect(wrapper.find('[data-apply-import]').exists()).toBe(false)
 })
 it('replays the same source/body/key after response loss without clearing staged input',async()=>{
   const writes:{key:string|null;file:FormDataEntryValue|null;reason:FormDataEntryValue|null}[]=[]
@@ -66,6 +66,11 @@ it('opens source reconciliation only with current server support and preserves t
   const target=new URL(wrapper.get('[data-open-reconciliation]').attributes('href')!,'http://localhost')
   expect(target.pathname).toBe('/imports/batch-1/reconciliation')
   expect(target.searchParams.get('return')).toBe('/imports/batch-1?severity=error')
+})
+it.each(['/imports','/imports/batch-1'])('does not claim a source was never applied when reopening %s',async url=>{
+  const {wrapper}=await open(url,async input=>json(String(input).includes('/rows/')?page([row]):String(input).endsWith('/imports/?page=1')?page([batch]):batch),['imports.results.view'])
+  expect(wrapper.text()).not.toContain('рабочие записи ещё не созданы')
+  expect(wrapper.text()).toContain('Предпросмотр не меняет рабочие записи')
 })
 it('shows global snapshot totals while filtering rows before their page and retains unknown values',async()=>{
   const paths:string[]=[];const {wrapper}=await open('/imports/batch-1?severity=warning&state=completed&search=151&page=2',async input=>{paths.push(String(input));return json(String(input).includes('/rows/')?{...page([row]),count:25,previous:'/rows/?page=1'}:batch)})

@@ -31,6 +31,11 @@ enableAutoUnmount(afterEach)
 afterEach(() => vi.restoreAllMocks())
 
 describe('confirmed journal reconciliation', () => {
+  it('lets an allowed reader reopen the existing work after the protocol page was reloaded', async () => {
+    const { wrapper } = await open({ codes:['imports.results.view','expertise.view'],transport:async()=>json({...resultPage(),results:[{...item,classification:'unchanged',existing_work:{id:'existing-work',registration_number:'151/4-1-26',version:1}}]}) })
+    expect(wrapper.get('[data-existing-work]').attributes('href')).toContain('/expertises/existing-work')
+    expect(wrapper.get('[data-existing-work]').text()).toContain('151/4-1-26')
+  })
   it('registers the actual source reconciliation URL with read and server support gates', () => {
     const resolved = applicationRouter.resolve('/imports/batch-1/reconciliation')
     expect(resolved.meta.permission).toBe('imports.results.view')
@@ -111,6 +116,7 @@ describe('confirmed journal reconciliation', () => {
     expect(writes[0]!.body).toEqual({ reason: 'Подтверждаю пакет', selections: [{ row_id: 'row-1', expected_selection_version: 3 }] })
     expect(wrapper.get('[data-application-result]').text()).toContain('Создано: 1')
     expect(wrapper.get('[data-applied-work]').attributes('href')).toContain('/expertises/real-work-1')
+    expect(wrapper.get('[data-applied-work]').text()).toContain('151/4-1-26')
   })
 
   it.each([403, 409])('retains the explicit packet after managed server %s, without reporting success', async status => {

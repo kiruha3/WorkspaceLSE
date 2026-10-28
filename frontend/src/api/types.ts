@@ -93,6 +93,12 @@ export interface ResultOptions {
   sndz_reasons: Reference[]; unresolved_reasons: Reference[]; return_reasons: Reference[]
 }
 export interface ExpertiseCommandResponse { event: { id: string }; expertise: Expertise }
+export interface HistoryActivationPayload {
+  expected_version: number; reason: string; basis_document_id: string; specialty_id: string
+  appointment_nature: 'primary' | 'repeated' | 'additional'; is_commission: boolean; complex_known: true; complex_group_id: string | null
+  suspension_history_complete: boolean; past_suspensions: { suspended_on: string; resumed_on: string; reason: string }[]; suspended_on: string | null
+  result?: ResultPayload; return_data?: { decided_on: string; document_id: string; return_reason_id: string | null; comment: string }
+}
 export interface HistoricalWork {
   id: string; operational: boolean; complex_known: boolean; composition_known: boolean
   suspension_history_complete: boolean; statistics_confirmed: boolean

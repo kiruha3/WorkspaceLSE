@@ -22,6 +22,7 @@ const loading = ref(false), error = ref<unknown>(null), optionsError = ref<unkno
 const filters = reactive({ search: '', classification: '' }), page = computed(() => Math.max(1, Number(route.query.page) || 1))
 const chosen = ref<Record<string, { row_id: string; expected_selection_version: number; number: string }>>({})
 const reason = ref(''), busy = ref(false), uncertain = ref(false), result = ref<ImportApplication | null>(null)
+const appliedNumbers = ref<Record<string,string>>({})
 const attempt = ref<{ body: ApplicationPayload; key: string; batchId: string } | null>(null)
 let generation = 0
 const labels: Record<Classification, string> = { new: 'Новая', unchanged: 'Совпадает', changed: 'Изменена', invalid: 'Нужна проверка' }
@@ -66,6 +67,7 @@ async function apply() {
     if (!attempt.value) attempt.value = { batchId: String(route.params.id), key: newCommandKey(), body: { reason: reason.value.trim(), selections: Object.values(chosen.value).sort((a, b) => a.row_id.localeCompare(b.row_id)).map(({ row_id, expected_selection_version }) => ({ row_id, expected_selection_version })) } }
     const response = await api.request<{ event: { id: string }; application: ImportApplication }>(`/imports/${attempt.value.batchId}/apply/`, { method: 'POST', body: attempt.value.body, headers: { 'Idempotency-Key': attempt.value.key } })
     if (current !== generation) return
+    appliedNumbers.value = Object.fromEntries(Object.values(chosen.value).map(item=>[item.row_id,item.number]))
     result.value = response.application; chosen.value = {}; reason.value = ''; attempt.value = null; uncertain.value = false; void load()
   } catch (cause) { if (current === generation) { writeError.value = cause; uncertain.value = !(cause instanceof ApiError) || cause.status >= 500 || cause.code === 'invalid_response' } }
   finally { if (current === generation) busy.value = false }
@@ -79,7 +81,7 @@ onBeforeUnmount(() => { generation++; requests.cancel(); optionRequests.cancel()
   <div class="page-heading"><div><p class="eyebrow">Подтверждённый перенос</p><h1>Сверка журнала</h1><p class="muted">Исходный снимок неизменяем. Рабочие записи создаются только отдельным подтверждённым пакетом.</p></div><RouterLink :to="back">← К снимку</RouterLink></div>
   <p v-if="!enabled" class="message">Сверка недоступна: нужна поддержка сервера и право чтения источника.</p>
   <template v-else>
-    <ApplicationResult v-if="result" :application="result" />
+    <ApplicationResult v-if="result" :application="result" :numbers="appliedNumbers" />
     <section class="card stack-card">
       <div v-if="rows" data-reconciliation-summary class="button-row"><span class="badge">Новые: {{ rows.summary.new }}</span><span class="badge">Совпадают: {{ rows.summary.unchanged }}</span><span class="badge">Изменены: {{ rows.summary.changed }}</span><span class="badge badge-amber">Нужна проверка: {{ rows.summary.invalid }}</span></div>
       <form class="toolbar" @submit.prevent="filter()"><label>Поиск<input v-model="filters.search" name="search" type="search" /></label><label>Классификация<select v-model="filters.classification" name="classification"><option value="">Все строки</option><option v-for="(label, code) in labels" :key="code" :value="code">{{ label }}</option></select></label><button :disabled="loading || busy">Применить</button><button type="button" :disabled="loading || busy" @click="reload">Обновить сверку</button></form>
@@ -88,7 +90,7 @@ onBeforeUnmount(() => { generation++; requests.cancel(); optionRequests.cancel()
         <tr v-for="item in rows.results" :key="item.row.id">
           <td v-if="canApply"><input data-select-application-row type="checkbox" :aria-label="`Выбрать ${item.row.facts.registration_number || item.row.raw.B}`" :checked="Boolean(chosen[item.row.id])" :disabled="busy || !item.selection || item.classification !== 'new' || Boolean(item.blockers.length)" @change="toggle(item, ($event.target as HTMLInputElement).checked)" /></td>
           <td><strong>{{ item.row.facts.registration_number || item.row.raw.B }}</strong><small>Строка {{ item.row.source_row }}</small></td>
-          <td>{{ labels[item.classification] }}<small v-for="blocker in item.blockers" :key="blocker.code">{{ blocker.message }}</small><small v-if="item.existing_work">Уже в реестре: {{ item.existing_work.registration_number }}. Новый снимок не переписывает работу.</small></td>
+          <td>{{ labels[item.classification] }}<small v-for="blocker in item.blockers" :key="blocker.code">{{ blocker.message }}</small><small v-if="item.existing_work">Уже в реестре: <RouterLink v-if="session.can('expertise.view')" data-existing-work :to="`/expertises/${item.existing_work.id}`">{{ item.existing_work.registration_number }}</RouterLink><template v-else>{{ item.existing_work.registration_number }}</template>. Новый снимок не переписывает работу.</small></td>
           <td>{{ item.suggested_department?.code || 'Отдел не сопоставлен' }} / {{ item.suggested_specialty?.code || 'Специальность не уточнена' }}</td>
           <td>{{ item.row.facts.executor_raw || 'В источнике не указан' }}</td>
           <td><span v-if="item.selection">Сохранено · версия {{ item.selection.version }}</span><span v-else>Не сохранено</span><button v-if="canEdit" data-edit-selection :disabled="busy || !options" @click="edit(item)">{{ item.selection ? 'Проверить выбор' : 'Сопоставить' }}</button></td>

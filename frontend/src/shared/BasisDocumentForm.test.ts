@@ -5,6 +5,17 @@ import { json } from '../test/fixtures'
 import { basis } from '../test/intakeFixtures'
 import BasisDocumentForm from './BasisDocumentForm.vue'
 
+it('requires an actual scan for a confirmation even when the source is a paper original', async () => {
+  const writes: string[] = []
+  const client = new ApiClient(async input => { writes.push(String(input)); return json(basis,201) })
+  const wrapper = mount(BasisDocumentForm,{props:{departmentId:'d-4',requireFile:true,heading:'Подтверждение результата'},global:{provide:{[apiKey as symbol]:client}}})
+  expect(wrapper.find('input[type="file"]').exists()).toBe(true)
+  await wrapper.get('[name="document_title"]').setValue('Итоговый документ')
+  await expect(wrapper.vm.persist()).rejects.toThrow('Выберите файл документа')
+  expect(writes).toEqual([])
+  wrapper.unmount()
+})
+
 it('recovers a committed metadata response with one stable key and uploads to the same document', async () => {
   const creates: { key: string | null; body: string }[] = [], ids = new Map<string, string>(), uploads: string[] = []
   const client = new ApiClient(async (input, init) => {
