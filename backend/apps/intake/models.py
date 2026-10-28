@@ -5,6 +5,7 @@ from django.db import models
 class Material(models.Model):
     id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
     title=models.CharField(max_length=500,blank=True)
+    is_demo=models.BooleanField(default=False)
     created_by=models.ForeignKey("personnel.Employee",on_delete=models.PROTECT)
     created_at=models.DateTimeField(auto_now_add=True)
 

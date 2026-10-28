@@ -6,6 +6,12 @@ import { department, expertise, specialty, testRouter } from '../../test/intakeF
 import ExpertisesPage from './ExpertisesPage.vue'
 
 describe('expertise registry', () => {
+  it('labels an explicitly training material without inferring from the title',async()=>{
+    const client=new ApiClient(async input=>String(input).includes('/references/')?json(page([])):String(input).includes('filter-options')?json({employees:[]}):json(page([{...expertise,material:{...expertise.material,is_demo:true}}])))
+    const router=await testRouter('/expertises')
+    const wrapper=mount(ExpertisesPage,{global:{plugins:[sessionWith('expertise.view'),router],provide:{[apiKey as symbol]:client}}})
+    await flushPromises();expect(wrapper.text()).toContain('Учебная запись');wrapper.unmount()
+  })
   it('restores state and calendar day range from the URL, forwards zero and retains filters in the work return link', async () => {
     const paths: string[] = []
     const client = new ApiClient(async input => {

@@ -10,6 +10,13 @@ export class ApiClient {
   private csrfRequest: Promise<void> | null = null
   onUnauthorized?: () => void
   constructor(private transport: typeof fetch = (...args) => fetch(...args)) {}
+  private failure(response: Response, data: unknown): ApiError {
+    const error = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>
+    if (response.status === 401) this.onUnauthorized?.()
+    return new ApiError(response.status, typeof error.code === 'string' ? error.code : 'request_failed',
+      typeof error.message === 'string' ? error.message : 'Не удалось выполнить запрос.',
+      error.field_errors && typeof error.field_errors === 'object' ? error.field_errors as Record<string, unknown> : {})
+  }
   private async ensureCsrf(): Promise<void> {
     if (this.csrfToken) return
     if (!this.csrfRequest) this.csrfRequest = this.request<{ csrf_token: string }>('/auth/csrf/')
@@ -33,16 +40,18 @@ export class ApiClient {
     let data: unknown
     try { data = response.status === 204 ? undefined : await response.json() }
     catch { throw new ApiError(response.status, 'invalid_response', 'Сервер вернул некорректный ответ. Повторите запрос.') }
-    if (!response.ok) {
-      const error = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>
-      if (response.status === 401) this.onUnauthorized?.()
-      throw new ApiError(response.status,
-        typeof error.code === 'string' ? error.code : 'request_failed',
-        typeof error.message === 'string' ? error.message : 'Не удалось выполнить запрос.',
-        error.field_errors && typeof error.field_errors === 'object' ? error.field_errors as Record<string, unknown> : {},
-      )
-    }
+    if (!response.ok) throw this.failure(response, data)
     return data as T
+  }
+  async download(path: string, signal?: AbortSignal): Promise<{ blob: Blob; filename: string }> {
+    const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    // DRF negotiates a renderer before the view returns its binary HttpResponse.
+    // Also accept JSON for negotiation and errors; successful files still require XLSX.
+    const response = await this.transport(`/api/v1${path}`, { credentials: 'same-origin', signal, headers: { Accept: `${mime}, application/json` }, cache: 'no-store' })
+    if (!response.ok) throw this.failure(response, await response.json().catch(() => null))
+    if (!response.headers.get('Content-Type')?.startsWith(mime)) throw new ApiError(response.status, 'invalid_response', 'Вместо Excel получен другой ответ. Пересчитайте отчёт.')
+    const name = /filename="?([A-Za-z0-9_.-]+\.xlsx)"?/.exec(response.headers.get('Content-Disposition') ?? '')?.[1]
+    return { blob: await response.blob(), filename: name ?? '15-1.xlsx' }
   }
   async login(username: string, password: string): Promise<void> {
     const result = await this.request<{ csrf_token: string }>('/auth/login/', { method: 'POST', body: { username, password } })

@@ -46,7 +46,7 @@ export interface BasisDocument {
 }
 export type DocumentLink = BasisDocument | { id: string; restricted: true } | null
 export interface Receipt {
-  id: string; received_at: string; sender_name: string; material: { id: string; title: string }
+  id: string; received_at: string; sender_name: string; material: { id: string; title: string; is_demo?: boolean }
   basis_document: DocumentLink; department_id: string | null; status: 'draft' | 'accepted' | 'historical'; version: number
 }
 export interface ComplexGroup { id: string; title: string; material_id?: string }
@@ -114,7 +114,7 @@ export interface Expertise {
   id: string; registration_number: string; registration_department_code?: string | null; historical_number: string; sequence: number; year: number; category_code: string
   origin_kind: 'native' | 'historical'; historical: HistoricalWork | null
   department: Pick<Reference, 'id' | 'code' | 'name'>; specialty: Pick<Reference, 'id' | 'code' | 'name'> | null
-  receipt: { id: string; received_at: string; status: 'draft' | 'accepted' | 'historical' }; material: { id: string; title: string }
+  receipt: { id: string; received_at: string; status: 'draft' | 'accepted' | 'historical' }; material: { id: string; title: string; is_demo?: boolean }
   appointment_nature: 'primary' | 'repeated' | 'additional' | null; is_commission: boolean | null; complex_group: ComplexGroup | null
   state: 'in_progress' | 'suspended' | 'completed' | 'without_execution'; version: number
   current_assignments: ExpertAssignment[]; assignment_history: ExpertAssignment[]; allowed_actions: string[]; basis_document: DocumentLink

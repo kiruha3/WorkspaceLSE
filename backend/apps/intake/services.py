@@ -23,14 +23,14 @@ def validate_basis(receipt):
 
 @transaction.atomic
 def create_receipt(*,actor,data):
-    data=data.copy();title=data.pop("material_title","")
+    data=data.copy();title=data.pop("material_title","");is_demo=data.pop("is_demo",False)
     employee=active_employee(actor);department=data.get("department")
     require(actor,"receipts.create",employee_id=employee.pk if employee else None,department_ids=[department.id] if department else [])
     if data.get("basis_document"):
         require_document(actor,"documents.view",data["basis_document"])
-    material=Material.objects.create(title=title,created_by=employee)
+    material=Material.objects.create(title=title,created_by=employee,is_demo=is_demo)
     receipt=Receipt.objects.create(material=material,created_by=employee,**data)
-    audit(actor,"receipt.create",receipt,{"material_id":str(material.id),"received_at":receipt.received_at,"basis_document_id":str(receipt.basis_document_id) if receipt.basis_document_id else None})
+    audit(actor,"receipt.create",receipt,{"material_id":str(material.id),"is_demo":is_demo,"received_at":receipt.received_at,"basis_document_id":str(receipt.basis_document_id) if receipt.basis_document_id else None})
     return receipt
 
 

@@ -6,6 +6,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from apps.accounts.policies import require
+from apps.accounts.commands import CommandConflict
 from apps.imports.policies import require_preview_read
 from apps.imports.models import ImportBatch
 from .calculation import calculate
@@ -13,10 +14,18 @@ from .xlsx import export_xlsx
 
 
 class Parameters(serializers.Serializer):
-    batch_id=serializers.UUIDField()
+    source=serializers.ChoiceField(choices=('journal','registry'),default='journal')
+    batch_id=serializers.UUIDField(required=False)
+    expected_revision=serializers.RegexField(r'^[a-f0-9]{64}$',required=False)
     year=serializers.IntegerField(min_value=1900,max_value=2200)
     month=serializers.IntegerField(min_value=1,max_value=12)
     opening_balances_complete=serializers.BooleanField(default=False)
+
+    def validate(self,data):
+        if data['source']=='journal' and 'batch_id' not in data:raise ValidationError({'batch_id':'Выберите снимок журнала.'})
+        if data['source']=='registry' and 'batch_id' in data:raise ValidationError({'batch_id':'Рабочая база рассчитывается без подмены снимком.'})
+        if data['source']=='journal' and 'expected_revision' in data:raise ValidationError({'expected_revision':'Проверка редакции применяется к рабочей базе.'})
+        return data
 
     def to_internal_value(self,data):
         unknown=set(data)-set(self.fields)
@@ -30,16 +39,26 @@ class Form151View(GenericAPIView):
     download=False
 
     def get(self,request):
-        require_preview_read(request.user)
         require(request.user,"reports.form151.run")
         if self.download:require(request.user,"reports.form151.download")
         form=Parameters(data=request.query_params);form.is_valid(raise_exception=True)
-        args=form.validated_data.copy();batch=get_object_or_404(ImportBatch,pk=args.pop("batch_id"))
-        try:report=calculate(batch.rows.all(),**args)
-        except ValueError as error:raise ValidationError({"report":str(error)}) from error
-        report["source"]={"id":str(batch.id),"name":batch.source_name,"sheet_name":batch.sheet_name,"row_count":batch.row_count,
-            "sha256":batch.source_sha256,"observed_at":batch.source_observed_at,"created_at":batch.created_at,"origin_url":batch.origin_url,"parser_version":batch.parser_version}
-        params={"batch_id":str(batch.id),"year":report["year"],"month":report["month"],"opening_balances_complete":str(report["opening_balances_complete"]).lower()}
+        args=form.validated_data.copy();source=args.pop('source');expected=args.pop('expected_revision',None)
+        if source=='registry':
+            require(request.user,'expertise.view')
+            from .registry import calculate_registry
+            try:report=calculate_registry(**args)
+            except ValueError as error:raise ValidationError({'report':str(error)}) from error
+            if expected and expected!=report['data_revision']:raise CommandConflict('Рабочие данные изменились после расчёта. Пересчитайте отчёт перед скачиванием.')
+            params={'source':'registry','expected_revision':report['data_revision']}
+        else:
+            require_preview_read(request.user)
+            batch=get_object_or_404(ImportBatch,pk=args.pop('batch_id'))
+            try:report=calculate(batch.rows.all(),**args)
+            except ValueError as error:raise ValidationError({"report":str(error)}) from error
+            report["source"]={"type":"journal","id":str(batch.id),"name":batch.source_name,"sheet_name":batch.sheet_name,"row_count":batch.row_count,
+                "sha256":batch.source_sha256,"observed_at":batch.source_observed_at,"created_at":batch.created_at,"origin_url":batch.origin_url,"parser_version":batch.parser_version}
+            params={'batch_id':str(batch.id)}
+        params.update(year=report['year'],month=report['month'],opening_balances_complete=str(report['opening_balances_complete']).lower())
         report["download_url"]="/api/v1/reports/form151/xlsx/?"+urlencode(params)
         if self.download:
             response=HttpResponse(export_xlsx(report),content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

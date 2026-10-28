@@ -7,6 +7,12 @@ import ExpertisePage from './ExpertisePage.vue'
 afterEach(() => vi.restoreAllMocks())
 
 describe('persisted work card', () => {
+  it('clearly marks training work excluded from the registry report',async()=>{
+    const client=new ApiClient(async()=>json({...expertise,material:{...expertise.material,is_demo:true}}))
+    const router=await testRouter('/expertises/work-1')
+    const wrapper=mount(ExpertisePage,{global:{plugins:[sessionWith('expertise.view'),router],provide:{[apiKey as symbol]:client}}})
+    await flushPromises();expect(wrapper.text()).toContain('Учебный материал');wrapper.unmount()
+  })
   it('does not let a late detail reload overwrite a confirmed assignment', async () => {
     let readCount = 0, resolveOld!: (value: Response) => void
     const oldRead = new Promise<Response>(resolve => { resolveOld = resolve })

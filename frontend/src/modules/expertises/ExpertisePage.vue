@@ -33,6 +33,7 @@ watch(() => route.params.id, () => { if (route.path.startsWith('/expertises/')) 
 onBeforeUnmount(() => requests.cancel())
 </script>
 <template>
+  <p v-if="expertise?.material.is_demo" class="message">Учебный материал. Эта работа не включается в отчёт 15.1 по рабочей базе.</p>
   <div class="page-heading"><div><p class="eyebrow">Рабочая карточка экспертизы</p><h1>{{ expertise?.registration_number || 'Экспертиза' }}</h1><p class="muted">{{ expertise?.material.title || 'Серверные данные работы' }}</p></div><RouterLink data-back-to-expertises :to="returnTo">← К реестру экспертиз</RouterLink></div><ApiMessage :error="error" /><p v-if="loading" class="state">Загрузка рабочей карточки…</p>
   <template v-if="expertise">
     <p v-if="success" class="message message-success" role="status">{{ success }}</p>

@@ -90,7 +90,7 @@ class ExpertiseOutput(serializers.ModelSerializer):
     def get_department(self,obj): return {"id":str(obj.department_id),"code":obj.department.code,"name":obj.department.name}
     def get_specialty(self,obj): return {"id":str(obj.specialty_id),"code":obj.specialty.code,"name":obj.specialty.name} if obj.specialty_id else None
     def get_receipt(self,obj): return {"id":str(obj.receipt_id),"received_at":obj.receipt.received_at.isoformat(),"status":obj.receipt.status}
-    def get_material(self,obj): return {"id":str(obj.material_id),"title":obj.material.title}
+    def get_material(self,obj): return {"id":str(obj.material_id),"title":obj.material.title,"is_demo":obj.material.is_demo}
     def get_complex_group(self,obj): return {"id":str(obj.complex_group_id),"title":obj.complex_group.title} if obj.complex_group_id else None
     def get_current_assignments(self,obj): return AssignmentOutput([a for a in obj.assignments.all() if a.ended_at is None],many=True).data
     def get_assignment_history(self,obj): return AssignmentOutput(list(obj.assignments.all()),many=True).data

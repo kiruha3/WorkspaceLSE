@@ -6,6 +6,21 @@ import { basis, department, receipt, testRouter } from '../../test/intakeFixture
 import IntakePage from './IntakePage.vue'
 
 describe('intake creation', () => {
+  it('sends an explicit training flag only when selected', async () => {
+    let body:Record<string,unknown>|undefined
+    const client=new ApiClient(async(input,init)=>{
+      const path=String(input)
+      if(path.endsWith('/csrf/'))return json({csrf_token:'token'})
+      if(path.endsWith('/receipts/')&&init?.method==='POST'){body=JSON.parse(String(init.body));return json(receipt,201)}
+      return json(page(path.includes('/references/')?[department]:[]))
+    })
+    const router=await testRouter('/intake')
+    const wrapper=mount(IntakePage,{global:{plugins:[sessionWith('receipts.view','receipts.create'),router],provide:{[apiKey as symbol]:client}}})
+    await flushPromises();await wrapper.get('[data-new-receipt]').trigger('click')
+    await wrapper.get('[name="received_at"]').setValue('2026-10-28');await wrapper.get('[name="department_id"]').setValue('d-4')
+    await wrapper.get('[name="is_demo"]').setValue(true);await wrapper.get('form[data-create-receipt]').trigger('submit');await flushPromises()
+    expect(body?.is_demo).toBe(true);wrapper.unmount()
+  })
   it('persists a paper original without an invented file before creating the receipt', async () => {
     const writes: { path: string; body: unknown }[] = []
     const client = new ApiClient(async (input, init) => {

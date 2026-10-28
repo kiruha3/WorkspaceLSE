@@ -9,6 +9,7 @@ from .models import Receipt
 
 class ReceiptCreate(StrictSerializer):
     received_at=serializers.DateField()
+    is_demo=serializers.BooleanField(required=False,default=False)
     sender_name=serializers.CharField(max_length=500,allow_blank=True,required=False,default="")
     material_title=serializers.CharField(max_length=500,allow_blank=True,required=False,default="")
     basis_document_id=serializers.PrimaryKeyRelatedField(queryset=Document.objects.all(),source="basis_document",allow_null=True,required=False)
@@ -40,4 +41,4 @@ class ReceiptOutput(serializers.ModelSerializer):
         return DocumentOutput(document).data
 
     def get_material(self,obj):
-        return {"id":str(obj.material_id),"title":obj.material.title}
+        return {"id":str(obj.material_id),"title":obj.material.title,"is_demo":obj.material.is_demo}

@@ -36,12 +36,13 @@ def return_date(facts, raw):
     return values[0], False, False
 
 
-def calculate(rows, year, month, opening_balances_complete=False):
+def calculate(rows, year, month, opening_balances_complete=False, *, mode="journal"):
+    if mode not in ("journal","registry"):raise ValueError("Неизвестный источник расчёта.")
     if type(year) is not int or not 1900<=year<=2200 or type(month) is not int or not 1<=month<=12:
         raise ValueError("Укажите год 1900–2200 и месяц 1–12.")
     rows=list(rows); start=date(year,1,1); end=date(year,month,calendar.monthrange(year,month)[1])
-    if not rows:raise ValueError("Снимок не содержит регистраций для расчёта.")
-    if not any(valid_date(r.facts.get(k)) and valid_date(r.facts[k]).year==year for r in rows for k in ("received_on","source_end_on","issued_on")):
+    if not rows and mode=="journal":raise ValueError("Снимок не содержит регистраций для расчёта.")
+    if mode=="journal" and not any(valid_date(r.facts.get(k)) and valid_date(r.facts[k]).year==year for r in rows for k in ("received_on","source_end_on","issued_on")):
         raise ValueError(f"В снимке нет дат за {year} год. Выберите год источника.")
     numbers=set()
     for row in rows:
@@ -71,7 +72,7 @@ def calculate(rows, year, month, opening_balances_complete=False):
         f,raw=row.facts,row.raw; state=f.get("state");returned=state=="without_execution"
         received=valid_date(f.get("received_on"));completed=valid_date(f.get("source_end_on"))
         broken=bool(text(raw.get("P")) and completed is None);awaiting=False
-        if returned:completed,broken,awaiting=return_date(f,raw)
+        if returned and mode=="journal":completed,broken,awaiting=return_date(f,raw)
         if received and completed and completed<received:received=completed=None;broken=True
         if received and received>end and not broken and (not completed or completed>end):continue
         closed=(returned and not awaiting) or state=="completed"
@@ -109,9 +110,16 @@ def calculate(rows, year, month, opening_balances_complete=False):
                 if returned and not completed and not awaiting:gap("returnDate",[1,4],"Нет однозначной фактической даты возврата в P/W/X.","P, W, X",row.source_row)
                 if kind is None and not returned and not conflict:
                     gap("resultKind",list(range(1,7)),"Вид результата не определён или не распознан.","B, O",row.source_row)
+            if not mapped and mode=="registry":
+                # The institutional total is known even when its specialty is
+                # not. Specialty subtotals must not silently look complete.
+                for r in {i for rs in SPECIALTIES.values() for i in rs}:
+                    cell=cells[section,f"{column}{physical(section,r)}"]
+                    cell["value"]=None
+                    if row.source_row not in cell["rows"]:cell["rows"].append(row.source_row)
             for r in [*(mapped or []),108]:
                 cell=cells[section,f"{column}{physical(section,r)}"]
-                if not mapped or quantity is None:cell["value"]=None
+                if (not mapped and mode=="journal") or quantity is None:cell["value"]=None
                 elif cell["value"] is not None:cell["value"]+=quantity
                 if row.source_row not in cell["rows"]:cell["rows"].append(row.source_row)
         finish=None if broken else False if not completed and not closed else in_period(completed)
@@ -132,7 +140,7 @@ def calculate(rows, year, month, opening_balances_complete=False):
             put(1,col,[finish,research,match])
         counts=[f.get(k) for k in ("questions","categorical","probable","unresolved")]
         parts=counts[1:];known=sum(n for n in parts if n is not None)
-        if counts[0] is not None and known==counts[0] and all(n is not None or not text(raw.get(col)) for n,col in zip(parts,"RST")):
+        if mode=="journal" and counts[0] is not None and known==counts[0] and all(n is not None or not text(raw.get(col)) for n,col in zip(parts,"RST")):
             parts=[0 if n is None else n for n in parts]
         q=counts[0];cat,prob,unresolved=parts
         inconsistent=q is not None and (known>q or all(n is not None for n in parts) and q!=sum(parts))
