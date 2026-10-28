@@ -47,7 +47,7 @@ export interface BasisDocument {
 export type DocumentLink = BasisDocument | { id: string; restricted: true } | null
 export interface Receipt {
   id: string; received_at: string; sender_name: string; material: { id: string; title: string }
-  basis_document: DocumentLink; department_id: string | null; status: 'draft' | 'accepted'; version: number
+  basis_document: DocumentLink; department_id: string | null; status: 'draft' | 'accepted' | 'historical'; version: number
 }
 export interface ComplexGroup { id: string; title: string; material_id?: string }
 export interface ExpertAssignment {
@@ -93,11 +93,23 @@ export interface ResultOptions {
   sndz_reasons: Reference[]; unresolved_reasons: Reference[]; return_reasons: Reference[]
 }
 export interface ExpertiseCommandResponse { event: { id: string }; expertise: Expertise }
+export interface HistoricalWork {
+  id: string; operational: boolean; complex_known: boolean; composition_known: boolean
+  suspension_history_complete: boolean; statistics_confirmed: boolean
+  result_kind: ResultKind | null; completed_on: string | null; return_decided_on: string | null; issued_on: string | null
+  complexity_level: number | null; questions: number | null; categorical: number | null; probable: number | null; unresolved: number | null; amount: string | null
+  authority_type: string; authority_name: string; official: string; contact: string; basis_text: string; case_description: string
+  inventory: string; executor_raw: string; unresolved_note: string; unresolved_reason_raw: string; notes: string; delivery: string
+  current_participants: { id: string; full_name: string }[]
+  source: { batch_id: string; row_id: string; source_row: number; origin_url: string | null; source_observed_at: string | null }
+  report_gaps: ResultIssue[]
+}
 export interface Expertise {
   id: string; registration_number: string; historical_number: string; sequence: number; year: number; category_code: string
-  department: Pick<Reference, 'id' | 'code' | 'name'>; specialty: Pick<Reference, 'id' | 'code' | 'name'>
-  receipt: { id: string; received_at: string; status: 'draft' | 'accepted' }; material: { id: string; title: string }
-  appointment_nature: 'primary' | 'repeated' | 'additional'; is_commission: boolean; complex_group: ComplexGroup | null
+  origin_kind: 'native' | 'historical'; historical: HistoricalWork | null
+  department: Pick<Reference, 'id' | 'code' | 'name'>; specialty: Pick<Reference, 'id' | 'code' | 'name'> | null
+  receipt: { id: string; received_at: string; status: 'draft' | 'accepted' | 'historical' }; material: { id: string; title: string }
+  appointment_nature: 'primary' | 'repeated' | 'additional' | null; is_commission: boolean | null; complex_group: ComplexGroup | null
   state: 'in_progress' | 'suspended' | 'completed' | 'without_execution'; version: number
   current_assignments: ExpertAssignment[]; assignment_history: ExpertAssignment[]; allowed_actions: string[]; basis_document: DocumentLink
   production: Production; suspensions: Suspension[]; deadline_events: DeadlineEvent[]

@@ -59,6 +59,14 @@ it('allows a results-only reader to inspect snapshots without an upload action',
 it('keeps journal pagination in its return URL',async()=>{
   const paths:string[]=[];const {wrapper}=await open('/imports?page=2',async input=>{paths.push(String(input));return json({...page([batch]),count:50,previous:'/imports/?page=1'})});expect(paths).toContain('/api/v1/imports/?page=2');expect(wrapper.get('[data-open-import-preview]').attributes('href')).toContain('return=/imports?page=2')
 })
+it('opens source reconciliation only with current server support and preserves the source URL',async()=>{
+  const {wrapper,pinia}=await open('/imports/batch-1?severity=error',async input=>json(String(input).includes('/rows/')?page([row]):batch),['imports.results.view'])
+  expect(wrapper.find('[data-open-reconciliation]').exists()).toBe(false)
+  useSessionStore(pinia).user!.supported_modules=['journal_import_preview','journal_application'];await flushPromises()
+  const target=new URL(wrapper.get('[data-open-reconciliation]').attributes('href')!,'http://localhost')
+  expect(target.pathname).toBe('/imports/batch-1/reconciliation')
+  expect(target.searchParams.get('return')).toBe('/imports/batch-1?severity=error')
+})
 it('shows global snapshot totals while filtering rows before their page and retains unknown values',async()=>{
   const paths:string[]=[];const {wrapper}=await open('/imports/batch-1?severity=warning&state=completed&search=151&page=2',async input=>{paths.push(String(input));return json(String(input).includes('/rows/')?{...page([row]),count:25,previous:'/rows/?page=1'}:batch)})
   expect(paths).toContain('/api/v1/imports/batch-1/rows/?search=151&severity=warning&state=completed&page=2');expect(wrapper.get('[data-import-summary]').text()).toContain('466');await wrapper.get('[data-open-import-row]').trigger('click');expect(wrapper.get('[data-import-row-details]').text()).toContain('Дата окончания неизвестна');expect(wrapper.get('[data-import-row-details]').text()).toContain('<script>не исполнять</script>');expect(wrapper.find('[data-import-row-details] script').exists()).toBe(false);expect(wrapper.get('[data-import-row-details]').text()).toContain('Не указано')

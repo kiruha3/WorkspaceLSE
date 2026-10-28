@@ -13,7 +13,7 @@ export interface IssuePackage { id: string; material: { id: string; title: strin
 export interface IssueOptions { methods: Reference[]; item_kinds: { code: IssueItemKind; name: string; document_kinds: DocumentKind[] }[] }
 export interface MaterialPackage { material: { id: string; title: string }; package: IssuePackage | null; can_prepare: boolean }
 export interface IssueCommandResponse { event: { id: string }; package: IssuePackage }
-export interface WorkIssueStatus { status: 'unavailable' | 'not_issued' | 'issued'; issued_on: string | null; package: { id: string; restricted?: true } | null }
+export interface WorkIssueStatus { status: 'unavailable' | 'not_issued' | 'issued'; issued_on: string | null; fact_origin?: 'native' | 'historical'; package: { id: string; restricted?: true } | null }
 export const emptyIssueOptions = (): IssueOptions => ({ methods: [], item_kinds: [] })
 export const issueStateLabels: Record<IssueState, string> = { draft: 'Черновик', checked: 'Проверен', needs_recheck: 'Требуется повторная проверка', issued: 'Выдано' }
 export const issueItemLabels: Record<IssueItemKind, string> = { expert_subscription: 'Подписка эксперта', cover_letter: 'Сопроводительное', notification: 'Уведомление', invoice: 'Счёт', other: 'Прочее приложение' }

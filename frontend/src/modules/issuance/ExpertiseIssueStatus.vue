@@ -21,10 +21,10 @@ onBeforeUnmount(() => requests.cancel())
     <div class="section-heading"><h2>Выдача материалов</h2><div class="button-row">
       <button :disabled="loading" @click="load">Обновить факт выдачи</button>
       <RouterLink v-if="value?.package && !value.package.restricted && session.can('issue.view')" :to="`/issue-packages/${value.package.id}`">Комплект материала</RouterLink>
-      <RouterLink v-else-if="!value?.package?.restricted && session.can('issue.view') && session.can('issue.prepare')" data-open-material-package :to="{ path: '/issue-packages/new', query: { material_id: materialId } }">Подготовить комплект материала</RouterLink>
+      <RouterLink v-else-if="value?.status === 'not_issued' && !value.package?.restricted && session.can('issue.view') && session.can('issue.prepare')" data-open-material-package :to="{ path: '/issue-packages/new', query: { material_id: materialId } }">Подготовить комплект материала</RouterLink>
     </div></div>
     <ApiMessage :error="error" /><p v-if="loading" class="state">Загрузка факта выдачи…</p>
-    <template v-else-if="value"><p v-if="value.status === 'issued'" class="message message-success">Материалы выданы: {{ value.issued_on || 'Дата неизвестна' }}</p><p v-else-if="value.status === 'not_issued'" class="muted">Не выдано — серверный факт передачи не зафиксирован.</p><p v-else class="muted">Сведения о выдаче недоступны.</p><p v-if="value.package?.restricted" class="muted compact">Доступ к полному комплекту ограничен.</p></template>
+    <template v-else-if="value"><p v-if="value.status === 'issued'" class="message message-success">{{ value.fact_origin === 'historical' ? 'Историческая отметка выдачи' : 'Материалы выданы' }}: {{ value.issued_on || 'Дата неизвестна' }}</p><p v-else-if="value.status === 'not_issued'" class="muted">{{ value.fact_origin === 'historical' ? 'Дата выдачи в журнале отсутствует; новый факт передачи не зафиксирован.' : 'Не выдано — серверный факт передачи не зафиксирован.' }}</p><p v-else class="muted">Сведения о выдаче недоступны.</p><p v-if="value.package?.restricted" class="muted compact">Доступ к полному комплекту ограничен.</p></template>
     <p class="muted compact">Завершение этой экспертизы не означает выдачу всего материала.</p>
   </section>
 </template>
