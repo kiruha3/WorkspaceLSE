@@ -103,6 +103,8 @@ def result_readiness(work,result=None):
 def save_result(*,actor,expertise_id,data,key,payload):
     work=locked_work(expertise_id);action="expertise.result.draft"
     require_work(actor,"expertise.view",work);require_work(actor,action,work)
+    from .history import require_operational
+    require_operational(work)
     def operation():
         check_version(work,data["expected_version"])
         if work.state not in OPEN_STATES:raise ValidationError("Для закрытой работы нужна отдельная корректировка.")
@@ -148,6 +150,8 @@ def _close(*,actor,expertise_id,data,key,payload,command):
     work=locked_work(expertise_id)
     action={"complete":"expertise.complete","return":"expertise.return_without_execution","correct":"expertise.closed.correct"}[command]
     require_work(actor,"expertise.view",work);require_work(actor,action,work)
+    from .history import require_operational
+    require_operational(work)
     def operation():
         check_version(work,data["expected_version"])
         if command=="correct":

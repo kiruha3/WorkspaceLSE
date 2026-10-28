@@ -49,6 +49,7 @@ def accept_receipt(*,actor,receipt_id,expected_version):
 def amend_receipt(*,actor,receipt_id,data):
     receipt=locked_receipt(receipt_id)
     require(actor,"receipts.amend",**receipt_context(receipt))
+    if receipt.status=="historical":raise ValidationError("Историческое поступление изменяется при отдельном подтверждении исходных сведений.")
     data=data.copy();check_version(receipt,data.pop("expected_version"));reason=data.pop("reason")
     require_not_issued(receipt.material_id)
     if data.get("basis_document"):require_document(actor,"documents.view",data["basis_document"])

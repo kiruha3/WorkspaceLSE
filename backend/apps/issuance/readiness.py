@@ -16,7 +16,7 @@ def required_items(work, closure):
 
 
 def current_facts(package):
-    works = list(package.material.expertises.select_related("department", "receipt").prefetch_related("closures__document__versions", "closures__result"))
+    works = list(package.material.expertises.select_related("department", "receipt","historical").prefetch_related("closures__document__versions", "closures__result"))
     closures = {work.pk: latest_closure(work) for work in works}
     items = list(package.current_revision.items.select_related("document").prefetch_related("document__versions"))
     files = []
@@ -54,6 +54,8 @@ def readiness(package, user, scopes=None):
     if not package.current_revision.materials_description.strip(): add("materials_missing", "materials_description", "Опишите передаваемые материалы дела.")
     if not works: add("works_missing", "works", "У материала нет зарегистрированных работ.")
     for work in works:
+        history=getattr(work,"historical",None)
+        if history and history.issued_on is not None:add("historical_issue_recorded","works","В журнале уже отмечена выдача. Нужна отдельная сверка движения материалов.",work)
         closure = closures[work.pk]
         if work.state not in ("completed", "without_execution") or not closure:
             add("work_open", "works", "Работа ещё не завершена.", work); continue

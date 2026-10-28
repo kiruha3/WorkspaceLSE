@@ -80,13 +80,14 @@ class ExpertiseOutput(serializers.ModelSerializer):
     closure=serializers.SerializerMethodField()
     closure_history=serializers.SerializerMethodField()
     result_readiness=serializers.SerializerMethodField()
+    historical=serializers.SerializerMethodField()
 
     class Meta:
         model = Expertise
-        fields = ["id","registration_number","historical_number","sequence","year","category_code","department","specialty","receipt","material","appointment_nature","is_commission","complex_group","state","version","current_assignments","assignment_history","allowed_actions","basis_document","production","suspensions","deadline_events","result","result_history","closure","closure_history","result_readiness"]
+        fields = ["id","origin_kind","historical","registration_number","historical_number","sequence","year","category_code","department","specialty","receipt","material","appointment_nature","is_commission","complex_group","state","version","current_assignments","assignment_history","allowed_actions","basis_document","production","suspensions","deadline_events","result","result_history","closure","closure_history","result_readiness"]
 
     def get_department(self,obj): return {"id":str(obj.department_id),"code":obj.department.code,"name":obj.department.name}
-    def get_specialty(self,obj): return {"id":str(obj.specialty_id),"code":obj.specialty.code,"name":obj.specialty.name}
+    def get_specialty(self,obj): return {"id":str(obj.specialty_id),"code":obj.specialty.code,"name":obj.specialty.name} if obj.specialty_id else None
     def get_receipt(self,obj): return {"id":str(obj.receipt_id),"received_at":obj.receipt.received_at.isoformat(),"status":obj.receipt.status}
     def get_material(self,obj): return {"id":str(obj.material_id),"title":obj.material.title}
     def get_complex_group(self,obj): return {"id":str(obj.complex_group_id),"title":obj.complex_group.title} if obj.complex_group_id else None
@@ -95,6 +96,9 @@ class ExpertiseOutput(serializers.ModelSerializer):
     def get_allowed_actions(self,obj):
         # Only implemented commands are advertised; execution always rechecks.
         scopes=self.context["scopes"];context=work_context(obj,self.context["user"],scopes)
+        from .history import historical_record
+        history=historical_record(obj)
+        if obj.origin_kind=="historical" and (history is None or not history.operational):return []
         if obj.state not in ("in_progress","suspended"):
             from apps.issuance.models import MaterialIssue
             if MaterialIssue.objects.filter(package__material_id=obj.material_id).exists():return []
@@ -125,8 +129,15 @@ class ExpertiseOutput(serializers.ModelSerializer):
         from .result_serializers import ClosureOutput
         return ClosureOutput(obj.closures.all(),many=True,context=self.context).data
     def get_result_readiness(self,obj):
+        from .history import historical_record,report_gaps
+        history=historical_record(obj)
+        if history is not None and not history.operational:
+            return {"completion_blockers":[{"code":"history_confirmation_required","field":"historical","message":"Для нового учёта нужно подтвердить исторические сведения и реальные документы."}],"report_gaps":report_gaps(obj,history)}
         from .results import result_readiness
         return result_readiness(obj)
+    def get_historical(self,obj):
+        from .history import historical_output
+        return historical_output(obj,self.context["user"],self.context["scopes"])
     def get_production(self,obj):
         from .production import production_summary
         return production_summary(obj)

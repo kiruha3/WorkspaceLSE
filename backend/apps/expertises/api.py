@@ -17,7 +17,7 @@ from .services import register_expertise, assign_experts, reassign_experts
 
 
 def loaded(queryset=None):
-    return (queryset if queryset is not None else Expertise.objects.all()).select_related("receipt__basis_document","material","department","specialty","complex_group").prefetch_related("assignments__employee","receipt__basis_document__versions","suspensions__actor__employee","suspensions__resumed_by__employee","deadline_events__actor__employee","deadline_events__document__versions","result_revisions__actor__employee","result_revisions__document__versions","result_revisions__sndz_reason","result_revisions__unresolved_allocations__reason","result_revisions__unresolved_allocations__document__versions","result_revisions__closures","closures__actor__employee","closures__document__versions","closures__return_reason")
+    return (queryset if queryset is not None else Expertise.objects.all()).select_related("receipt__basis_document","material","department","specialty","complex_group","historical__source_row__batch").prefetch_related("historical__participants__employee","assignments__employee","receipt__basis_document__versions","suspensions__actor__employee","suspensions__resumed_by__employee","deadline_events__actor__employee","deadline_events__document__versions","result_revisions__actor__employee","result_revisions__document__versions","result_revisions__sndz_reason","result_revisions__unresolved_allocations__reason","result_revisions__unresolved_allocations__document__versions","result_revisions__closures","closures__actor__employee","closures__document__versions","closures__return_reason")
 
 
 class ExpertiseRegisterView(GenericAPIView):
@@ -34,7 +34,9 @@ class ExpertiseListView(GenericAPIView):
         form=WorkFilters(data=request.query_params);form.is_valid(raise_exception=True);filters=form.validated_data
         for field in ("department_id","specialty_id"):
             if field in filters:queryset=queryset.filter(**{field:filters[field]})
-        if filters.get("employee_id"):queryset=queryset.filter(assignments__employee_id=filters["employee_id"],assignments__ended_at__isnull=True)
+        if filters.get("employee_id"):
+            employee_id=filters["employee_id"]
+            queryset=queryset.filter(Q(assignments__employee_id=employee_id,assignments__ended_at__isnull=True)|Q(origin_kind="historical",assignments__isnull=True,historical__participants__employee_id=employee_id))
         if filters.get("received_from"):queryset=queryset.filter(receipt__received_at__gte=filters["received_from"])
         if filters.get("received_to"):queryset=queryset.filter(receipt__received_at__lte=filters["received_to"])
         if "state" in filters:queryset=queryset.filter(state=filters["state"])
@@ -60,6 +62,8 @@ class AssignmentCandidatesView(GenericAPIView):
         work=get_object_or_404(loaded(),pk=pk)
         action="expertise.reassign" if any(a.ended_at is None for a in work.assignments.all()) else "expertise.assign"
         require_work(request.user,action,work)
+        from .history import require_operational
+        require_operational(work)
         qualifications={q.employee_id:q for q in EmployeeSpecialty.objects.filter(specialty_id=work.specialty_id)}
         return Response([{"id":str(e.id),"full_name":e.full_name,**qualification_eligibility(e,work.specialty,timezone.localdate(),qualification=qualifications.get(e.id))} for e in Employee.objects.all()])
 
@@ -91,7 +95,8 @@ class FilterOptionsView(GenericAPIView):
     def get(self,request):
         from apps.personnel.models import Employee
         works=expertise_scope_queryset(request.user,"expertise.view")
-        employees=Employee.objects.filter(expert_assignments__expertise__in=works,expert_assignments__ended_at__isnull=True).distinct()
+        historical=works.filter(origin_kind="historical",assignments__isnull=True)
+        employees=Employee.objects.filter(Q(expert_assignments__expertise__in=works,expert_assignments__ended_at__isnull=True)|Q(historical_participations__history__expertise__in=historical)).distinct()
         return Response({"employees":[{"id":str(e.id),"full_name":e.full_name} for e in employees]})
 
 

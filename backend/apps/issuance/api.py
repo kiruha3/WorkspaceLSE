@@ -9,6 +9,7 @@ from apps.documents.models import Document
 from apps.documents.policies import can_document, document_context
 from apps.documents.serializers import DocumentOutput
 from apps.intake.models import Material
+from apps.intake.locking import material_has_issue
 from apps.references.models import IssueMethod
 from apps.references.api import reference_data
 from .models import IssuePackage, ITEM_KINDS
@@ -42,7 +43,7 @@ class MaterialPackagesView(GenericAPIView):
         require_material(request.user, "issue.view", material, scopes)
         package = loaded().filter(material=material).first()
         return Response({"material": {"id": str(material.pk), "title": material.title}, "package": package_data(package, request.user, scopes) if package else None,
-            "can_prepare": material_queryset(request.user, "issue.prepare", scopes).filter(pk=material.pk).exists() and not (package and getattr(package, "issuance", None))})
+            "can_prepare": material_queryset(request.user, "issue.prepare", scopes).filter(pk=material.pk).exists() and not material_has_issue(material.pk)})
 
     def post(self, request, pk):
         form = ContentInput(data=request.data); form.is_valid(raise_exception=True)

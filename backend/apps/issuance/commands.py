@@ -9,7 +9,7 @@ from apps.documents.models import Document
 from apps.documents.policies import require_document
 from apps.expertises.models import Expertise
 from apps.intake.models import Receipt
-from apps.intake.locking import locked_material
+from apps.intake.locking import locked_material,require_not_issued
 from apps.references.models import IssueMethod
 from .models import IssuePackage, PackageCheck, CheckWork, CheckFile, MaterialIssue
 from .policies import require_material
@@ -40,6 +40,7 @@ def run_command(actor, package_id, data, key, payload, action, perform):
     def operation():
         check_version(package, data["expected_version"])
         if getattr(package, "issuance", None): raise ValidationError("Материалы уже выданы. Повторная выдача требует отдельной процедуры.")
+        require_not_issued(package.material_id)
         lock_documents(package, data.get("evidence_document"))
         result = perform(package, scopes)
         package.version += 1; package.save(update_fields=["version"])

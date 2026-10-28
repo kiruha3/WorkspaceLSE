@@ -21,9 +21,10 @@ class Expertise(models.Model):
     year = models.PositiveSmallIntegerField()
     category_code = models.CharField(max_length=1, choices=[(str(n),str(n)) for n in range(1,7)])
     department = models.ForeignKey("references.Department", on_delete=models.PROTECT)
-    specialty = models.ForeignKey("references.Specialty", on_delete=models.PROTECT)
-    appointment_nature = models.CharField(max_length=20, choices=[(s,s) for s in ("primary","repeated","additional")])
-    is_commission = models.BooleanField(default=False)
+    specialty = models.ForeignKey("references.Specialty", null=True, blank=True, on_delete=models.PROTECT)
+    origin_kind = models.CharField(max_length=20, default="native", choices=[("native","Новый учёт"),("historical","Перенос журнала")])
+    appointment_nature = models.CharField(max_length=20, null=True, blank=True, choices=[(s,s) for s in ("primary","repeated","additional")])
+    is_commission = models.BooleanField(default=False,null=True,blank=True)
     complex_group = models.ForeignKey(ComplexGroup, null=True, blank=True, related_name="expertises", on_delete=models.PROTECT)
     state = models.CharField(max_length=25, default="in_progress", choices=[(s,s) for s in ("in_progress","suspended","completed","without_execution")])
     version = models.PositiveIntegerField(default=1)
@@ -32,7 +33,9 @@ class Expertise(models.Model):
 
     class Meta:
         ordering = ["-year","-sequence","id"]
-        constraints = [models.UniqueConstraint(fields=["complex_group","specialty"], name="one_work_per_complex_specialty")]
+        constraints = [models.UniqueConstraint(fields=["complex_group","specialty"], name="one_work_per_complex_specialty"),
+            models.CheckConstraint(condition=Q(origin_kind="historical")|Q(origin_kind="native",specialty__isnull=False,appointment_nature__isnull=False,is_commission__isnull=False),name="native_work_has_known_registration"),
+            models.CheckConstraint(condition=Q(appointment_nature__isnull=True)|Q(appointment_nature__in=("primary","repeated","additional")),name="valid_appointment_nature")]
 
 
 class ExpertAssignment(models.Model):
@@ -151,3 +154,48 @@ class WorkClosure(models.Model):
             models.UniqueConstraint(fields=["expertise","number"],name="unique_work_closure_revision"),
             models.CheckConstraint(condition=Q(kind="completed",result__isnull=False,return_reason__isnull=True)|Q(kind="without_execution",result__isnull=True),name="typed_work_closure"),
         ]
+
+
+class HistoricalWork(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    expertise=models.OneToOneField(Expertise,related_name="historical",on_delete=models.PROTECT)
+    source_row=models.ForeignKey("imports.ImportRow",related_name="historical_works",on_delete=models.PROTECT)
+    actor=models.ForeignKey(settings.AUTH_USER_MODEL,related_name="imported_works",on_delete=models.PROTECT)
+    created_at=models.DateTimeField(auto_now_add=True)
+    reason=models.TextField()
+    operational=models.BooleanField(default=False)
+    complex_known=models.BooleanField(default=False)
+    suspension_history_complete=models.BooleanField(default=False)
+    statistics_confirmed=models.BooleanField(default=False)
+    result_kind=models.CharField(max_length=30,null=True,blank=True,choices=[("expert_conclusion","Заключение эксперта"),("research_act","Акт исследования"),("sndz","СНДЗ")])
+    completed_on=models.DateField(null=True,blank=True)
+    return_decided_on=models.DateField(null=True,blank=True)
+    issued_on=models.DateField(null=True,blank=True)
+    complexity_level=models.PositiveIntegerField(null=True,blank=True)
+    questions=models.PositiveIntegerField(null=True,blank=True)
+    categorical=models.PositiveIntegerField(null=True,blank=True)
+    probable=models.PositiveIntegerField(null=True,blank=True)
+    unresolved=models.PositiveIntegerField(null=True,blank=True)
+    amount=models.DecimalField(max_digits=18,decimal_places=2,null=True,blank=True)
+    authority_type=models.TextField(blank=True)
+    authority_name=models.TextField(blank=True)
+    official=models.TextField(blank=True)
+    contact=models.TextField(blank=True)
+    basis_text=models.TextField(blank=True)
+    case_description=models.TextField(blank=True)
+    inventory=models.TextField(blank=True)
+    executor_raw=models.TextField(blank=True)
+    unresolved_note=models.TextField(blank=True)
+    unresolved_reason_raw=models.TextField(blank=True)
+    notes=models.TextField(blank=True)
+    delivery=models.TextField(blank=True)
+
+
+class HistoricalParticipant(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    history=models.ForeignKey(HistoricalWork,related_name="participants",on_delete=models.PROTECT)
+    employee=models.ForeignKey("personnel.Employee",related_name="historical_participations",on_delete=models.PROTECT)
+
+    class Meta:
+        ordering=["employee__full_name","id"]
+        constraints=[models.UniqueConstraint(fields=["history","employee"],name="one_historical_participant")]

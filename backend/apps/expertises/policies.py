@@ -8,8 +8,10 @@ def expertise_scope_queryset(user, action, scopes=None):
     scopes = permission_scopes(user) if scopes is None else scopes
     scope = scopes.get(action, AccessScope())
     if not scope.rules: raise PermissionDenied("Нет права просматривать экспертизы.")
-    return Expertise.objects.annotate(current=FilteredRelation("assignments", condition=Q(assignments__ended_at__isnull=True))).filter(
-        scope.query(employee_field="current__employee_id",department_field="department_id")).distinct()
+    predicate=scope.query(employee_field="current__employee_id",department_field="department_id")
+    if action=="expertise.view":
+        predicate |= Q(origin_kind="historical",assignments__isnull=True)&scope.query(employee_field="historical__participants__employee_id",department_field="department_id")
+    return Expertise.objects.annotate(current=FilteredRelation("assignments", condition=Q(assignments__ended_at__isnull=True))).filter(predicate).distinct()
 
 
 def work_context(work, user, scopes=None):
@@ -21,5 +23,10 @@ def work_context(work, user, scopes=None):
 
 def require_work(user, action, work, scopes=None):
     scopes = permission_scopes(user) if scopes is None else scopes
-    if not scopes.get(action,AccessScope()).allows(**work_context(work,user,scopes)):
+    context=work_context(work,user,scopes)
+    if action=="expertise.view":
+        from .history import current_history_employee_ids
+        employee_id=next((s.actor_employee_id for s in scopes.values()),None)
+        if str(employee_id) in {str(value) for value in current_history_employee_ids(work)}:context["employee_id"]=employee_id
+    if not scopes.get(action,AccessScope()).allows(**context):
         raise PermissionDenied("Нет права на это действие с выбранной экспертизой.")

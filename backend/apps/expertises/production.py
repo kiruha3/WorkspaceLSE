@@ -23,8 +23,12 @@ def production_summary(work,as_of=None):
     as_of=as_of or timezone.localdate()
     from .results import latest_closure
     closure=latest_closure(work) if work.state not in OPEN_STATES else None
-    through=as_of if work.state in OPEN_STATES else min(closure.ended_on,as_of) if closure else None
+    from .history import historical_end_on,historical_record
+    history=historical_record(work)
+    known_end=closure.ended_on if closure else historical_end_on(work)
+    through=as_of if work.state in OPEN_STATES else min(known_end,as_of) if known_end else None
     counts=calculate_days(work.receipt.received_at,[(s.suspended_on,s.resumed_on) for s in work.suspensions.all()],through) if through else {"calendar_days":None,"paused_days":None,"active_calendar_days":None}
+    if history is not None and not history.suspension_history_complete:counts.update(paused_days=None,active_calendar_days=None)
     events=list(work.deadline_events.all())
     def latest(kind):
         matching=[e for e in events if e.kind==kind]
@@ -53,6 +57,8 @@ def _transition(*,actor,expertise_id,data,key,payload,kind):
     action="expertise."+kind
     require_work(actor,"expertise.view",work)
     require_work(actor,action,work)
+    from .history import require_operational
+    require_operational(work)
 
     def operation():
         check_version(work,data["expected_version"])
@@ -95,6 +101,8 @@ def record_deadline(*,actor,expertise_id,data,key,payload):
     action="expertise.deadline.record"
     require_work(actor,"expertise.view",work)
     require_work(actor,action,work)
+    from .history import require_operational
+    require_operational(work)
 
     def operation():
         check_version(work,data["expected_version"])

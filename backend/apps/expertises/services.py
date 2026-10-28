@@ -76,6 +76,8 @@ def _set_experts(*,actor,expertise_id,employee_ids,expected_version,reason,reass
     work=get_object_or_404(Expertise.objects.select_for_update(),pk=expertise_id)
     action="expertise.reassign" if reassign else "expertise.assign"
     require_work(actor,action,work);check_version(work,expected_version)
+    from .history import require_operational
+    require_operational(work)
     if work.state not in ("in_progress","suspended"):raise ValidationError("Состав завершённой работы изменяется отдельной процедурой.")
     current=list(work.assignments.select_for_update().all())
     active={a.employee_id:a for a in current if a.ended_at is None}

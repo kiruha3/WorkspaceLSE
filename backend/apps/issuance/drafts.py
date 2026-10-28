@@ -5,6 +5,7 @@ from apps.accounts.commands import execute_once
 from apps.accounts.services import audit, check_version
 from apps.documents.policies import require_document
 from apps.intake.models import Material
+from apps.intake.locking import require_not_issued
 from .models import IssuePackage, PackageRevision, PackageItem
 from .policies import require_material
 from .readiness import DOCUMENT_KINDS
@@ -46,6 +47,7 @@ def create_package(*, actor, material_id, data, key, payload):
     material = get_object_or_404(Material.objects.select_for_update(), pk=material_id)
     require_material(actor, "issue.view", material); require_material(actor, "issue.prepare", material)
     def operation():
+        require_not_issued(material.pk)
         if IssuePackage.objects.filter(material=material).exists(): raise PackageConflict()
         package = IssuePackage.objects.create(material=material, created_by=actor)
         return append_revision(package, actor, data)
@@ -61,6 +63,7 @@ def save_package(*, actor, package_id, data, key, payload):
     def operation():
         check_version(package, data["expected_version"])
         if getattr(package, "issuance", None): raise ValidationError("Материалы уже выданы. Нужна отдельная процедура корректировки.")
+        require_not_issued(material.pk)
         result = append_revision(package, actor, data)
         package.version += 1; package.save(update_fields=["version"])
         return result

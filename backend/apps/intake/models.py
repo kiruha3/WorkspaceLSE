@@ -17,7 +17,7 @@ class Receipt(models.Model):
     basis_document=models.ForeignKey("documents.Document",related_name="receipts",null=True,blank=True,on_delete=models.PROTECT)
     department=models.ForeignKey("references.Department",null=True,blank=True,on_delete=models.PROTECT)
     created_by=models.ForeignKey("personnel.Employee",on_delete=models.PROTECT)
-    status=models.CharField(max_length=20,choices=[("draft","Уточнение комплекта"),("accepted","Принято")],default="draft")
+    status=models.CharField(max_length=20,choices=[("draft","Уточнение комплекта"),("accepted","Принято"),("historical","Перенесено из журнала")],default="draft")
     version=models.PositiveIntegerField(default=1)
     created_at=models.DateTimeField(auto_now_add=True)
 

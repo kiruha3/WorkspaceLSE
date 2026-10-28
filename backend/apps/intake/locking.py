@@ -13,7 +13,12 @@ def locked_receipt(receipt_id):
     return Receipt.objects.select_for_update().get(pk=receipt_id)
 
 
-def require_not_issued(material_id):
+def material_has_issue(material_id):
     from apps.issuance.models import MaterialIssue
-    if MaterialIssue.objects.filter(package__material_id=material_id).exists():
+    from apps.expertises.models import HistoricalWork
+    return MaterialIssue.objects.filter(package__material_id=material_id).exists() or HistoricalWork.objects.filter(expertise__material_id=material_id,issued_on__isnull=False).exists()
+
+
+def require_not_issued(material_id):
+    if material_has_issue(material_id):
         raise ValidationError("Материалы уже выданы. Изменение выданного комплекта требует отдельной процедуры.")
