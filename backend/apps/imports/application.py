@@ -2,6 +2,7 @@ import hashlib
 from datetime import date
 from django.db import transaction,connection,IntegrityError
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from apps.accounts.commands import execute_once,CommandConflict
 from apps.accounts.policies import require,active_employee
@@ -9,6 +10,7 @@ from apps.accounts.services import audit,check_version
 from apps.expertises.history import FIELDS
 from apps.expertises.models import Expertise,ComplexGroup,HistoricalWork,HistoricalParticipant
 from apps.intake.models import Material,Receipt
+from apps.intake.locking import require_not_issued
 from apps.personnel.models import Employee
 from apps.references.models import Department,Specialty
 from .models import ImportBatch,ImportSelection,ImportApplication,ImportApplicationItem
@@ -40,7 +42,9 @@ def source_facts(row):
     if "date_order" in codes:values["completed_on"]=None
     if "work_family_conflict" in codes:values["result_kind"]=None
     for field in ("completed_on","return_decided_on","issued_on"):
-        values[field]=date.fromisoformat(values[field]) if values[field] else None
+        parsed=date.fromisoformat(values[field]) if values[field] else None
+        received=date.fromisoformat(row.facts["received_on"])
+        values[field]=parsed if parsed and received<=parsed<=timezone.localdate() else None
     return values
 
 
@@ -62,11 +66,21 @@ def _apply_selection(*,actor,batch_id,selections,reason,key,payload):
         def operation():
             require_apply(actor)
             if len(selected)!=len(rows):raise ValidationError({"selections":"Сначала явно сохраните сопоставление каждой строки."})
+            previous={item.row_id:item for item in ImportApplicationItem.objects.filter(row_id__in=row_ids).select_related("work")}
+            group_keys={item.complex_group_key for item in selected if item.row_id not in previous and item.complex_group_key}
+            prior_groups={}
+            for item in ImportApplicationItem.objects.filter(row__batch=batch,row__selection__complex_group_key__in=group_keys).select_related("row__selection","work__complex_group"):
+                if item.work.complex_group is None:raise CommandConflict("Ранее применённый состав комплекса изменился; требуется отдельная сверка.")
+                prior_groups[item.row.selection.complex_group_key]=item.work.complex_group
+            # Native issuance/activation also lock Material before references.
+            # Lock all reused materials in a fixed order, then recheck issuance.
+            material_ids={group.material_id for group in prior_groups.values()}
+            for material in Material.objects.select_for_update().filter(pk__in=material_ids).order_by("pk"):
+                require_not_issued(material.pk)
             departments={ref.pk:ref for ref in Department.objects.select_for_update().filter(pk__in=[item.department_id for item in selected]).order_by("pk")}
             specialties={ref.pk:ref for ref in Specialty.objects.select_for_update().filter(pk__in=[item.specialty_id for item in selected if item.specialty_id]).order_by("pk")}
             employee_ids=set(ImportSelection.employees.through.objects.filter(importselection_id__in=[item.pk for item in selected]).values_list("employee_id",flat=True))
             employees={person.pk:person for person in Employee.objects.select_for_update().filter(pk__in=employee_ids).order_by("pk")}
-            previous={item.row_id:item for item in ImportApplicationItem.objects.filter(row_id__in=row_ids).select_related("work")}
             existing={work.registration_number:work for work in Expertise.objects.filter(registration_number__in=[row.facts.get("registration_number") for row in rows])}
             for row in rows:
                 selection=by_row[row.pk];check_version(selection,expected[row.pk])
@@ -85,8 +99,8 @@ def _apply_selection(*,actor,batch_id,selections,reason,key,payload):
                 if selection.complex_group_key:
                     group=groups.get(selection.complex_group_key)
                     if group is None:
-                        prior=ImportApplicationItem.objects.filter(row__batch=batch,row__selection__complex_group_key=selection.complex_group_key).select_related("work__complex_group").first()
-                        if prior:group=prior.work.complex_group
+                        prior=prior_groups.get(selection.complex_group_key)
+                        if prior:group=prior
                         else:
                             material=Material.objects.create(title=f"Исторический комплекс {selection.complex_group_key}",created_by=employee)
                             group=ComplexGroup.objects.create(material=material,title=selection.complex_group_key)

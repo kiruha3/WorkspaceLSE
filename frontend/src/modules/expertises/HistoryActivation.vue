@@ -10,7 +10,7 @@ import ApiMessage from '../../shared/ui/ApiMessage.vue'
 import BasisDocumentForm from '../../shared/BasisDocumentForm.vue'
 import BasisPreview from '../../shared/BasisPreview.vue'
 const props = defineProps<{ expertise: Expertise }>(), emit = defineEmits<{ updated: [value: Expertise] }>()
-const api = useApi(), session = useSessionStore(), requests = new LatestRequest(), documentRequests = new LatestRequest()
+const api = useApi(), session = useSessionStore(), requests = new LatestRequest(), documentRequests = new LatestRequest(), resultRequests = new LatestRequest()
 const available = computed(() => session.journalApplicationEnabled && props.expertise.allowed_actions.includes('imports.history.activate') && session.can('imports.history.activate') && session.can('expertise.register'))
 const canUpload = computed(() => session.can('documents.upload')), editing = ref(false), busy = ref(false), saved = ref(false), uncertain = ref(false)
 const error = ref<unknown>(null), optionsError = ref<unknown>(null), loadingOptions = ref(false), loadingBasis = ref(false)
@@ -18,6 +18,7 @@ const specialties = ref<Reference[]>([]), options = ref<ResultOptions | null>(nu
 const nature = ref<'' | NonNullable<Expertise['appointment_nature']>>(''), commission = ref(''), complexConfirmed = ref(false), specialtyId = ref('')
 const reason = ref(''), pausesComplete = ref(false), openPause = ref(''), pauses = ref<HistoryActivationPayload['past_suspensions']>([])
 const basisMode = ref('existing'), basisId = ref(''), existingBasis = ref<BasisDocument | null>(null)
+const resultMode = ref('existing'), resultId = ref(''), existingResult = ref<BasisDocument | null>(null), loadingResult = ref(false)
 const basisForm = ref<InstanceType<typeof BasisDocumentForm> | null>(null), resultForm = ref<InstanceType<typeof BasisDocumentForm> | null>(null)
 const resultKind = ref<ResultKind | ''>(''), endDate = ref(''), complexity = ref(''), questions = ref(''), categorical = ref(''), probable = ref(''), unresolved = ref('')
 const statistics = ref(false), sndzReason = ref(''), sndzComment = ref(''), returnReason = ref(''), comment = ref('')
@@ -27,16 +28,18 @@ const closed = computed(() => ['completed', 'without_execution'].includes(props.
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Krasnoyarsk', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 const resultKinds = computed<{ value: ResultKind; label: string }[]>(() => props.expertise.category_code === '6' ? [{ value: 'research_act', label: 'Акт экспертного исследования' }] : [{ value: 'expert_conclusion', label: 'Заключение эксперта' }, { value: 'sndz', label: 'Сообщение о невозможности дать заключение' }])
 const evidenceKinds = computed<{ value: DocumentKind; label: string }[]>(() => isReturn.value ? [{ value: 'return_decision', label: 'Решение без исполнения' }] : resultKind.value ? [{ value: resultKind.value, label: resultKinds.value.find(item => item.value === resultKind.value)?.label || 'Итоговый документ' }] : [])
-const stamp = computed(() => JSON.stringify([nature.value, commission.value, complexConfirmed.value, specialtyId.value, reason.value.trim(), pausesComplete.value, openPause.value, pauses.value, basisMode.value, basisId.value, resultKind.value, endDate.value, complexity.value, questions.value, categorical.value, probable.value, unresolved.value, statistics.value, sndzReason.value, sndzComment.value, returnReason.value, comment.value]))
+const stamp = computed(() => JSON.stringify([nature.value, commission.value, complexConfirmed.value, specialtyId.value, reason.value.trim(), pausesComplete.value, openPause.value, pauses.value, basisMode.value, basisId.value, resultMode.value, resultId.value, resultKind.value, endDate.value, complexity.value, questions.value, categorical.value, probable.value, unresolved.value, statistics.value, sndzReason.value, sndzComment.value, returnReason.value, comment.value]))
 const original = ref('')
 const confirmLeave = useDirtyGuard(() => editing.value && !saved.value && (stamp.value !== original.value || busy.value || Boolean(attempt.value) || Boolean(basisForm.value?.dirty || resultForm.value?.dirty)), inject(routerKey, undefined))
 function invalidate() { attempt.value = null; uncertain.value = false; error.value = null }
 watch(stamp, invalidate, { flush: 'sync' })
-watch(basisId, value => { if (existingBasis.value?.id !== value.trim()) existingBasis.value = null }, { flush: 'sync' })
+watch(basisId, value => { documentRequests.cancel(); loadingBasis.value = false; if (existingBasis.value?.id !== value.trim()) existingBasis.value = null }, { flush: 'sync' })
+watch([resultId, resultKind], () => { resultRequests.cancel(); loadingResult.value = false; existingResult.value = null }, { flush: 'sync' })
 const valid = computed(() => {
   if (!editing.value || (!available.value && !uncertain.value) || !reason.value.trim()) return false
   if (uncertain.value && attempt.value) return true
-  if (!nature.value || !commission.value || !complexConfirmed.value || !specialtyId.value || (basisMode.value === 'existing' && !existingBasis.value)) return false
+  if (!nature.value || !commission.value || !complexConfirmed.value || !specialtyId.value || (basisMode.value === 'existing' && existingBasis.value?.id !== basisId.value.trim())) return false
+  if (closed.value && resultMode.value === 'existing' && (!existingResult.value?.versions.length || existingResult.value.id !== resultId.value.trim() || existingResult.value.kind !== (isReturn.value ? 'return_decision' : resultKind.value))) return false
   const validDate = (value: string) => Boolean(value && value >= props.expertise.receipt.received_at && value <= today())
   if (props.expertise.state === 'suspended' && !validDate(openPause.value)) return false
   if (closed.value && (!validDate(endDate.value) || (!isReturn.value && !resultKind.value))) return false
@@ -64,15 +67,28 @@ function start() {
   const numberText = (value: number | null) => value === null ? '' : String(value)
   complexity.value = numberText(history.complexity_level); questions.value = numberText(history.questions); categorical.value = numberText(history.categorical); probable.value = numberText(history.probable); unresolved.value = numberText(history.unresolved)
   statistics.value = history.statistics_confirmed; sndzReason.value = ''; sndzComment.value = ''; returnReason.value = ''; comment.value = ''
+  resultMode.value = canUpload.value ? 'new' : 'existing'; resultId.value = ''; existingResult.value = null
   saved.value = false; editing.value = true; invalidate(); original.value = stamp.value; void loadOptions()
 }
 async function loadBasis() {
   if (busy.value || !basisId.value.trim()) return
   loadingBasis.value = true; error.value = null
-  try { await documentRequests.run(signal => api.request<BasisDocument>(`/documents/${encodeURIComponent(basisId.value.trim())}/`, { signal }), value => {
+  const requestedId = basisId.value.trim()
+  try { await documentRequests.run(signal => api.request<BasisDocument>(`/documents/${encodeURIComponent(requestedId)}/`, { signal }), value => {
+    if (basisId.value.trim() !== requestedId || value.id !== requestedId) return
     if (!['resolution', 'decision'].includes(value.kind) || (value.source_kind === 'uploaded_copy' && !value.versions.length)) throw new ApiError(400, 'basis_invalid', 'Нужно постановление или определение: оригинал либо сохранённая копия.')
     existingBasis.value = value; loadingBasis.value = false
   }) } catch (cause) { error.value = cause; loadingBasis.value = false }
+}
+async function loadResult() {
+  if (busy.value || !resultId.value.trim()) return
+  loadingResult.value = true; error.value = null
+  const requestedId = resultId.value.trim(), expectedKind = isReturn.value ? 'return_decision' : resultKind.value
+  try { await resultRequests.run(signal => api.request<BasisDocument>(`/documents/${encodeURIComponent(requestedId)}/`, { signal }), value => {
+    if (resultId.value.trim() !== requestedId || value.id !== requestedId) return
+    if (value.kind !== expectedKind || !value.versions.length) throw new ApiError(400, 'result_document_invalid', 'Нужен итоговый документ выбранного вида с сохранённым файлом.')
+    existingResult.value = value; loadingResult.value = false
+  }) } catch (cause) { error.value = cause; loadingResult.value = false }
 }
 async function submit() {
   if (!valid.value || busy.value) return
@@ -82,7 +98,7 @@ async function submit() {
     if (!attempt.value) {
       const basis = basisMode.value === 'new' ? await basisForm.value?.persist() : existingBasis.value
       if (!basis) throw new ApiError(400, 'basis_required', 'Подтвердите документ-основание.')
-      const resultDocument = closed.value ? await resultForm.value?.persist() : null
+      const resultDocument = closed.value ? resultMode.value === 'existing' ? existingResult.value : await resultForm.value?.persist() : null
       if (!active || workId !== props.expertise.id) return
       const body: HistoryActivationPayload = { expected_version: props.expertise.version, reason: reason.value.trim(), basis_document_id: basis.id, specialty_id: specialtyId.value,
         appointment_nature: nature.value as NonNullable<Expertise['appointment_nature']>, is_commission: commission.value === 'yes', complex_known: true, complex_group_id: props.expertise.complex_group?.id ?? null,
@@ -104,7 +120,7 @@ async function submit() {
   finally { if (active) busy.value = false }
 }
 function cancel() { if (!busy.value && confirmLeave()) { editing.value = false; saved.value = true; invalidate() } }
-onBeforeUnmount(() => { active = false; requests.cancel(); documentRequests.cancel() })
+onBeforeUnmount(() => { active = false; requests.cancel(); documentRequests.cancel(); resultRequests.cancel() })
 </script>
 <template>
   <section v-if="available || editing" data-history-confirmation class="card stack-card">
@@ -131,7 +147,10 @@ onBeforeUnmount(() => { active = false; requests.cancel(); documentRequests.canc
           <template v-if="!isReturn"><div class="form-columns"><label>Сложность<input v-model="complexity" name="history_complexity" type="number" min="1" /></label><label>Q — вопросов<input v-model="questions" type="number" min="0" /></label><label>R — категорических<input v-model="categorical" type="number" min="0" /></label><label>S — вероятных<input v-model="probable" type="number" min="0" /></label><label>T — нерешённых<input v-model="unresolved" type="number" min="0" /></label></div><label class="check-label"><input v-model="statistics" type="checkbox" />Подтверждаю полноту статистики вопросов</label><label v-if="resultKind === 'sndz'">Причина СНДЗ<select v-model="sndzReason"><option value="">Пока не определена</option><option v-for="ref in options?.sndz_reasons ?? []" :key="ref.id" :value="ref.id">{{ ref.name }}</option></select></label><label v-if="resultKind === 'sndz'">Пояснение СНДЗ<textarea v-model="sndzComment" /></label></template>
           <label v-else>Причина решения<select v-model="returnReason"><option value="">Пока не определена</option><option v-for="ref in options?.return_reasons ?? []" :key="ref.id" :value="ref.id">{{ ref.name }}</option></select></label>
           <label>Примечание к подтверждаемому итогу<textarea v-model="comment" /></label>
-          <div v-if="evidenceKinds.length" data-history-result-document><BasisDocumentForm :key="isReturn ? 'return' : resultKind" ref="resultForm" :department-id="expertise.department.id" :kind-options="evidenceKinds" :require-file="true" :busy="busy" heading="Реальный итоговый документ" saved-note="Подтверждение окончания выполняется отдельно." @changed="invalidate" /></div>
+          <template v-if="evidenceKinds.length"><label>Источник итогового документа<select v-model="resultMode" name="history_result_mode"><option value="existing">Использовать сохранённый документ</option><option v-if="canUpload" value="new">Подкрепить новый документ</option></select></label>
+            <template v-if="resultMode === 'existing'"><div class="button-row"><label class="grow">Код сохранённого итогового документа<input v-model="resultId" name="history_result_id" /></label><button data-load-history-result type="button" :disabled="loadingResult || !resultId.trim()" @click="loadResult">Проверить итоговый документ</button></div><BasisPreview v-if="existingResult" :document="existingResult" /><p v-else class="muted compact">Нужен доступный итоговый документ выбранного вида с сохранённым файлом.</p></template>
+            <div v-else data-history-result-document><BasisDocumentForm :key="isReturn ? 'return' : resultKind" ref="resultForm" :department-id="expertise.department.id" :kind-options="evidenceKinds" :require-file="true" :busy="busy" heading="Реальный итоговый документ" saved-note="Подтверждение окончания выполняется отдельно." @changed="invalidate" /></div>
+          </template>
           <p class="muted compact">Нужен сохранённый файл. Причины нерешённых вопросов уточняются в обычной карточке результата; исходный текст журнала сохраняется.</p>
         </template>
         <label>Основание подтверждения<textarea v-model="reason" name="history_reason" required rows="2" /></label>

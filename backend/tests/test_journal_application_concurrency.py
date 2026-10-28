@@ -1,5 +1,5 @@
-from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
+from concurrent.futures import ThreadPoolExecutor,TimeoutError
+from threading import Barrier,Event
 import pytest
 from django.db import close_old_connections,connection
 from django.test import Client
@@ -40,3 +40,31 @@ def test_concurrent_different_snapshots_of_same_numbers_never_duplicate_or_parti
     assert sorted(statuses)==[201,409]
     assert Expertise.objects.count()==(2 if two_works else 1) and HistoricalWork.objects.count()==(2 if two_works else 1)
     assert ComplexGroup.objects.count()==(1 if two_works else 0)
+
+
+def test_later_packet_waits_for_material_lock_and_rechecks_issue_after_wait(employee_factory,grant,settings,tmp_path):
+    from datetime import date
+    from django.db import transaction
+    from apps.intake.models import Material
+    from apps.references.models import Specialty
+    client,actor,batch,department,specialty=application_setup(employee_factory,grant,settings,tmp_path,[row(),row(B='152/4-1-26',M='19.1.')])
+    other=Specialty.objects.create(code='19.1',name='ДЕМО ·19.1')
+    sources=list(batch.rows.all())
+    for index,(source,ref) in enumerate(zip(sources,[specialty,other])):
+        assert select_row(client,batch,source,selection_body(department,ref,complex_known=True,complex_group_key='same'),f'select-{index}').status_code==200
+    assert apply_rows(client,batch,[sources[0]]).status_code==201
+    work=Expertise.objects.get();started=Event()
+    def run():
+        close_old_connections()
+        try:
+            browser=Client();browser.force_login(actor.user);started.set()
+            return apply_rows(browser,batch,[sources[1]],key='wait-for-issue').status_code
+        finally:connection.close()
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with transaction.atomic():
+            Material.objects.select_for_update().get(pk=work.material_id)
+            future=pool.submit(run);assert started.wait(timeout=5)
+            with pytest.raises(TimeoutError):future.result(timeout=0.7)
+            HistoricalWork.objects.filter(expertise=work).update(issued_on=date(2026,3,7))
+        assert future.result(timeout=10)==400
+    assert Expertise.objects.count()==1

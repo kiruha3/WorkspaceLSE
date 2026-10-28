@@ -206,6 +206,52 @@ def test_later_packet_can_extend_only_its_explicit_complex_group(employee_factor
     assert Expertise.objects.values('material_id').distinct().count()==1
 
 
+@pytest.mark.parametrize('issue_origin',['historical','native'])
+def test_later_complex_packet_cannot_change_issued_material_and_rolls_back_all_rows(employee_factory,grant,settings,tmp_path,issue_origin):
+    from apps.issuance.models import IssuePackage,PackageRevision,PackageCheck,MaterialIssue
+    from apps.references.models import IssueMethod
+    client,actor,batch,department,specialty=application_setup(employee_factory,grant,settings,tmp_path,rows=[row(),row(B='152/4-1-26',M='19.1.'),row(B='153/4-1-26')])
+    other=Specialty.objects.create(code='19.1',name='ДЕМО ·19.1')
+    sources=list(batch.rows.all())
+    for index,(source,ref) in enumerate(zip(sources,[specialty,other,specialty])):
+        assert select_row(client,batch,source,selection_body(department,ref,complex_known=index<2,complex_group_key='same' if index<2 else None),f'select-{index}').status_code==200
+    assert apply_rows(client,batch,[sources[0]]).status_code==201
+    work=Expertise.objects.get()
+    if issue_origin=='historical':HistoricalWork.objects.filter(expertise=work).update(issued_on=date(2026,3,7))
+    else:
+        package=IssuePackage.objects.create(material=work.material,created_by=actor.user)
+        revision=PackageRevision.objects.create(package=package,number=1,actor=actor.user,reason='ДЕМО · ранее принятый комплект')
+        check=PackageCheck.objects.create(package=package,revision=revision,actor=actor.user,reason='ДЕМО · проверка')
+        MaterialIssue.objects.create(package=package,package_check=check,issued_on=date(2026,3,7),method=IssueMethod.objects.create(code='demo',name='ДЕМО'),recipient_name='ДЕМО',recipient_basis='ДЕМО',actor=actor.user,reason='ДЕМО · зафиксированная выдача')
+    response=apply_rows(client,batch,sources[1:],key='late-after-issue')
+    assert response.status_code==400
+    assert Expertise.objects.count()==1 and Receipt.objects.count()==1 and Material.objects.count()==1
+    assert AuditEvent.objects.filter(action='imports.apply').count()==1
+    # Acknowledge the existing link without adding anything to the material.
+    assert apply_rows(client,batch,[sources[0]],key='ack-issued').status_code==201
+
+
+@pytest.mark.parametrize('overrides,field',[
+    ({'P':'01.11.2026'},'completed_on'),
+    ({'W':'Выдано 01.11.2026'},'issued_on'),
+])
+def test_invalid_factual_source_date_remains_unknown_without_dropping_registration(employee_factory,grant,settings,tmp_path,monkeypatch,overrides,field):
+    monkeypatch.setattr('django.utils.timezone.localdate',lambda:date(2026,10,28))
+    client,_,batch,department,specialty=application_setup(employee_factory,grant,settings,tmp_path,rows=[row(**overrides)])
+    source=batch.rows.get();raw=source.raw.copy()
+    assert source.facts[field] is not None
+    assert select_row(client,batch,source,selection_body(department,specialty)).status_code==200
+    assert apply_rows(client,batch,[source]).status_code==201
+    history=HistoricalWork.objects.get();assert getattr(history,field) is None
+    source.refresh_from_db();assert source.raw==raw
+    from apps.expertises.history import historical_facts
+    assert historical_facts(history.expertise)[field] is None
+    if field=='completed_on':
+        data=client.get(f'/api/v1/expertises/{history.expertise_id}/').json()
+        assert data['production']['calendar_days'] is None
+        assert client.get('/api/v1/expertises/',{'calendar_days_min':1}).json()['count']==0
+
+
 def test_noncommission_selection_cannot_confirm_two_current_people(employee_factory,grant,settings,tmp_path):
     client,actor,batch,department,specialty=application_setup(employee_factory,grant,settings,tmp_path)
     other=employee_factory()

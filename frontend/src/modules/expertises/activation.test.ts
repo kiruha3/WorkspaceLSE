@@ -122,6 +122,60 @@ describe('explicit history activation', () => {
     expect(paths.filter(path => path.endsWith('/versions/'))).toHaveLength(1)
   })
 
+  it('discards a late basis lookup when the operator has entered another document ID', async () => {
+    let finish!: (response: Response) => void
+    const writes: string[] = []
+    const { wrapper } = await open({ ...imported, basis_document: null }, async (input, init) => {
+      const path = String(input)
+      if (path.endsWith('/documents/document-a/')) return new Promise<Response>(resolve => { finish = resolve })
+      if (init?.method === 'POST') writes.push(path)
+      return json(page([specialty]))
+    })
+    await fill(wrapper); await wrapper.get('[name="history_basis_mode"]').setValue('existing')
+    await wrapper.get('[name="history_basis_id"]').setValue('document-a'); await wrapper.get('[data-load-history-basis]').trigger('click')
+    await wrapper.get('[name="history_basis_id"]').setValue('document-b')
+    finish(json({ ...basis, id: 'document-a' })); await flushPromises()
+    expect(wrapper.get('[data-confirm-history]').attributes('disabled')).toBeDefined()
+    await wrapper.get('[data-history-form]').trigger('submit'); await flushPromises()
+    expect(writes).toEqual([])
+  })
+
+  it.each(['completed', 'without_execution'] as const)('confirms %s using an existing result file without document-creation permission', async state => {
+    const writes: { path: string; body: any }[] = []
+    const { wrapper, pinia } = await open({ ...imported, state, historical: { ...history, completed_on: state === 'completed' ? '2026-10-06' : null, return_decided_on: state === 'without_execution' ? '2026-10-06' : null } }, async (input, init) => {
+      const path = String(input)
+      if (path.endsWith('/csrf/')) return json({ csrf_token: 't' })
+      if (init?.method === 'POST') { writes.push({ path, body: JSON.parse(String(init.body)) }); return json({ event: { id: 'event' }, expertise: { ...accepted, state } }) }
+      if (path.endsWith('/documents/result-existing/')) return json({ ...basis, id: 'result-existing', kind: state === 'completed' ? 'expert_conclusion' : 'return_decision', versions: [fileVersion] })
+      return json({ result_kinds: [], complexity_groups: [], sndz_reasons: [], unresolved_reasons: [], return_reasons: [] })
+    })
+    delete useSessionStore(pinia).user!.access['documents.upload']; await fill(wrapper)
+    expect(wrapper.find('[data-history-result-document] [name="document_title"]').exists()).toBe(false)
+    await wrapper.get('[name="history_result_id"]').setValue('result-existing')
+    await wrapper.get('[data-load-history-result]').trigger('click'); await flushPromises()
+    await wrapper.get('[data-history-form]').trigger('submit'); await flushPromises()
+    expect(writes.map(item => item.path)).toEqual(['/api/v1/expertises/work-1/activate-history/'])
+    expect((state === 'completed' ? writes[0]!.body.result : writes[0]!.body.return_data).document_id).toBe('result-existing')
+  })
+
+  it.each(['missing_file', 'wrong_kind', 'late_id'] as const)('does not use an invalid existing result: %s', async condition => {
+    let finish!: (response: Response) => void
+    const writes: string[] = []
+    const { wrapper } = await open({ ...imported, state: 'completed', historical: { ...history, completed_on: '2026-10-06' } }, async (input, init) => {
+      const path = String(input)
+      if (path.endsWith('/documents/result-a/')) return new Promise<Response>(resolve => { finish = resolve })
+      if (init?.method === 'POST') writes.push(path)
+      return json({ result_kinds: [], complexity_groups: [], sndz_reasons: [], unresolved_reasons: [], return_reasons: [] })
+    })
+    await fill(wrapper); await wrapper.get('[name="history_result_mode"]').setValue('existing')
+    await wrapper.get('[name="history_result_id"]').setValue('result-a'); await wrapper.get('[data-load-history-result]').trigger('click')
+    if (condition === 'late_id') await wrapper.get('[name="history_result_id"]').setValue('result-b')
+    finish(json({ ...basis, id: 'result-a', kind: condition === 'wrong_kind' ? 'resolution' : 'expert_conclusion', versions: condition === 'missing_file' ? [] : [fileVersion] })); await flushPromises()
+    await wrapper.get('[data-history-form]').trigger('submit'); await flushPromises()
+    expect(writes).toEqual([])
+    expect(wrapper.get('[data-confirm-history]').attributes('disabled')).toBeDefined()
+  })
+
   it('retains a rejected form and adopts a newer work version only explicitly', async () => {
     const bodies: { body: any; key: string | null }[] = []
     const { wrapper } = await open(imported, async (input, init) => {
