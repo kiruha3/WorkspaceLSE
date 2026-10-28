@@ -9,7 +9,7 @@ const batch={id:'batch-1',source_name:'Журнал Google',source_origin:'googl
 const result={status:'preliminary',version:'v1',year:2026,month:9,from:'2026-01-01',to:'2026-09-30',source:{id:'batch-1',name:'Журнал Google',sha256:'abc',row_count:472,created_at:batch.created_at},download_url:'/api/v1/reports/form151/xlsx/?batch_id=batch-1&year=2026&month=9',cells:[{sheet:'Раздел 1',address:'J108',value:321,rows:[4]}],section_coverage:[{section:1,filled:10,unavailable:2,status:'Частично'}],gaps:[{code:'dates',sections:[1],message:'Не указана дата окончания',fields:'P',rows:[4]}]}
 async function open(transport:typeof fetch,actions=['imports.results.view','reports.form151.run','reports.form151.download'],initial='/reports?batch_id=batch-1'){
   const component=(await import('./ReportsPage.vue')).default
-  const pinia=sessionWith(...actions),router=createRouter({history:createMemoryHistory(),routes:[{path:'/reports',component},{path:'/imports',component:{template:'<p>Источники</p>'}},{path:'/imports/:id',component:{template:'<p>Снимок</p>'}}]})
+  const pinia=sessionWith(...actions),router=createRouter({history:createMemoryHistory(),routes:[{path:'/reports',component},{path:'/imports',component:{template:'<p>Источники</p>'}},{path:'/imports/:id',component:{template:'<p>Снимок</p>'}},{path:'/expertises',component:{template:'<p>Реестр</p>'}},{path:'/expertises/:id',component:{template:'<p>Карточка</p>'}}]})
   await router.push(initial);await router.isReady()
   const wrapper=mount(component,{global:{plugins:[pinia,router],provide:{[apiKey as symbol]:new ApiClient(transport)}}})
   await flushPromises();return {wrapper,pinia}
@@ -59,4 +59,39 @@ it('does not request institution source when required access is absent',async()=
   const fetcher=vi.fn(async()=>json(page([batch])))
   const {wrapper}=await open(fetcher,['reports.form151.run'])
   expect(fetcher).not.toHaveBeenCalled();expect(wrapper.find('form').exists()).toBe(false)
+})
+
+it('shows accepted reason columns and links their contributing work in registry',async()=>{
+  const live={...result,source:{type:'registry',id:null,name:'Рабочая база АИС',row_count:1,calculated_at:'2026-10-28T03:00:00Z',data_revision:'abc',excluded_demo_count:0},records:{'work-reason':{id:'work-reason',registration_number:'468/4-6-26'}},cells:[
+    {sheet:'Раздел 1',address:'G108',value:1,rows:['work-reason']},
+    {sheet:'Раздел 2',address:'J107',value:2,rows:['work-reason']},
+    {sheet:'Раздел 4',address:'S107',value:1,rows:['work-reason']}],gaps:[]}
+  const {wrapper}=await open(async()=>json(live),['expertise.view','reports.form151.run'],'/reports')
+  await wrapper.get('form').trigger('submit');await flushPromises()
+  expect(wrapper.findAll('th').map(c=>c.text())).toContain('СНДЗ: вне специальных знаний')
+  await wrapper.get('tbody .report-number').trigger('click');await flushPromises()
+  expect(wrapper.get('a[href="/expertises/work-reason"]').text()).toBe('468/4-6-26')
+  await wrapper.findAll('button').find(b=>b.text()==='2. Вопросы')!.trigger('click')
+  expect(wrapper.findAll('th').map(c=>c.text())).toContain('Недостаточность материалов')
+  expect(wrapper.get('tbody .report-number').text()).toBe('2')
+  await wrapper.findAll('button').find(b=>b.text()==='4. Сложность и возвраты')!.trigger('click')
+  expect(wrapper.findAll('th').map(c=>c.text())).toContain('По запросу назначившего органа')
+  expect(wrapper.text()).not.toContain('Графы причин, повторности и 3214-р ещё не рассчитываются')
+})
+
+it('shows unknown reason as a dash with a concrete card gap, not zero',async()=>{
+  const live={...result,source:{type:'registry',id:null,name:'Рабочая база АИС',row_count:1,calculated_at:'2026-10-28T03:00:00Z',data_revision:'abc',excluded_demo_count:0},records:{'work-unknown':{id:'work-unknown',registration_number:'151/1-1-26'}},cells:[{sheet:'Раздел 1',address:'H108',value:null,rows:['work-unknown']}],gaps:[{code:'sndzReason',sections:[1],message:'Не определена причина полного СНДЗ.',fields:'sndz_reason',rows:['work-unknown']}]}
+  const {wrapper}=await open(async()=>json(live),['expertise.view','reports.form151.run'],'/reports')
+  await wrapper.get('form').trigger('submit');await flushPromises()
+  expect(wrapper.findAll('th').map(c=>c.text())).toContain('СНДЗ: материалы непригодны / недостаточны')
+  expect(wrapper.get('tbody .report-number').text()).toBe('—')
+  expect(wrapper.get('.report-gap').text()).toContain('Не определена причина полного СНДЗ.')
+  expect(wrapper.get('a[href="/expertises/work-unknown"]').text()).toBe('151/1-1-26')
+})
+
+it('does not advertise structured reason totals for journal snapshots',async()=>{
+  const {wrapper}=await open(async input=>json(String(input).includes('/imports/')?page([batch]):result))
+  await wrapper.get('form').trigger('submit');await flushPromises()
+  expect(wrapper.findAll('th').map(c=>c.text())).not.toContain('СНДЗ: вне специальных знаний')
+  expect(wrapper.text()).toContain('Графы причин, повторности и 3214-р ещё не рассчитываются')
 })

@@ -2,6 +2,7 @@
 import calendar
 from datetime import date
 from apps.imports.normalization import text, label, read_date
+from .reason_columns import SNDZ_COLUMNS,UNRESOLVED_COLUMNS,RETURN_COLUMNS,EXTRA_COLUMNS,unresolved_counts
 
 VERSION = "form151-journal-v1"
 SPECIALTIES = {"1.1": [11], "3.1": [13,14], "13.1": [49,50], "16.1": [58,59], "16.2": [58,60], "18.1": [65], "19.1": [66,67]}
@@ -52,8 +53,9 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
     physical=lambda section,r: r if section in (1,5) else r-1
     cells={};gaps={};plan=294 if year==2026 else None
     for section,columns in COLUMNS.items():
+        columns=[*columns.split(),*(EXTRA_COLUMNS.get(section,()) if mode=='registry' else ())]
         for r in sorted({108,*[i for rs in SPECIALTIES.values() for i in rs]}):
-            for col in columns.split():
+            for col in columns:
                 addr=f"{col}{physical(section,r)}"
                 cells[section,addr]={"sheet":f"Раздел {section}","address":addr,"value":(plan if r==108 else None) if section==6 and col=="D" else 0,"rows":[]}
     def gap(code,sections,message,fields="",source_row=None):
@@ -66,7 +68,8 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
         ("decree3214",[1],"Нет признака выполнения по распоряжению 3214-р.","decree3214"),
         ("methodical",[7],"Учебно-методическая работа отсутствует в этом журнале.","methodical_register"),
         ("lawsuits",[8],"Иски к учреждению и выплаты отсутствуют в этом журнале.","lawsuits_register"),
-        ("plan",[6],"Нет разбивки годового плана по специальностям." if plan is not None else f"Не указан годовой план на {year}.","state_assignment_plan")]:gap(*args)
+        ("plan",[6],"Нет разбивки годового плана по специальностям." if plan is not None else f"Не указан годовой план на {year}.","state_assignment_plan")]:
+        if mode=='journal' or args[0]!='reasons':gap(*args)
     if not opening_balances_complete:gap("openingCoverage",[1],"Не подтверждена полнота журнала: остатки на начало и конец оставлены пустыми.","opening_balances_complete")
     for row in rows:
         f,raw=row.facts,row.raw; state=f.get("state");returned=state=="without_execution"
@@ -148,6 +151,16 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
             gap("questions",[2],"Неизвестные или противоречивые количества вопросов Q/R/S/T.","Q, R, S, T",row.source_row)
         for col,n in zip("DEFGH",(q,None if cat is None or prob is None else cat+prob,cat,prob,unresolved)):
             put(2,col,[finish,is_kind("result")],None if inconsistent else n)
+        if mode=='registry':
+            sndz_reason=f.get('sndz_reason');return_reason=f.get('return_reason')
+            allocated=unresolved_counts(f,inconsistent=inconsistent)
+            for code,col in SNDZ_COLUMNS.items():put(1,col,[finish,sndz],None if sndz_reason not in SNDZ_COLUMNS else int(sndz_reason==code))
+            for code,col in UNRESOLVED_COLUMNS.items():put(2,col,[finish,is_kind('result')],None if allocated is None else allocated[code])
+            for code,col in RETURN_COLUMNS.items():put(4,col,[returned,finish],None if return_reason not in RETURN_COLUMNS else int(return_reason==code))
+            if finish is not False:
+                if sndz is True and sndz_reason not in SNDZ_COLUMNS:gap('sndzReason',[1],'Причина полного СНДЗ не указана или не сопоставлена бланку.','ResultRevision.sndz_reason',row.source_row)
+                if is_kind('result') is True and allocated is None:gap('unresolvedReasons',[2],'Нет полного согласованного распределения нерешённых вопросов по причинам бланка.','unresolved / allocations_complete / unresolved_allocations',row.source_row)
+                if returned and return_reason not in RETURN_COLUMNS:gap('returnReason',[4],'Причина решения без исполнения не указана или не сопоставлена бланку.','WorkClosure.return_reason',row.source_row)
         days=(completed-received).days+1 if received and completed else None
         for col,band in zip("DEF",range(3)):
             put(3,col,[finish,expertise,None if days is None else (0 if days<=30 else 1 if days<=60 else 2)==band])

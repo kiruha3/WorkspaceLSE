@@ -11,11 +11,12 @@ import json
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import OuterRef,Subquery,F
 from django.db.models.functions import JSONObject
+from django.contrib.postgres.expressions import ArraySubquery
 from django.utils import timezone
-from apps.expertises.models import Expertise,WorkClosure
+from apps.expertises.models import Expertise,WorkClosure,UnresolvedAllocation
 from .calculation import calculate
 
-VERSION='form151-registry-v1'
+VERSION='form151-registry-v2'
 RESULT_FIELDS=('result_kind','completed_on','return_decided_on','complexity_level','questions','categorical','probable','unresolved','authority_type')
 COUNT_FIELDS=('complexity_level','questions','categorical','probable','unresolved')
 
@@ -28,9 +29,13 @@ class ReportRecord:
 
 
 def calculate_registry(*,year,month,opening_balances_complete=False):
+    allocations=UnresolvedAllocation.objects.filter(result_id=OuterRef('result_id')).order_by('reason__code').annotate(
+        payload=JSONObject(reason=F('reason__code'),count=F('count'))
+    ).values('payload')
     accepted=WorkClosure.objects.filter(expertise_id=OuterRef('pk')).order_by('-number').annotate(
         payload=JSONObject(id=F('pk'),number=F('number'),kind=F('kind'),ended_on=F('ended_on'),
             result_kind=F('result__kind'),sndz_reason=F('result__sndz_reason__code'),return_reason=F('return_reason__code'),
+            allocations_complete=F('result__allocations_complete'),unresolved_allocations=ArraySubquery(allocations),
             **{field:F('result__'+field) for field in COUNT_FIELDS})
     ).values('payload')[:1]
     fields=('id','registration_number','category_code','state','origin_kind','receipt__received_at','department__code',
@@ -48,6 +53,7 @@ def calculate_registry(*,year,month,opening_balances_complete=False):
             category_code=item['category_code'],state=item['state'],department_code=item['department__code'],specialty_code=item['specialty__code'])
         if closure:
             facts.update({field:closure[field] for field in COUNT_FIELDS})
+            facts.update({field:closure[field] for field in ('sndz_reason','return_reason','allocations_complete','unresolved_allocations')})
             facts['result_kind']=closure['result_kind']
             facts['completed_on']=closure['ended_on'] if closure['kind']=='completed' else None
             facts['return_decided_on']=closure['ended_on'] if closure['kind']=='without_execution' else None
@@ -63,7 +69,6 @@ def calculate_registry(*,year,month,opening_balances_complete=False):
             extra.append(key)
     report=calculate(rows,year,month,opening_balances_complete,mode='registry')
     for gap in report['gaps']:
-        if gap['code']=='reasons':gap['message']='Графы причин ещё не рассчитываются: структурированные причины из рабочих результатов и текстовые отметки истории нужно сопоставить бланку.'
         if gap['code']=='deadlines':gap['message']='Причины превышения 30 дней и учёт согласований в форме 15.1 ещё не сопоставлены.'
         if gap['code']=='repeated':gap['message']='Графы повторности и проверки прежних выводов ещё не рассчитываются; сохранённые признаки регистрации не потеряны.'
         if gap['code']=='returnDate':gap.update(message='Не указана дата решения без исполнения. Дата выдачи не заменяет её.',fields='return_decided_on / WorkClosure.ended_on')
@@ -71,7 +76,7 @@ def calculate_registry(*,year,month,opening_balances_complete=False):
         if gap['code']=='questions':gap['fields']='questions, categorical, probable, unresolved'
         if gap['code']=='specialty':gap['fields']='specialty_id'
     if extra:report['gaps'].append({'code':'unaccepted_end','sections':list(range(1,7)),'message':'У открытой работы сохранена историческая дата окончания. Без закрытого состояния она не включена в законченные работы.','fields':'state / completed_on / return_decided_on','rows':extra})
-    revision=hashlib.sha256(json.dumps({'records':fingerprint,'excluded_demo_count':excluded},sort_keys=True,cls=DjangoJSONEncoder).encode()).hexdigest()
+    revision=hashlib.sha256(json.dumps({'version':VERSION,'records':fingerprint,'excluded_demo_count':excluded},sort_keys=True,cls=DjangoJSONEncoder).encode()).hexdigest()
     report.update(version=VERSION,records=records,data_revision=revision,
         source={'type':'registry','id':None,'name':'Рабочая база АИС','row_count':len(rows),'excluded_demo_count':excluded,'data_revision':revision,'calculated_at':timezone.now().isoformat()})
     return report
