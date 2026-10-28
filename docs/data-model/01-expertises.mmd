@@ -1,0 +1,136 @@
+erDiagram
+    direction TB
+    table30["expertises_complexgroup"] {
+        uuid id PK
+        uuid material_id FK
+    }
+    table46["intake_material"] {
+        uuid id PK
+    }
+    table31["expertises_deadlineevent"] {
+        uuid id PK
+        uuid actor_id FK
+        uuid document_id FK "NULL допустим"
+        uuid expertise_id FK
+    }
+    table28["documents_document"] {
+        uuid id PK
+    }
+    table33["expertises_expertise"] {
+        uuid id PK
+        uuid complex_group_id FK "NULL допустим"
+        uuid department_id FK
+        uuid material_id FK
+        uuid receipt_id FK
+        uuid registered_by_id FK
+        uuid specialty_id FK "NULL допустим"
+    }
+    table3["accounts_user"] {
+        uuid id PK
+    }
+    table32["expertises_expertassignment"] {
+        uuid id PK
+        uuid actor_id FK
+        uuid employee_id FK
+        uuid expertise_id FK
+    }
+    table55["personnel_employee"] {
+        uuid id PK
+    }
+    table61["references_department"] {
+        uuid id PK
+    }
+    table47["intake_receipt"] {
+        uuid id PK
+    }
+    table69["references_specialty"] {
+        uuid id PK
+    }
+    table34["expertises_historicalparticipant"] {
+        uuid id PK
+        uuid employee_id FK
+        uuid history_id FK
+    }
+    table35["expertises_historicalwork"] {
+        uuid id PK
+        uuid actor_id FK
+        uuid expertise_id FK, UK
+        uuid source_row_id FK
+    }
+    table43["imports_importrow"] {
+        uuid id PK
+    }
+    table36["expertises_resultrevision"] {
+        uuid id PK
+        uuid actor_id FK
+        uuid document_id FK "NULL допустим"
+        uuid expertise_id FK
+        uuid sndz_reason_id FK "NULL допустим"
+    }
+    table68["references_sndzreason"] {
+        uuid id PK
+    }
+    table37["expertises_suspension"] {
+        uuid id PK
+        uuid actor_id FK
+        uuid expertise_id FK
+        uuid resumed_by_id FK "NULL допустим"
+    }
+    table38["expertises_unresolvedallocation"] {
+        uuid id PK
+        uuid document_id FK "NULL допустим"
+        uuid reason_id FK
+        uuid result_id FK
+    }
+    table70["references_unresolvedquestionreason"] {
+        uuid id PK
+    }
+    table39["expertises_workclosure"] {
+        uuid id PK
+        uuid actor_id FK
+        uuid document_id FK
+        uuid expertise_id FK
+        uuid result_id FK "NULL допустим"
+        uuid return_reason_id FK "NULL допустим"
+        uuid accepted_version_id FK "NULL допустим"
+    }
+    table29["documents_fileversion"] {
+        uuid id PK
+    }
+    table67["references_returnreason"] {
+        uuid id PK
+    }
+    table46 ||--o{ table30 : "material_id"
+    table28 o|..o{ table31 : "document_id"
+    table33 ||--o{ table31 : "expertise_id"
+    table3 ||--o{ table31 : "actor_id"
+    table3 ||--o{ table32 : "actor_id"
+    table55 ||--o{ table32 : "employee_id"
+    table33 ||--o{ table32 : "expertise_id"
+    table30 o|..o{ table33 : "complex_group_id"
+    table61 ||--o{ table33 : "department_id"
+    table46 ||--o{ table33 : "material_id"
+    table47 ||--o{ table33 : "receipt_id"
+    table3 ||--o{ table33 : "registered_by_id"
+    table69 o|..o{ table33 : "specialty_id"
+    table55 ||--o{ table34 : "employee_id"
+    table35 ||--o{ table34 : "history_id"
+    table33 ||--o| table35 : "expertise_id"
+    table43 ||--o{ table35 : "source_row_id"
+    table3 ||--o{ table35 : "actor_id"
+    table28 o|..o{ table36 : "document_id"
+    table33 ||--o{ table36 : "expertise_id"
+    table68 o|..o{ table36 : "sndz_reason_id"
+    table3 ||--o{ table36 : "actor_id"
+    table33 ||--o{ table37 : "expertise_id"
+    table3 o|..o{ table37 : "resumed_by_id"
+    table3 ||--o{ table37 : "actor_id"
+    table28 o|..o{ table38 : "document_id"
+    table70 ||--o{ table38 : "reason_id"
+    table36 ||--o{ table38 : "result_id"
+    table29 o|..o{ table39 : "accepted_version_id"
+    table28 ||--o{ table39 : "document_id"
+    table33 ||--o{ table39 : "expertise_id"
+    table36 o|..o{ table39 : "result_id"
+    table67 o|..o{ table39 : "return_reason_id"
+    table3 ||--o{ table39 : "actor_id"

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="670" viewBox="0 0 900 670" role="img" aria-labelledby="title desc">
+<title id="title">Как устроены связи таблиц АИС</title>
+<desc id="desc">Три реальных примера: учётная запись и сотрудник один к одному, документ и версии файлов один ко многим, сотрудники и специальности многие ко многим через personnel_employeespecialty.</desc>
+<style>:root{color-scheme:light dark;--ink:light-dark(#17392f,#e8f3ed);--muted:light-dark(#4c665d,#b5c9bf);--paper:light-dark(#ffffff,#15231d);--surface:light-dark(#f5f8f4,#20372b);--line:light-dark(#cad8cf,#526e5d)}text{font-family:'Segoe UI',sans-serif;font-size:14px;fill:var(--ink)}.title{font-size:22px;font-weight:500}.label{font-size:18px;font-weight:500}.hint{font-size:12px;fill:var(--muted)}.box{fill:var(--surface);stroke:var(--line)}.edge{fill:none;stroke:var(--muted);stroke-width:1.5}</style>
+<rect width="900" height="670" fill="var(--paper)"/>
+<text class="title" x="18" y="32">Связи таблиц — на реальных примерах нашей БД</text>
+<text class="hint" x="18" y="55">71 таблица · 151 FK · 9 уникальных FK · структура PostgreSQL на 28.10.2026</text>
+<text class="label" x="18" y="95">1:1 — один к одному</text>
+<rect class="box" x="18" y="115" width="300" height="67" rx="6"/><text x="34" y="140">accounts_user</text><text class="hint" x="34" y="163">PK id · учётная запись</text>
+<path class="edge" d="M318 148 H570"/><text x="345" y="137">0..1</text><text x="523" y="137">0..1</text>
+<rect class="box" x="570" y="115" width="312" height="67" rx="6"/><text x="586" y="140">personnel_employee</text><text class="hint" x="586" y="163">PK id · FK user_id + UNIQUE</text>
+<text class="hint" x="18" y="204">Связь необязательна: сотрудник может быть без логина, учётная запись — без карточки сотрудника.</text>
+<text class="label" x="18" y="250">1:N — один ко многим</text>
+<rect class="box" x="18" y="270" width="300" height="67" rx="6"/><text x="34" y="295">documents_document</text><text class="hint" x="34" y="318">PK id · документ</text>
+<path class="edge" d="M318 303 H570"/><text x="345" y="292">1</text><text x="523" y="292">0..N</text>
+<rect class="box" x="570" y="270" width="312" height="67" rx="6"/><text x="586" y="295">documents_fileversion</text><text class="hint" x="586" y="318">PK id · FK document_id</text>
+<text class="hint" x="18" y="359">У документа может быть несколько версий файла. Каждая версия относится ровно к одному документу.</text>
+<text class="label" x="18" y="405">N:M — многие ко многим через связующую таблицу</text>
+<rect class="box" x="18" y="435" width="226" height="100" rx="6"/><text x="30" y="461">personnel_employee</text><text class="hint" x="30" y="486">PK id</text><text class="hint" x="30" y="508">Сотрудник</text>
+<path class="edge" d="M244 480 H335"/><text x="253" y="467">1</text><text x="299" y="467">0..N</text>
+<rect class="box" x="335" y="430" width="266" height="164" rx="6"/><text x="347" y="456">personnel_employeespecialty</text><text class="hint" x="347" y="481">PK id</text><text class="hint" x="347" y="504">FK employee_id</text><text class="hint" x="347" y="527">FK specialty_id</text><text class="hint" x="347" y="550">status · даты · основание</text><text class="hint" x="347" y="575">UNIQUE (employee_id, specialty_id)</text>
+<path class="edge" d="M601 480 H694"/><text x="610" y="467">0..N</text><text x="672" y="467">1</text>
+<rect class="box" x="694" y="435" width="188" height="100" rx="6"/><text x="705" y="461">references_specialty</text><text class="hint" x="705" y="486">PK id</text><text class="hint" x="705" y="508">Специальность</text>
+<text class="hint" x="18" y="625">Много специальностей у сотрудника; много сотрудников у специальности. Две связи 1:N дают N:M.</text>
+<text class="hint" x="18" y="648">PK — первичный ключ · FK — внешний ключ · UNIQUE — уникальность · 0..1 — связь может отсутствовать.</text>
+</svg>

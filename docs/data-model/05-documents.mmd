@@ -1,0 +1,22 @@
+erDiagram
+    direction TB
+    table28["documents_document"] {
+        uuid id PK
+        uuid created_by_id FK
+        uuid department_id FK "NULL допустим"
+    }
+    table55["personnel_employee"] {
+        uuid id PK
+    }
+    table61["references_department"] {
+        uuid id PK
+    }
+    table29["documents_fileversion"] {
+        uuid id PK
+        uuid created_by_id FK
+        uuid document_id FK
+    }
+    table55 ||--o{ table28 : "created_by_id"
+    table61 o|..o{ table28 : "department_id"
+    table55 ||--o{ table29 : "created_by_id"
+    table28 ||--o{ table29 : "document_id"

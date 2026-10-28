@@ -1,0 +1,173 @@
+erDiagram
+    direction TB
+    table10["correspondence_controlevent"] {
+        uuid id PK
+        uuid actor_id FK
+        uuid closure_reason_id FK "NULL допустим"
+        uuid reply_id FK "NULL допустим"
+        uuid control_id FK
+    }
+    table55["personnel_employee"] {
+        uuid id PK
+    }
+    table60["references_controlclosurereason"] {
+        uuid id PK
+    }
+    table11["correspondence_controltask"] {
+        uuid id PK
+        uuid letter_id FK, UK
+    }
+    table12["correspondence_letter"] {
+        uuid id PK
+        uuid created_by_id FK
+        uuid department_id FK "NULL допустим"
+        uuid responsible_id FK "NULL допустим"
+        uuid current_revision_id FK "NULL допустим"
+    }
+    table23["correspondence_letterrevision"] {
+        uuid id PK
+        uuid actor_id FK
+        uuid kind_id FK "NULL допустим"
+        uuid letter_id FK
+        uuid material_id FK "NULL допустим"
+        uuid parent_id FK "NULL допустим"
+    }
+    table61["references_department"] {
+        uuid id PK
+    }
+    table13["correspondence_letterassignment"] {
+        uuid id PK
+        uuid actor_id FK
+        uuid letter_id FK
+        uuid previous_id FK "NULL допустим"
+        uuid responsible_id FK
+    }
+    table14["correspondence_letterattachment"] {
+        uuid id PK
+        uuid actor_id FK
+        uuid document_id FK
+        uuid letter_id FK
+    }
+    table28["documents_document"] {
+        uuid id PK
+    }
+    table15["correspondence_letterdelivery"] {
+        uuid id PK
+        uuid accepted_version_id FK "NULL допустим"
+        uuid actor_id FK
+        uuid evidence_document_id FK "NULL допустим"
+        uuid recipient_id FK
+        uuid dispatch_id FK
+    }
+    table29["documents_fileversion"] {
+        uuid id PK
+    }
+    table16["correspondence_letterdispatch"] {
+        uuid id PK
+        uuid accepted_version_id FK "NULL допустим"
+        uuid actor_id FK
+        uuid channel_id FK
+        uuid evidence_document_id FK "NULL допустим"
+        uuid letter_id FK
+    }
+    table20["correspondence_letterrecipient"] {
+        uuid id PK
+        uuid revision_id FK
+    }
+    table62["references_dispatchchannel"] {
+        uuid id PK
+    }
+    table17["correspondence_letterdispatch_recipients"] {
+        int id PK
+        uuid letterdispatch_id FK
+        uuid letterrecipient_id FK
+    }
+    table18["correspondence_letterdispatchfile"] {
+        int id PK
+        uuid dispatch_id FK
+        uuid file_version_id FK
+    }
+    table19["correspondence_letterreceipt"] {
+        uuid id PK
+        uuid accepted_version_id FK "NULL допустим"
+        uuid actor_id FK
+        uuid evidence_document_id FK "NULL допустим"
+        uuid letter_id FK, UK
+    }
+    table21["correspondence_letterregistration"] {
+        uuid id PK
+        uuid actor_id FK
+        uuid journal_id FK
+        uuid letter_id FK, UK
+        uuid revision_id FK
+    }
+    table64["references_letterjournal"] {
+        uuid id PK
+    }
+    table22["correspondence_letterregistrationfile"] {
+        int id PK
+        uuid file_version_id FK
+        uuid registration_id FK
+    }
+    table65["references_letterkind"] {
+        uuid id PK
+    }
+    table46["intake_material"] {
+        uuid id PK
+    }
+    table24["correspondence_letterrevision_expertises"] {
+        int id PK
+        uuid letterrevision_id FK
+        uuid expertise_id FK
+    }
+    table33["expertises_expertise"] {
+        uuid id PK
+    }
+    table55 ||--o{ table10 : "actor_id"
+    table60 o|..o{ table10 : "closure_reason_id"
+    table11 ||--o{ table10 : "control_id"
+    table12 o|..o{ table10 : "reply_id"
+    table12 ||--o| table11 : "letter_id"
+    table55 ||--o{ table12 : "created_by_id"
+    table23 o|..o{ table12 : "current_revision_id"
+    table61 o|..o{ table12 : "department_id"
+    table55 o|..o{ table12 : "responsible_id"
+    table55 ||--o{ table13 : "actor_id"
+    table12 ||--o{ table13 : "letter_id"
+    table55 o|..o{ table13 : "previous_id"
+    table55 ||--o{ table13 : "responsible_id"
+    table55 ||--o{ table14 : "actor_id"
+    table28 ||--o{ table14 : "document_id"
+    table12 ||--o{ table14 : "letter_id"
+    table29 o|..o{ table15 : "accepted_version_id"
+    table55 ||--o{ table15 : "actor_id"
+    table16 ||--o{ table15 : "dispatch_id"
+    table28 o|..o{ table15 : "evidence_document_id"
+    table20 ||--o{ table15 : "recipient_id"
+    table29 o|..o{ table16 : "accepted_version_id"
+    table55 ||--o{ table16 : "actor_id"
+    table62 ||--o{ table16 : "channel_id"
+    table28 o|..o{ table16 : "evidence_document_id"
+    table12 ||--o{ table16 : "letter_id"
+    table16 ||--o{ table17 : "letterdispatch_id"
+    table20 ||--o{ table17 : "letterrecipient_id"
+    table16 ||--o{ table18 : "dispatch_id"
+    table29 ||--o{ table18 : "file_version_id"
+    table29 o|..o{ table19 : "accepted_version_id"
+    table55 ||--o{ table19 : "actor_id"
+    table28 o|..o{ table19 : "evidence_document_id"
+    table12 ||--o| table19 : "letter_id"
+    table23 ||--o{ table20 : "revision_id"
+    table55 ||--o{ table21 : "actor_id"
+    table64 ||--o{ table21 : "journal_id"
+    table12 ||--o| table21 : "letter_id"
+    table23 ||--o{ table21 : "revision_id"
+    table29 ||--o{ table22 : "file_version_id"
+    table21 ||--o{ table22 : "registration_id"
+    table55 ||--o{ table23 : "actor_id"
+    table65 o|..o{ table23 : "kind_id"
+    table12 ||--o{ table23 : "letter_id"
+    table46 o|..o{ table23 : "material_id"
+    table12 o|..o{ table23 : "parent_id"
+    table33 ||--o{ table24 : "expertise_id"
+    table23 ||--o{ table24 : "letterrevision_id"

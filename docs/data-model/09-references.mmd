@@ -1,0 +1,37 @@
+erDiagram
+    direction TB
+    table60["references_controlclosurereason"] {
+        uuid id PK
+    }
+    table61["references_department"] {
+        uuid id PK
+    }
+    table62["references_dispatchchannel"] {
+        uuid id PK
+    }
+    table63["references_issuemethod"] {
+        uuid id PK
+    }
+    table64["references_letterjournal"] {
+        uuid id PK
+        uuid department_id FK "NULL допустим"
+    }
+    table65["references_letterkind"] {
+        uuid id PK
+    }
+    table66["references_position"] {
+        uuid id PK
+    }
+    table67["references_returnreason"] {
+        uuid id PK
+    }
+    table68["references_sndzreason"] {
+        uuid id PK
+    }
+    table69["references_specialty"] {
+        uuid id PK
+    }
+    table70["references_unresolvedquestionreason"] {
+        uuid id PK
+    }
+    table61 o|..o{ table64 : "department_id"

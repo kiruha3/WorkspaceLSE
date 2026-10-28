@@ -1,0 +1,47 @@
+erDiagram
+    direction TB
+    batch["Неизменяемый снимок Google / файла"] {
+        uuid id PK
+        string source_sha256
+        string origin_url
+        datetime source_observed_at
+    }
+    row["Исходная строка"] {
+        uuid id PK
+        uuid batch_id FK
+        int source_row
+        json raw
+        json facts
+        json diagnostics
+    }
+    selection["Подтверждённое сопоставление"] {
+        uuid id PK
+        uuid row_id FK, UK
+        uuid department_id FK
+        uuid specialty_id FK
+        int version
+        string reason
+    }
+    application["Протокол атомарного переноса"]
+    item["Связь исходной строки и рабочей записи"]
+    expertise["Экспертиза в общем реестре"]
+    history["Типизированные исторические факты"] {
+        uuid id PK
+        uuid expertise_id FK, UK
+        uuid source_row_id FK
+        bool operational
+        bool suspension_history_complete
+        bool statistics_confirmed
+    }
+    participant["Подтверждённый исторический участник"]
+    employee["Существующий сотрудник"]
+    batch ||--o{ row : "содержит"
+    row ||--o| selection : "отдельный выбор оператора"
+    batch ||--o{ application : "подтверждённые пакеты"
+    application ||--o{ item : "созданные связи"
+    row ||--o| item : "не применяется повторно"
+    expertise ||--o{ item : "реальная рабочая запись"
+    expertise ||--o| history : "происхождение и пробелы"
+    row ||--o{ history : "неизменяемый источник"
+    history ||--o{ participant : "не живое назначение"
+    employee ||--o{ participant : "явная связь"

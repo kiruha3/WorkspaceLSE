@@ -1,0 +1,54 @@
+erDiagram
+    direction TB
+    table55["personnel_employee"] {
+        uuid id PK
+        uuid user_id FK, UK "NULL допустим"
+    }
+    table3["accounts_user"] {
+        uuid id PK
+    }
+    table56["personnel_employeeorgassignment"] {
+        uuid id PK
+        uuid department_id FK
+        uuid employee_id FK
+        uuid position_id FK
+    }
+    table61["references_department"] {
+        uuid id PK
+    }
+    table66["references_position"] {
+        uuid id PK
+    }
+    table57["personnel_employeerole"] {
+        uuid id PK
+        uuid employee_id FK
+        uuid role_id FK
+    }
+    table1["accounts_role"] {
+        uuid id PK
+    }
+    table58["personnel_employeerole_departments"] {
+        int id PK
+        uuid employeerole_id FK
+        uuid department_id FK
+    }
+    table59["personnel_employeespecialty"] {
+        uuid id PK
+        uuid employee_id FK
+        uuid mentor_id FK "NULL допустим"
+        uuid specialty_id FK
+    }
+    table69["references_specialty"] {
+        uuid id PK
+    }
+    table3 o|..o| table55 : "user_id"
+    table61 ||--o{ table56 : "department_id"
+    table55 ||--o{ table56 : "employee_id"
+    table66 ||--o{ table56 : "position_id"
+    table55 ||--o{ table57 : "employee_id"
+    table1 ||--o{ table57 : "role_id"
+    table61 ||--o{ table58 : "department_id"
+    table57 ||--o{ table58 : "employeerole_id"
+    table55 ||--o{ table59 : "employee_id"
+    table55 o|..o{ table59 : "mentor_id"
+    table69 ||--o{ table59 : "specialty_id"

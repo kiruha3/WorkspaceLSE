@@ -1,0 +1,71 @@
+erDiagram
+    direction TB
+    material["Материал / общее дело"] {
+        uuid id PK
+        string title
+    }
+    receipt["Поступление"] {
+        uuid id PK
+        uuid material_id FK
+        uuid basis_document_id FK "Может отсутствовать в историческом переносе"
+        date received_at
+        string status
+    }
+    expertise["Экспертиза — один регистрационный номер"] {
+        uuid id PK
+        string registration_number UK "Исходный номер не переписывается"
+        string historical_number "Прежний номер другой организации"
+        uuid department_id FK "Текущая ответственность — разделение дорабатывается"
+        uuid specialty_id FK "В истории может быть неизвестна"
+        string category_code "1 уголовное; 2 гражданское; 3 арбитраж; 4 КоАП; 5 КУСП; 6 исследование"
+        string state
+        string origin_kind
+    }
+    complexGroup["Комплекс работ"] {
+        uuid id PK
+        uuid material_id FK
+    }
+    assignment["Назначение / перепоручение"] {
+        uuid id PK
+        uuid expertise_id FK
+        uuid employee_id FK
+        datetime started_at
+        datetime ended_at "Пусто — действующее назначение"
+        json qualification_snapshot
+    }
+    employee["Сотрудник"]
+    department["Текущий отдел"]
+    specialty["Специальность"]
+    suspension["Интервал приостановки"]
+    deadline["Событие срока"]
+    result["Редакция результата"] {
+        uuid id PK
+        uuid expertise_id FK
+        string kind "Заключение / СНДЗ / акт исследования"
+        date completed_on
+        int questions
+        int categorical
+        int probable
+        int unresolved
+    }
+    closure["Подтверждённое окончание / без исполнения"] {
+        uuid id PK
+        uuid expertise_id FK
+        uuid result_id FK "Необязательно для решения без исполнения"
+        uuid accepted_version_id FK "Закреплённая версия файла"
+        date ended_on
+    }
+    material ||--o{ receipt : "поступает"
+    material ||--o{ expertise : "объединяет работы"
+    receipt ||--o{ expertise : "основание регистрации"
+    material ||--o{ complexGroup : "содержит комплексы"
+    complexGroup o|--o{ expertise : "номер на специальность"
+    department ||--o{ expertise : "отвечает сейчас"
+    specialty o|--o{ expertise : "вид исследования"
+    expertise ||--o{ assignment : "история состава"
+    employee ||--o{ assignment : "исполняет"
+    expertise ||--o{ suspension : "история пауз"
+    expertise ||--o{ deadline : "история сроков"
+    expertise ||--o{ result : "редакции"
+    expertise ||--o{ closure : "подтверждения"
+    result o|--o{ closure : "принятый результат"

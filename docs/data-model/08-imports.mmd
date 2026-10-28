@@ -1,0 +1,61 @@
+erDiagram
+    direction TB
+    table40["imports_importapplication"] {
+        uuid id PK
+        uuid actor_id FK
+        uuid batch_id FK
+    }
+    table42["imports_importbatch"] {
+        uuid id PK
+        uuid uploaded_by_id FK
+    }
+    table3["accounts_user"] {
+        uuid id PK
+    }
+    table41["imports_importapplicationitem"] {
+        uuid id PK
+        uuid application_id FK
+        uuid row_id FK, UK
+        uuid work_id FK
+    }
+    table43["imports_importrow"] {
+        uuid id PK
+        uuid batch_id FK
+    }
+    table33["expertises_expertise"] {
+        uuid id PK
+    }
+    table44["imports_importselection"] {
+        uuid id PK
+        uuid actor_id FK
+        uuid department_id FK
+        uuid row_id FK, UK
+        uuid specialty_id FK "NULL допустим"
+    }
+    table61["references_department"] {
+        uuid id PK
+    }
+    table69["references_specialty"] {
+        uuid id PK
+    }
+    table45["imports_importselection_employees"] {
+        int id PK
+        uuid importselection_id FK
+        uuid employee_id FK
+    }
+    table55["personnel_employee"] {
+        uuid id PK
+    }
+    table42 ||--o{ table40 : "batch_id"
+    table3 ||--o{ table40 : "actor_id"
+    table40 ||--o{ table41 : "application_id"
+    table43 ||--o| table41 : "row_id"
+    table33 ||--o{ table41 : "work_id"
+    table3 ||--o{ table42 : "uploaded_by_id"
+    table42 ||--o{ table43 : "batch_id"
+    table61 ||--o{ table44 : "department_id"
+    table69 o|..o{ table44 : "specialty_id"
+    table3 ||--o{ table44 : "actor_id"
+    table43 ||--o| table44 : "row_id"
+    table55 ||--o{ table45 : "employee_id"
+    table44 ||--o{ table45 : "importselection_id"

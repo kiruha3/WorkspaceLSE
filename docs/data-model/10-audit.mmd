@@ -1,0 +1,10 @@
+erDiagram
+    direction TB
+    table6["audit_auditevent"] {
+        uuid id PK
+        uuid actor_id FK "NULL допустим"
+    }
+    table3["accounts_user"] {
+        uuid id PK
+    }
+    table3 o|..o{ table6 : "actor_id"

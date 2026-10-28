@@ -1,0 +1,94 @@
+erDiagram
+    direction TB
+    table48["issuance_checkfile"] {
+        uuid id PK
+        uuid accepted_version_id FK "NULL допустим"
+        uuid closure_id FK "NULL допустим"
+        uuid document_id FK
+        uuid package_check_id FK
+        uuid item_id FK "NULL допустим"
+    }
+    table29["documents_fileversion"] {
+        uuid id PK
+    }
+    table39["expertises_workclosure"] {
+        uuid id PK
+    }
+    table28["documents_document"] {
+        uuid id PK
+    }
+    table53["issuance_packageitem"] {
+        uuid id PK
+        uuid document_id FK
+        uuid expertise_id FK
+        uuid revision_id FK
+    }
+    table52["issuance_packagecheck"] {
+        uuid id PK
+        uuid actor_id FK
+        uuid package_id FK
+        uuid revision_id FK
+    }
+    table49["issuance_checkwork"] {
+        uuid id PK
+        uuid closure_id FK
+        uuid expertise_id FK
+        uuid package_check_id FK
+    }
+    table33["expertises_expertise"] {
+        uuid id PK
+    }
+    table50["issuance_issuepackage"] {
+        uuid id PK
+        uuid created_by_id FK
+        uuid material_id FK, UK
+        uuid current_revision_id FK "NULL допустим"
+    }
+    table3["accounts_user"] {
+        uuid id PK
+    }
+    table54["issuance_packagerevision"] {
+        uuid id PK
+        uuid actor_id FK
+        uuid package_id FK
+    }
+    table46["intake_material"] {
+        uuid id PK
+    }
+    table51["issuance_materialissue"] {
+        uuid id PK
+        uuid accepted_evidence_version_id FK "NULL допустим"
+        uuid actor_id FK
+        uuid evidence_document_id FK "NULL допустим"
+        uuid method_id FK
+        uuid package_id FK, UK
+        uuid package_check_id FK
+    }
+    table63["references_issuemethod"] {
+        uuid id PK
+    }
+    table29 o|..o{ table48 : "accepted_version_id"
+    table39 o|..o{ table48 : "closure_id"
+    table28 ||--o{ table48 : "document_id"
+    table53 o|..o{ table48 : "item_id"
+    table52 ||--o{ table48 : "package_check_id"
+    table39 ||--o{ table49 : "closure_id"
+    table33 ||--o{ table49 : "expertise_id"
+    table52 ||--o{ table49 : "package_check_id"
+    table3 ||--o{ table50 : "created_by_id"
+    table54 o|..o{ table50 : "current_revision_id"
+    table46 ||--o| table50 : "material_id"
+    table29 o|..o{ table51 : "accepted_evidence_version_id"
+    table28 o|..o{ table51 : "evidence_document_id"
+    table63 ||--o{ table51 : "method_id"
+    table52 ||--o{ table51 : "package_check_id"
+    table50 ||--o| table51 : "package_id"
+    table3 ||--o{ table51 : "actor_id"
+    table50 ||--o{ table52 : "package_id"
+    table54 ||--o{ table52 : "revision_id"
+    table3 ||--o{ table52 : "actor_id"
+    table28 ||--o{ table53 : "document_id"
+    table33 ||--o{ table53 : "expertise_id"
+    table54 ||--o{ table53 : "revision_id"
+    table50 ||--o{ table54 : "package_id"
+    table3 ||--o{ table54 : "actor_id"

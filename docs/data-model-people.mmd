@@ -1,0 +1,58 @@
+erDiagram
+    direction TB
+    user["Учётная запись"] {
+        uuid id PK
+        string username UK
+    }
+    employee["Сотрудник"] {
+        uuid id PK
+        uuid user_id FK "Необязательная учётная запись"
+        string full_name
+        bool is_active
+    }
+    orgAssignment["Организационное назначение"] {
+        uuid id PK
+        uuid employee_id FK
+        uuid department_id FK
+        uuid position_id FK
+        date valid_from
+        date valid_to
+    }
+    department["Отдел"]
+    position["Должность"]
+    qualification["Специальность сотрудника"] {
+        uuid id PK
+        uuid employee_id FK
+        uuid specialty_id FK
+        string status "Обучение / получена / не подтверждена"
+        date qualified_at "Может быть неизвестна при подтверждённом основании"
+        date valid_until
+        string basis
+    }
+    specialty["Справочник специальностей"]
+    roleGrant["Назначенная сотруднику роль"] {
+        uuid id PK
+        uuid employee_id FK
+        uuid role_id FK
+        string scope_limit "Свои / выбранные отделы / учреждение"
+        date valid_from
+        date valid_to
+    }
+    role["Настраиваемая роль"]
+    permission["Право роли"] {
+        int id PK
+        uuid role_id FK
+        string permission_code
+        string scope
+    }
+    user o|--o| employee : "вход в систему"
+    employee ||--o{ orgAssignment : "отдел и должность во времени"
+    department ||--o{ orgAssignment : "место работы"
+    position ||--o{ orgAssignment : "должность"
+    employee ||--o{ qualification : "несколько специальностей"
+    specialty ||--o{ qualification : "допуск или обучение"
+    employee o|--o{ qualification : "наставник"
+    employee ||--o{ roleGrant : "несколько ролей"
+    role ||--o{ roleGrant : "назначается"
+    role ||--o{ permission : "разрешённые действия"
+    roleGrant }o--o{ department : "ограничение области"

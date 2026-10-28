@@ -1,0 +1,5796 @@
+{
+  "source": "Local PostgreSQL schema, metadata only, 2026-10-28; global uniqueness excludes partial indexes",
+  "tables": [
+    {
+      "name": "accounts_commandreceipt",
+      "model": "accounts.CommandReceipt",
+      "app": "accounts",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "actor_id",
+          "action",
+          "key"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "BigAutoField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "action",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "key",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "payload_hash",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "result",
+          "type": "JSONField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "actor_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "accounts_role",
+      "model": "accounts.Role",
+      "app": "accounts",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "name"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "description",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "accounts_rolepermission",
+      "model": "accounts.RolePermission",
+      "app": "accounts",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "role_id",
+          "permission_code"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "BigAutoField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "permission_code",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "scope",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "role_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "role_id",
+          "target_table": "accounts_role",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "accounts_user",
+      "model": "accounts.User",
+      "app": "accounts",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "username"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "password",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "last_login",
+          "type": "DateTimeField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_superuser",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "username",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "first_name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "last_name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "email",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_staff",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "date_joined",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        }
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "accounts_user_groups",
+      "model": "accounts.User_groups",
+      "app": "accounts",
+      "automatic_join": true,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "user_id",
+          "group_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "BigAutoField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "user_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "group_id",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "group_id",
+          "target_table": "auth_group",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "user_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "accounts_user_user_permissions",
+      "model": "accounts.User_user_permissions",
+      "app": "accounts",
+      "automatic_join": true,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "user_id",
+          "permission_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "BigAutoField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "user_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "permission_id",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "permission_id",
+          "target_table": "auth_permission",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "user_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "audit_auditevent",
+      "model": "audit.AuditEvent",
+      "app": "audit",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "action",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "object_type",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "object_id",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "changes",
+          "type": "JSONField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "actor_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "auth_group",
+      "model": "auth.Group",
+      "app": "auth",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "name"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "AutoField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        }
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "auth_group_permissions",
+      "model": "auth.Group_permissions",
+      "app": "auth",
+      "automatic_join": true,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "group_id",
+          "permission_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "BigAutoField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "group_id",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "permission_id",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "permission_id",
+          "target_table": "auth_permission",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "group_id",
+          "target_table": "auth_group",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "auth_permission",
+      "model": "auth.Permission",
+      "app": "auth",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "content_type_id",
+          "codename"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "AutoField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "content_type_id",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "codename",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "content_type_id",
+          "target_table": "django_content_type",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "correspondence_controlevent",
+      "model": "correspondence.ControlEvent",
+      "app": "correspondence",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "kind",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actual_on",
+          "type": "DateField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "due_on",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "due_basis",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "comment",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "closure_reason_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reply_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "control_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "actor_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "closure_reason_id",
+          "target_table": "references_controlclosurereason",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "control_id",
+          "target_table": "correspondence_controltask",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "reply_id",
+          "target_table": "correspondence_letter",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "correspondence_controltask",
+      "model": "correspondence.ControlTask",
+      "app": "correspondence",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "letter_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "opened_on",
+          "type": "DateField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "due_on",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "due_basis",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "letter_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "letter_id",
+          "target_table": "correspondence_letter",
+          "target_column": "id",
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "correspondence_letter",
+      "model": "correspondence.Letter",
+      "app": "correspondence",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "direction",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_by_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "department_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "responsible_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "current_revision_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "created_by_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "current_revision_id",
+          "target_table": "correspondence_letterrevision",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "department_id",
+          "target_table": "references_department",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "responsible_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "correspondence_letterassignment",
+      "model": "correspondence.LetterAssignment",
+      "app": "correspondence",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "letter_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "previous_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "responsible_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "actor_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "letter_id",
+          "target_table": "correspondence_letter",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "previous_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "responsible_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "correspondence_letterattachment",
+      "model": "correspondence.LetterAttachment",
+      "app": "correspondence",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "letter_id",
+          "document_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "document_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "letter_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "actor_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "document_id",
+          "target_table": "documents_document",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "letter_id",
+          "target_table": "correspondence_letter",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "correspondence_letterdelivery",
+      "model": "correspondence.LetterDelivery",
+      "app": "correspondence",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "dispatch_id",
+          "recipient_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "delivered_on",
+          "type": "DateField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "accepted_version_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "evidence_document_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "recipient_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "dispatch_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "accepted_version_id",
+          "target_table": "documents_fileversion",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "actor_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "dispatch_id",
+          "target_table": "correspondence_letterdispatch",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "evidence_document_id",
+          "target_table": "documents_document",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "recipient_id",
+          "target_table": "correspondence_letterrecipient",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "correspondence_letterdispatch",
+      "model": "correspondence.LetterDispatch",
+      "app": "correspondence",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "sent_on",
+          "type": "DateField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "tracking",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "comment",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "accepted_version_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "channel_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "evidence_document_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "letter_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "accepted_version_id",
+          "target_table": "documents_fileversion",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "actor_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "channel_id",
+          "target_table": "references_dispatchchannel",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "evidence_document_id",
+          "target_table": "documents_document",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "letter_id",
+          "target_table": "correspondence_letter",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "correspondence_letterdispatch_recipients",
+      "model": "correspondence.LetterDispatch_recipients",
+      "app": "correspondence",
+      "automatic_join": true,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "letterdispatch_id",
+          "letterrecipient_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "BigAutoField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "letterdispatch_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "letterrecipient_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "letterdispatch_id",
+          "target_table": "correspondence_letterdispatch",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "letterrecipient_id",
+          "target_table": "correspondence_letterrecipient",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "correspondence_letterdispatchfile",
+      "model": "correspondence.LetterDispatchFile",
+      "app": "correspondence",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "dispatch_id",
+          "file_version_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "BigAutoField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "dispatch_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "file_version_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "dispatch_id",
+          "target_table": "correspondence_letterdispatch",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "file_version_id",
+          "target_table": "documents_fileversion",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "correspondence_letterreceipt",
+      "model": "correspondence.LetterReceipt",
+      "app": "correspondence",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "letter_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "received_on",
+          "type": "DateField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "accepted_version_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "evidence_document_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "letter_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "accepted_version_id",
+          "target_table": "documents_fileversion",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "actor_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "evidence_document_id",
+          "target_table": "documents_document",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "letter_id",
+          "target_table": "correspondence_letter",
+          "target_column": "id",
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "correspondence_letterrecipient",
+      "model": "correspondence.LetterRecipient",
+      "app": "correspondence",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "address",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "email",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "revision_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "revision_id",
+          "target_table": "correspondence_letterrevision",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "correspondence_letterregistration",
+      "model": "correspondence.LetterRegistration",
+      "app": "correspondence",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "letter_id"
+        ],
+        [
+          "journal_id",
+          "year",
+          "registration_number"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "registration_number",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "registered_on",
+          "type": "DateField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "year",
+          "type": "SmallIntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "journal_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "letter_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "revision_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "actor_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "journal_id",
+          "target_table": "references_letterjournal",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "letter_id",
+          "target_table": "correspondence_letter",
+          "target_column": "id",
+          "unique": true
+        },
+        {
+          "column": "revision_id",
+          "target_table": "correspondence_letterrevision",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "correspondence_letterregistrationfile",
+      "model": "correspondence.LetterRegistrationFile",
+      "app": "correspondence",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "registration_id",
+          "file_version_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "BigAutoField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "file_version_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "registration_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "file_version_id",
+          "target_table": "documents_fileversion",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "registration_id",
+          "target_table": "correspondence_letterregistration",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "correspondence_letterrevision",
+      "model": "correspondence.LetterRevision",
+      "app": "correspondence",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "letter_id",
+          "number"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "number",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "subject",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "body",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "sender_name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "external_number",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "external_on",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "document_on",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "received_on",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "note",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reply_completeness",
+          "type": "CharField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "kind_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "letter_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "material_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "parent_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "actor_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "kind_id",
+          "target_table": "references_letterkind",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "letter_id",
+          "target_table": "correspondence_letter",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "material_id",
+          "target_table": "intake_material",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "parent_id",
+          "target_table": "correspondence_letter",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "correspondence_letterrevision_expertises",
+      "model": "correspondence.LetterRevision_expertises",
+      "app": "correspondence",
+      "automatic_join": true,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "letterrevision_id",
+          "expertise_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "BigAutoField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "letterrevision_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "expertise_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "expertise_id",
+          "target_table": "expertises_expertise",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "letterrevision_id",
+          "target_table": "correspondence_letterrevision",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "django_content_type",
+      "model": "contenttypes.ContentType",
+      "app": "contenttypes",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "app_label",
+          "model"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "AutoField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "app_label",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "model",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "django_migrations",
+      "app": "django",
+      "model": null,
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "BigAutoField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "app",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "applied",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "django_session",
+      "model": "sessions.Session",
+      "app": "sessions",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "session_key"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "session_key",
+          "type": "CharField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "session_data",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "expire_date",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "documents_document",
+      "model": "documents.Document",
+      "app": "documents",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "kind",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "title",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "source_kind",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_by_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "department_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "created_by_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "department_id",
+          "target_table": "references_department",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "documents_fileversion",
+      "model": "documents.FileVersion",
+      "app": "documents",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "document_id",
+          "number"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "number",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "file",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "original_name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "content_type",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "size",
+          "type": "BigIntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "sha256",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_by_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "document_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "created_by_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "document_id",
+          "target_table": "documents_document",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "expertises_complexgroup",
+      "model": "expertises.ComplexGroup",
+      "app": "expertises",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "title",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "material_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "material_id",
+          "target_table": "intake_material",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "expertises_deadlineevent",
+      "model": "expertises.DeadlineEvent",
+      "app": "expertises",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "kind",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "recorded_on",
+          "type": "DateField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "due_on",
+          "type": "DateField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "document_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "expertise_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "document_id",
+          "target_table": "documents_document",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "expertise_id",
+          "target_table": "expertises_expertise",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "actor_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "expertises_expertassignment",
+      "model": "expertises.ExpertAssignment",
+      "app": "expertises",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "started_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "ended_at",
+          "type": "DateTimeField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "qualification_snapshot",
+          "type": "JSONField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "employee_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "expertise_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "actor_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "employee_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "expertise_id",
+          "target_table": "expertises_expertise",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "expertises_expertise",
+      "model": "expertises.Expertise",
+      "app": "expertises",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "registration_number"
+        ],
+        [
+          "complex_group_id",
+          "specialty_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "registration_number",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "historical_number",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "sequence",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "year",
+          "type": "SmallIntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "category_code",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "appointment_nature",
+          "type": "CharField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_commission",
+          "type": "BooleanField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "state",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "registered_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "complex_group_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "department_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "material_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "receipt_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "registered_by_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "specialty_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "origin_kind",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "complex_group_id",
+          "target_table": "expertises_complexgroup",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "department_id",
+          "target_table": "references_department",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "material_id",
+          "target_table": "intake_material",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "receipt_id",
+          "target_table": "intake_receipt",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "registered_by_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "specialty_id",
+          "target_table": "references_specialty",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "expertises_historicalparticipant",
+      "model": "expertises.HistoricalParticipant",
+      "app": "expertises",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "history_id",
+          "employee_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "employee_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "history_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "employee_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "history_id",
+          "target_table": "expertises_historicalwork",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "expertises_historicalwork",
+      "model": "expertises.HistoricalWork",
+      "app": "expertises",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "expertise_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "operational",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "complex_known",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "suspension_history_complete",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "statistics_confirmed",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "result_kind",
+          "type": "CharField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "completed_on",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "return_decided_on",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "issued_on",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "complexity_level",
+          "type": "IntegerField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "questions",
+          "type": "IntegerField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "categorical",
+          "type": "IntegerField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "probable",
+          "type": "IntegerField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "unresolved",
+          "type": "IntegerField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "amount",
+          "type": "DecimalField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "authority_type",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "authority_name",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "official",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "contact",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "basis_text",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "case_description",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "inventory",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "executor_raw",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "unresolved_note",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "unresolved_reason_raw",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "notes",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "delivery",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "expertise_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "source_row_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "expertise_id",
+          "target_table": "expertises_expertise",
+          "target_column": "id",
+          "unique": true
+        },
+        {
+          "column": "source_row_id",
+          "target_table": "imports_importrow",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "actor_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "expertises_resultrevision",
+      "model": "expertises.ResultRevision",
+      "app": "expertises",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "expertise_id",
+          "number"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "number",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "kind",
+          "type": "CharField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "completed_on",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "complexity_level",
+          "type": "IntegerField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "questions",
+          "type": "IntegerField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "categorical",
+          "type": "IntegerField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "probable",
+          "type": "IntegerField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "unresolved",
+          "type": "IntegerField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "statistics_complete",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "sndz_comment",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "allocations_complete",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "note",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "document_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "expertise_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "sndz_reason_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "document_id",
+          "target_table": "documents_document",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "expertise_id",
+          "target_table": "expertises_expertise",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "sndz_reason_id",
+          "target_table": "references_sndzreason",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "actor_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "expertises_suspension",
+      "model": "expertises.Suspension",
+      "app": "expertises",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "suspended_on",
+          "type": "DateField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "resumed_on",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "resume_reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "resumed_recorded_at",
+          "type": "DateTimeField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "expertise_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "resumed_by_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "expertise_id",
+          "target_table": "expertises_expertise",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "resumed_by_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "actor_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "expertises_unresolvedallocation",
+      "model": "expertises.UnresolvedAllocation",
+      "app": "expertises",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "result_id",
+          "reason_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "count",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "comment",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "document_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "result_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "document_id",
+          "target_table": "documents_document",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "reason_id",
+          "target_table": "references_unresolvedquestionreason",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "result_id",
+          "target_table": "expertises_resultrevision",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "expertises_workclosure",
+      "model": "expertises.WorkClosure",
+      "app": "expertises",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "expertise_id",
+          "number"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "number",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "kind",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "ended_on",
+          "type": "DateField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "comment",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "document_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "expertise_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "result_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "return_reason_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "accepted_version_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "accepted_version_id",
+          "target_table": "documents_fileversion",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "document_id",
+          "target_table": "documents_document",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "expertise_id",
+          "target_table": "expertises_expertise",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "result_id",
+          "target_table": "expertises_resultrevision",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "return_reason_id",
+          "target_table": "references_returnreason",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "actor_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "imports_importapplication",
+      "model": "imports.ImportApplication",
+      "app": "imports",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "links",
+          "type": "JSONField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "batch_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "batch_id",
+          "target_table": "imports_importbatch",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "actor_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "imports_importapplicationitem",
+      "model": "imports.ImportApplicationItem",
+      "app": "imports",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "row_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "action",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "application_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "row_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "work_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "application_id",
+          "target_table": "imports_importapplication",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "row_id",
+          "target_table": "imports_importrow",
+          "target_column": "id",
+          "unique": true
+        },
+        {
+          "column": "work_id",
+          "target_table": "expertises_expertise",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "imports_importbatch",
+      "model": "imports.ImportBatch",
+      "app": "imports",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "source_name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "source_kind",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "date_system",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "source_sha256",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "sheet_name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "parser_version",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "source_file",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "row_count",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "summary",
+          "type": "JSONField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "uploaded_by_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "origin_url",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "source_observed_at",
+          "type": "DateTimeField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "source_origin",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "uploaded_by_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "imports_importrow",
+      "model": "imports.ImportRow",
+      "app": "imports",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "batch_id",
+          "source_row"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "source_row",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "raw",
+          "type": "JSONField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "formulas",
+          "type": "JSONField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "extra",
+          "type": "JSONField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "facts",
+          "type": "JSONField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "diagnostics",
+          "type": "JSONField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "batch_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "batch_id",
+          "target_table": "imports_importbatch",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "imports_importselection",
+      "model": "imports.ImportSelection",
+      "app": "imports",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "row_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "appointment_nature",
+          "type": "CharField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_commission",
+          "type": "BooleanField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "complex_known",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "complex_group_key",
+          "type": "CharField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "statistics_confirmed",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "department_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "row_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "specialty_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "department_id",
+          "target_table": "references_department",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "specialty_id",
+          "target_table": "references_specialty",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "actor_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "row_id",
+          "target_table": "imports_importrow",
+          "target_column": "id",
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "imports_importselection_employees",
+      "model": "imports.ImportSelection_employees",
+      "app": "imports",
+      "automatic_join": true,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "importselection_id",
+          "employee_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "BigAutoField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "importselection_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "employee_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "employee_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "importselection_id",
+          "target_table": "imports_importselection",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "intake_material",
+      "model": "intake.Material",
+      "app": "intake",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "title",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_by_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "created_by_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "intake_receipt",
+      "model": "intake.Receipt",
+      "app": "intake",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "received_at",
+          "type": "DateField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "sender_name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "status",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "basis_document_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_by_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "department_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "material_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "basis_document_id",
+          "target_table": "documents_document",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "created_by_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "department_id",
+          "target_table": "references_department",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "material_id",
+          "target_table": "intake_material",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "issuance_checkfile",
+      "model": "issuance.CheckFile",
+      "app": "issuance",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "accepted_version_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "closure_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "document_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "package_check_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "item_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "accepted_version_id",
+          "target_table": "documents_fileversion",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "closure_id",
+          "target_table": "expertises_workclosure",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "document_id",
+          "target_table": "documents_document",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "item_id",
+          "target_table": "issuance_packageitem",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "package_check_id",
+          "target_table": "issuance_packagecheck",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "issuance_checkwork",
+      "model": "issuance.CheckWork",
+      "app": "issuance",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "package_check_id",
+          "expertise_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "closure_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "expertise_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "package_check_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "closure_id",
+          "target_table": "expertises_workclosure",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "expertise_id",
+          "target_table": "expertises_expertise",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "package_check_id",
+          "target_table": "issuance_packagecheck",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "issuance_issuepackage",
+      "model": "issuance.IssuePackage",
+      "app": "issuance",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "material_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_by_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "material_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "current_revision_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "created_by_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "current_revision_id",
+          "target_table": "issuance_packagerevision",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "material_id",
+          "target_table": "intake_material",
+          "target_column": "id",
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "issuance_materialissue",
+      "model": "issuance.MaterialIssue",
+      "app": "issuance",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "package_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "issued_on",
+          "type": "DateField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "recipient_name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "recipient_basis",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "tracking",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "comment",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "accepted_evidence_version_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "evidence_document_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "method_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "package_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "package_check_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "accepted_evidence_version_id",
+          "target_table": "documents_fileversion",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "evidence_document_id",
+          "target_table": "documents_document",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "method_id",
+          "target_table": "references_issuemethod",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "package_check_id",
+          "target_table": "issuance_packagecheck",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "package_id",
+          "target_table": "issuance_issuepackage",
+          "target_column": "id",
+          "unique": true
+        },
+        {
+          "column": "actor_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "issuance_packagecheck",
+      "model": "issuance.PackageCheck",
+      "app": "issuance",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "package_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "revision_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "package_id",
+          "target_table": "issuance_issuepackage",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "revision_id",
+          "target_table": "issuance_packagerevision",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "actor_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "issuance_packageitem",
+      "model": "issuance.PackageItem",
+      "app": "issuance",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "kind",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "note",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "document_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "expertise_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "revision_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "document_id",
+          "target_table": "documents_document",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "expertise_id",
+          "target_table": "expertises_expertise",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "revision_id",
+          "target_table": "issuance_packagerevision",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "issuance_packagerevision",
+      "model": "issuance.PackageRevision",
+      "app": "issuance",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "package_id",
+          "number"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "number",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "materials_description",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "note",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "created_at",
+          "type": "DateTimeField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "actor_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "package_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "package_id",
+          "target_table": "issuance_issuepackage",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "actor_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "personnel_employee",
+      "model": "personnel.Employee",
+      "app": "personnel",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "user_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "full_name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "user_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": true
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "user_id",
+          "target_table": "accounts_user",
+          "target_column": "id",
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "personnel_employeeorgassignment",
+      "model": "personnel.EmployeeOrgAssignment",
+      "app": "personnel",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "valid_from",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "valid_to",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "department_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "employee_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "position_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "department_id",
+          "target_table": "references_department",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "employee_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "position_id",
+          "target_table": "references_position",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "personnel_employeerole",
+      "model": "personnel.EmployeeRole",
+      "app": "personnel",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "scope_limit",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "valid_from",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "valid_to",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "reason",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "employee_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "role_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "employee_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "role_id",
+          "target_table": "accounts_role",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "personnel_employeerole_departments",
+      "model": "personnel.EmployeeRole_departments",
+      "app": "personnel",
+      "automatic_join": true,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "employeerole_id",
+          "department_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "BigAutoField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "employeerole_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "department_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "department_id",
+          "target_table": "references_department",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "employeerole_id",
+          "target_table": "personnel_employeerole",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "personnel_employeespecialty",
+      "model": "personnel.EmployeeSpecialty",
+      "app": "personnel",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "employee_id",
+          "specialty_id"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "status",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "training_started_at",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "qualified_at",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "valid_until",
+          "type": "DateField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "basis",
+          "type": "TextField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "employee_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "mentor_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "specialty_id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "employee_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "mentor_id",
+          "target_table": "personnel_employee",
+          "target_column": "id",
+          "unique": false
+        },
+        {
+          "column": "specialty_id",
+          "target_table": "references_specialty",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "references_controlclosurereason",
+      "model": "references.ControlClosureReason",
+      "app": "references",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "code"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "code",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "rule",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "references_department",
+      "model": "references.Department",
+      "app": "references",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "code"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "code",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "references_dispatchchannel",
+      "model": "references.DispatchChannel",
+      "app": "references",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "code"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "code",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "references_issuemethod",
+      "model": "references.IssueMethod",
+      "app": "references",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "code"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "code",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "references_letterjournal",
+      "model": "references.LetterJournal",
+      "app": "references",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "code"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "code",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "direction",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "department_id",
+          "type": "UUIDField",
+          "nullable": true,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "column": "department_id",
+          "target_table": "references_department",
+          "target_column": "id",
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "references_letterkind",
+      "model": "references.LetterKind",
+      "app": "references",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "code"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "code",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "references_position",
+      "model": "references.Position",
+      "app": "references",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "code"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "code",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "references_returnreason",
+      "model": "references.ReturnReason",
+      "app": "references",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "code"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "code",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "references_sndzreason",
+      "model": "references.SndzReason",
+      "app": "references",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "code"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "code",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "references_specialty",
+      "model": "references.Specialty",
+      "app": "references",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "code"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "code",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "references_unresolvedquestionreason",
+      "model": "references.UnresolvedQuestionReason",
+      "app": "references",
+      "automatic_join": false,
+      "unique_column_sets": [
+        [
+          "id"
+        ],
+        [
+          "code"
+        ]
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUIDField",
+          "nullable": false,
+          "pk": true,
+          "unique": true
+        },
+        {
+          "name": "code",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "CharField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        },
+        {
+          "name": "version",
+          "type": "IntegerField",
+          "nullable": false,
+          "pk": false,
+          "unique": false
+        }
+      ],
+      "foreign_keys": []
+    }
+  ]
+}

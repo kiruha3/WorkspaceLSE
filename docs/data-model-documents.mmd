@@ -1,0 +1,48 @@
+erDiagram
+    direction TB
+    document["Документ"] {
+        uuid id PK
+        string kind "Основание / результат / подписка / письмо / счёт"
+        string title
+        string source_kind "Оригинал / копия"
+    }
+    fileVersion["Версия файла"] {
+        uuid id PK
+        uuid document_id FK
+        int number
+        string file
+        string sha256
+    }
+    receipt["Поступление"]
+    closure["Принятое окончание работы"]
+    letter["Письмо"]
+    letterRevision["Редакция письма"]
+    expertise["Экспертиза"]
+    attachment["Вложение письма"]
+    recipient["Адресат редакции"]
+    registration["Регистрация письма"]
+    dispatch["Факт отправки"]
+    delivery["Факт доставки адресату"]
+    control["Контроль ответа / срока"]
+    package["Комплект к выдаче"]
+    check["Проверенный снимок комплекта"]
+    issue["Факт выдачи материалов"]
+    material["Материал / дело"]
+    document ||--o{ fileVersion : "версии содержимого"
+    document o|--o{ receipt : "постановление или определение"
+    fileVersion o|--o{ closure : "закреплённый итоговый файл"
+    letter ||--o{ letterRevision : "история содержания"
+    letterRevision }o--o{ expertise : "относится к работам"
+    material o|--o{ letterRevision : "относится к делу"
+    letter o|--o{ letterRevision : "ответ на письмо"
+    letter ||--o{ attachment : "вложения"
+    document ||--o{ attachment : "прикреплён"
+    letterRevision ||--o{ recipient : "адресаты"
+    letter ||--o| registration : "журнальный номер"
+    letter ||--o{ dispatch : "подтверждённые отправки"
+    dispatch ||--o{ delivery : "доставка"
+    recipient ||--o{ delivery : "конкретный адресат"
+    letter ||--o| control : "ответ на контроле"
+    material ||--o| package : "единый комплект материалов"
+    package ||--o{ check : "проверки состава и файлов"
+    check ||--o| issue : "передача по проверенному комплекту"

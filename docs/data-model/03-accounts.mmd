@@ -1,0 +1,38 @@
+erDiagram
+    direction TB
+    table0["accounts_commandreceipt"] {
+        int id PK
+        uuid actor_id FK
+    }
+    table3["accounts_user"] {
+        uuid id PK
+    }
+    table1["accounts_role"] {
+        uuid id PK
+    }
+    table2["accounts_rolepermission"] {
+        int id PK
+        uuid role_id FK
+    }
+    table4["accounts_user_groups"] {
+        int id PK
+        uuid user_id FK
+        int group_id FK
+    }
+    table7["auth_group"] {
+        int id PK
+    }
+    table5["accounts_user_user_permissions"] {
+        int id PK
+        uuid user_id FK
+        int permission_id FK
+    }
+    table9["auth_permission"] {
+        int id PK
+    }
+    table3 ||--o{ table0 : "actor_id"
+    table1 ||--o{ table2 : "role_id"
+    table7 ||--o{ table4 : "group_id"
+    table3 ||--o{ table4 : "user_id"
+    table9 ||--o{ table5 : "permission_id"
+    table3 ||--o{ table5 : "user_id"

@@ -1,0 +1,26 @@
+erDiagram
+    direction TB
+    table7["auth_group"] {
+        int id PK
+    }
+    table8["auth_group_permissions"] {
+        int id PK
+        int group_id FK
+        int permission_id FK
+    }
+    table9["auth_permission"] {
+        int id PK
+        int content_type_id FK
+    }
+    table25["django_content_type"] {
+        int id PK
+    }
+    table26["django_migrations"] {
+        int id PK
+    }
+    table27["django_session"] {
+        string session_key PK
+    }
+    table9 ||--o{ table8 : "permission_id"
+    table7 ||--o{ table8 : "group_id"
+    table25 ||--o{ table9 : "content_type_id"

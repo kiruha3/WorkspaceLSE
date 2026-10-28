@@ -1,0 +1,27 @@
+erDiagram
+    direction TB
+    table46["intake_material"] {
+        uuid id PK
+        uuid created_by_id FK
+    }
+    table55["personnel_employee"] {
+        uuid id PK
+    }
+    table47["intake_receipt"] {
+        uuid id PK
+        uuid basis_document_id FK "NULL допустим"
+        uuid created_by_id FK
+        uuid department_id FK "NULL допустим"
+        uuid material_id FK
+    }
+    table28["documents_document"] {
+        uuid id PK
+    }
+    table61["references_department"] {
+        uuid id PK
+    }
+    table55 ||--o{ table46 : "created_by_id"
+    table28 o|..o{ table47 : "basis_document_id"
+    table55 ||--o{ table47 : "created_by_id"
+    table61 o|..o{ table47 : "department_id"
+    table46 ||--o{ table47 : "material_id"
