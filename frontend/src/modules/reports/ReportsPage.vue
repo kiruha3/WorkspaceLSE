@@ -10,7 +10,7 @@ import ApiMessage from '../../shared/ui/ApiMessage.vue'
 interface Cell { sheet:string; address:string; value:number|null; rows:(number|string)[] }
 interface WorkReference { id:string; registration_number:string }
 interface ColumnRule { section:number; column:string; official_column:number; meaning:string; unit:string; sources:string[]; period:string; unknown:string[]; limitations:string[] }
-interface Report { status:string; version:string; rules_version?:string;column_rules?:ColumnRule[]; year:number; month:number; from:string; to:string; source:{type?:'journal'|'registry';id:string|null;name:string;sha256?:string;row_count:number;created_at?:string;calculated_at?:string;data_revision?:string;excluded_demo_count?:number}; records?:Record<string,WorkReference>; download_url:string; cells:Cell[]; gaps:{code:string;sections:number[];message:string;fields:string;rows:(number|string)[]}[]; section_coverage:{section:number;filled:number;unavailable:number;status:string}[] }
+interface Report { status:string; version:string; delay_reason_policy?:'all'|'primary'|null; rules_version?:string;column_rules?:ColumnRule[]; year:number; month:number; from:string; to:string; source:{type?:'journal'|'registry';id:string|null;name:string;sha256?:string;row_count:number;created_at?:string;calculated_at?:string;data_revision?:string;excluded_demo_count?:number}; records?:Record<string,WorkReference>; download_url:string; cells:Cell[]; gaps:{code:string;sections:number[];message:string;fields:string;rows:(number|string)[]}[]; section_coverage:{section:number;filled:number;unavailable:number;status:string}[] }
 const api=useApi(),session=useSessionStore(),route=useRoute(),requests=new LatestRequest(),sources=new LatestRequest(),downloads=new LatestRequest()
 // Sources are institution-wide, including old departments: a department grant
 // cannot imply permission to calculate a mixed-source report.
@@ -19,6 +19,8 @@ const mode=ref<'journal'|'registry'>(route.query.batch_id?'journal':'registry')
 const enabled=computed(()=>institution(mode.value==='registry'?'expertise.view':'imports.results.view')&&institution('reports.form151.run'))
 const canDownload=computed(()=>institution('reports.form151.download'))
 const batches=ref<ImportBatch[]>([]),batchId=ref(''),year=ref(2026),month=ref(new Date().getMonth()+1),opening=ref(false)
+const delayPolicy=ref<'all'|'primary'>('all')
+const delayPolicyLabels={all:'По всем указанным причинам',primary:'Только по основной причине'}
 const result=ref<Report|null>(null),loading=ref(false),loadingSources=ref(false),error=ref<unknown>(null),section=ref(1)
 const downloading=ref(false),downloadError=ref<unknown>(null),selectedCell=ref<Cell|null>(null)
 const selectedRule=ref<{section:number;column:string}|null>(null)
@@ -61,6 +63,7 @@ async function calculate(){
   invalidate();loading.value=true
   const params=new URLSearchParams(mode.value==='registry'?{source:'registry'}:{batch_id:batchId.value})
   params.set('year',String(year.value));params.set('month',String(month.value));params.set('opening_balances_complete',String(opening.value))
+  if(mode.value==='registry')params.set('delay_reason_policy',delayPolicy.value)
   try{await requests.run(signal=>api.request<Report>(`/reports/form151/?${params}`,{signal}),value=>{result.value=value;loading.value=false})}
   catch(cause){error.value=cause;loading.value=false}
 }
@@ -74,7 +77,7 @@ async function download(){
     downloading.value=false
   })}catch(cause){downloadError.value=cause;downloading.value=false}
 }
-watch([batchId,year,month,opening],invalidate)
+watch([batchId,year,month,opening,delayPolicy],invalidate)
 watch(section,()=>{selectedRule.value=null;selectedCell.value=null})
 watch([mode,enabled],([,value])=>{invalidate();sources.cancel();loadingSources.value=false;if(value&&mode.value==='journal')void loadSources()},{immediate:true})
 onBeforeUnmount(()=>{requests.cancel();sources.cancel();downloads.cancel()})
@@ -89,9 +92,11 @@ onBeforeUnmount(()=>{requests.cancel();sources.cancel();downloads.cancel()})
         <label v-if="mode==='journal'">Снимок первого листа<select v-model="batchId" name="batch_id" required :disabled="loadingSources"><option v-for="b in batches" :key="b.id" :value="b.id">{{b.source_name}} · {{b.row_count}} записей · {{importTime(b.created_at)}}</option></select></label>
         <label>Год<input v-model.number="year" name="year" type="number" min="1900" max="2200" required/></label>
         <label>По месяц включительно<select v-model.number="month" name="month"><option v-for="(m,i) in months" :key="m" :value="i+1">{{m}}</option></select></label>
+        <label v-if="mode==='registry'">Причины длительности · раздел 3<select v-model="delayPolicy" name="delay_reason_policy" aria-describedby="delay-policy-help"><option value="all">По всем указанным причинам</option><option value="primary">Только по основной причине</option></select></label>
         <label class="coverage-check"><input v-model="opening" name="opening_balances_complete" type="checkbox"/>Подтверждаю полноту выбранного набора для расчёта остатков на начало и конец периода</label>
         <div class="button-row"><button class="button-primary" :disabled="loading||loadingSources||(mode==='journal'&&!batchId)">{{loading?'Расчёт…':'Рассчитать 15.1'}}</button></div>
       </form>
+      <p v-if="mode==='registry'" id="delay-policy-help" class="muted">По всем причинам: одна экспертиза учитывается один раз в каждой указанной группе причин. Только по основной: учитывается одна группа; если она не определена однозначно, зависимые значения остаются неизвестными. Режим применяется только к графам причин длительности раздела 3 и сохраняется в выгрузке Excel.</p>
       <p class="muted">Период накопительный: с 1 января до конца выбранного месяца. План 2026 — 294, госзадание — категории 1 и 5.</p>
       <p v-if="mode==='registry'" class="muted">Принятый результат имеет приоритет над историей; черновики и явно учебные материалы в отчёт не включаются. Выдача не заменяет решение без исполнения.</p>
       <p v-else-if="!loadingSources&&!batches.length" class="message">Снимков ещё нет. Сначала сохраните источник в разделе «Источники журнала».</p>
@@ -100,6 +105,7 @@ onBeforeUnmount(()=>{requests.cancel();sources.cancel();downloads.cancel()})
     <p v-if="loading" class="state" role="status">Сервер рассчитывает показатели и проверяет пробелы…</p>
     <div v-if="result" data-report-result>
       <section class="card report-summary"><div><p class="eyebrow">Предварительный отчёт</p><h2>{{result.from}} — {{result.to}}</h2><p>{{result.source.row_count}} регистраций в наборе · {{result.source.name}}</p><small v-if="result.source.type==='registry'" class="muted">Расчёт {{importTime(result.source.calculated_at!)}} · редакция {{result.source.data_revision?.slice(0,12)}} · Учебных работ исключено: {{result.source.excluded_demo_count}}</small><small v-else class="muted">Снимок {{importTime(result.source.created_at!)}} · SHA256 {{result.source.sha256?.slice(0,12)}}</small><small class="muted">{{result.version}}</small></div><button v-if="canDownload" data-download-report class="button-primary" :disabled="downloading" @click="download">{{downloading?'Подготовка Excel…':'Скачать 15.1 в Excel'}}</button><p v-else class="muted">Для скачивания нужно отдельное право выгрузки 15.1.</p></section>
+      <p v-if="result.source.type==='registry'" data-result-delay-policy class="message">Причины длительности · {{result.delay_reason_policy?delayPolicyLabels[result.delay_reason_policy]:'Режим не указан сервером — повторите расчёт после обновления приложения.'}}</p>
       <div v-if="downloadError" class="message message-error" role="alert"><strong>Выгрузка не выполнена</strong><p>{{downloadError instanceof Error?downloadError.message:'Повторите расчёт и скачивание.'}}</p><p>Файл не сохранён. При изменении данных нужно снова нажать «Рассчитать 15.1».</p></div>
       <p class="message">Исходный бланк сохраняется. Прочерк означает неизвестное значение и остаётся пустым в Excel. <template v-if="result.source.type==='registry'">Причины СНДЗ, нерешённых вопросов и возврата берутся из принятого результата или решения; 3214-р — из подтверждённых сведений дела. Повторность — из классификации и предыдущих заключений; для полного СНДЗ правило повторности пока не установлено. Причины длительности, информирование, ходатайство и оценка нарушения срока — из подтверждённых фактов карточки, не из календарных догадок.</template><template v-else>Графы причин, повторности и 3214-р ещё не рассчитываются.</template> Разделы 7–8 не заполнены. Выгрузка предварительная.</p>
       <div class="report-totals"><section class="card"><small>Заключений эксперта</small><strong>{{show(cell(1,'J')?.value)}}</strong></section><section class="card"><small>Сообщений СНДЗ</small><strong>{{show(cell(1,'F')?.value)}}</strong></section><section class="card"><small>Исследований закончено</small><strong>{{show(cell(1,'T')?.value)}}</strong></section><section class="card"><small>Госзадание выполнено</small><strong>{{show(cell(6,'E')?.value)}}</strong></section></div>

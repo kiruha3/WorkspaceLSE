@@ -125,6 +125,49 @@ def test_owner_policy_counts_each_selected_group_without_requiring_primary(accep
  assert not any(g['code']=='delayReasons' for g in report['gaps'])
  assert client.get(f'/api/v1/expertises/{work.pk}/timing/').json()['delay_reason_policy']=='all'
 
+
+def test_selected_policy_controls_http_cells_explanations_revision_and_literal_download(accepted_work,grant,django_assert_num_queries):
+ work,_,_=accepted_work();work.receipt.received_at=date(2026,8,1);work.receipt.save(update_fields=['received_at'])
+ client,reasons=configure(work,grant)
+ work.refresh_from_db();assert send(client,work,body(work,reasons_complete=True,primary_reason_id=reasons['research_complexity']['id'],reasons=[entry(reasons['research_complexity']),entry(reasons['expert_workload'])])).status_code==200
+ actor=work.registered_by.employee
+ for action in ('reports.form151.run','reports.form151.download'):grant(actor,action)
+ params={'source':'registry','year':2026,'month':10}
+ all_report=client.get('/api/v1/reports/form151/',params).json()
+ response=client.get('/api/v1/reports/form151/',{**params,'delay_reason_policy':'primary'})
+ assert response.status_code==200,response.content
+ primary=response.json();assert all_report['delay_reason_policy']=='all' and primary['delay_reason_policy']=='primary'
+ assert [cell(all_report,3,f'{c}107')['value'] for c in 'GI']==[1,1]
+ assert [cell(primary,3,f'{c}107')['value'] for c in 'GI']==[1,0]
+ assert all_report['data_revision']!=primary['data_revision']
+ assert [c for c in all_report['cells'] if not(c['sheet']=='Раздел 3' and c['address'][0] in 'GHIJKL')]==[c for c in primary['cells'] if not(c['sheet']=='Раздел 3' and c['address'][0] in 'GHIJKL')]
+ limits=lambda report:' '.join(next(r for r in report['column_rules'] if r['section']==3 and r['column']=='I')['limitations'])
+ assert 'каждой указанной' in limits(all_report) and 'только по основной' in limits(primary)
+ assert 'delay_reason_policy=primary' in primary['download_url'] and 'delay_reason_policy=all' in all_report['download_url']
+ archive=client.get(primary['download_url']);assert archive.status_code==200
+ with ZipFile(BytesIO(archive.content)) as z:
+  root=ET.fromstring(z.read('xl/worksheets/sheet4.xml'));ns={'s':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+  assert root.find('.//s:c[@r="I107"]/s:v',ns).text=='0'
+ assert client.get(primary['download_url'].replace('delay_reason_policy=primary','delay_reason_policy=all')).status_code==409
+ with django_assert_num_queries(1):direct=calculate_registry(year=2026,month=10,delay_reason_policy='primary')
+ assert direct['data_revision']==primary['data_revision']
+ # A second long work without a primary leaves the possible groups unknown.
+ work.refresh_from_db();assert send(client,work,body(work,reasons_complete=True,reasons=[entry(reasons['research_complexity']),entry(reasons['expert_workload'])])).status_code==200
+ assert [cell(calculate_registry(year=2026,month=10,delay_reason_policy='primary'),3,f'{c}107')['value'] for c in 'GHI']==[None,0,None]
+
+
+@pytest.mark.parametrize('query',[
+ 'delay_reason_policy=', 'delay_reason_policy=other', 'delay_reason_policy=ALL',
+ 'delay_reason_policy=all&delay_reason_policy=primary',
+ 'source=journal&batch_id=00000000-0000-0000-0000-000000000001&delay_reason_policy=primary',
+])
+def test_policy_query_rejects_invalid_repeated_and_unsupported_journal_options(employee_factory,grant,query):
+ actor=employee_factory();grant(actor,'reports.form151.run');grant(actor,'expertise.view');grant(actor,'imports.results.view')
+ client=Client();client.force_login(actor.user)
+ source='' if query.startswith('source=') else 'source=registry&'
+ response=client.get('/api/v1/reports/form151/?'+source+'year=2026&month=10&'+query)
+ assert response.status_code==400,response.content
+
 @pytest.mark.parametrize('policy,complete,entries,primary,want',[
  ('all',True,[('a','expert_workload'),('b','expert_workload')],None,[0,0,1,0,0,0]),
  ('all',False,[('a','expert_workload')],None,[None,None,1,None,None,None]),

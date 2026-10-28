@@ -20,8 +20,10 @@ class Parameters(serializers.Serializer):
     year=serializers.IntegerField(min_value=1900,max_value=2200)
     month=serializers.IntegerField(min_value=1,max_value=12)
     opening_balances_complete=serializers.BooleanField(default=False)
+    delay_reason_policy=serializers.ChoiceField(choices=('all','primary'),default='all')
 
     def validate(self,data):
+        if data['source']=='journal' and 'delay_reason_policy' in self.initial_data:raise ValidationError({'delay_reason_policy':'Снимок журнала не содержит структурированных причин длительности. Выберите рабочую базу АИС.'})
         if data['source']=='journal' and 'batch_id' not in data:raise ValidationError({'batch_id':'Выберите снимок журнала.'})
         if data['source']=='registry' and 'batch_id' in data:raise ValidationError({'batch_id':'Рабочая база рассчитывается без подмены снимком.'})
         if data['source']=='journal' and 'expected_revision' in data:raise ValidationError({'expected_revision':'Проверка редакции применяется к рабочей базе.'})
@@ -32,6 +34,9 @@ class Parameters(serializers.Serializer):
         if unknown:raise ValidationError({key:"Неизвестный параметр." for key in sorted(unknown)})
         if hasattr(data,"getlist") and any(len(data.getlist(k))!=1 for k in data):
             raise ValidationError({"non_field_errors":["Параметры должны быть однозначными, без повторений."]})
+        # DRF treats an empty HTML query field with a default as omitted.
+        # An explicitly blank counting mode must not silently become "all".
+        if data.get('delay_reason_policy')=='':raise ValidationError({'delay_reason_policy':'Укажите способ подсчёта причин длительности.'})
         return super().to_internal_value(data)
 
 
@@ -49,7 +54,7 @@ class Form151View(GenericAPIView):
             try:report=calculate_registry(**args)
             except ValueError as error:raise ValidationError({'report':str(error)}) from error
             if expected and expected!=report['data_revision']:raise CommandConflict('Рабочие данные изменились после расчёта. Пересчитайте отчёт перед скачиванием.')
-            params={'source':'registry','expected_revision':report['data_revision']}
+            params={'source':'registry','expected_revision':report['data_revision'],'delay_reason_policy':report['delay_reason_policy']}
         else:
             require_preview_read(request.user)
             batch=get_object_or_404(ImportBatch,pk=args.pop('batch_id'))

@@ -40,8 +40,10 @@ def return_date(facts, raw):
     return values[0], False, False
 
 
-def calculate(rows, year, month, opening_balances_complete=False, *, mode="journal"):
+def calculate(rows, year, month, opening_balances_complete=False, *, mode="journal",delay_reason_policy=None):
     if mode not in ("journal","registry"):raise ValueError("Неизвестный источник расчёта.")
+    if delay_reason_policy not in (None,'all','primary'):raise ValueError('Неизвестный способ подсчёта причин длительности.')
+    policy=timing_columns.DELAY_REASON_POLICY if delay_reason_policy is None else delay_reason_policy
     if type(year) is not int or not 1900<=year<=2200 or type(month) is not int or not 1<=month<=12:
         raise ValueError("Укажите год 1900–2200 и месяц 1–12.")
     rows=list(rows); start=date(year,1,1); end=date(year,month,calendar.monthrange(year,month)[1])
@@ -173,7 +175,7 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
             put(3,col,[finish,expertise,None if days is None else (0 if days<=30 else 1 if days<=60 else 2)==band])
         if mode=='registry':
             long_work=None if days is None else days>30
-            reasons=timing_columns.delay_counts(f,timing_columns.DELAY_REASON_POLICY)
+            reasons=timing_columns.delay_counts(f,policy)
             for code,col in timing_columns.DELAY_COLUMNS.items():put(3,col,[finish,expertise,long_work,reasons[code]])
             communication=timing_columns.communication_qualifies(f,completed)
             put(3,'M',[finish,expertise,communication])
@@ -217,4 +219,4 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
     for section in range(1,9):
         group=[c for c in result_cells if c["sheet"]==f"Раздел {section}"]
         coverage.append({"section":section,"filled":sum(c["value"] is not None for c in group),"unavailable":sum(c["value"] is None for c in group),"status":"Частично" if section<=6 else "Пропущен"})
-    return {"version":VERSION,"rules_version":column_rules.RULES_VERSION,"column_rules":column_rules.explanations(mode),'delay_reason_policy':timing_columns.DELAY_REASON_POLICY if mode=='registry' else None,"status":"preliminary","year":year,"month":month,"from":start.isoformat(),"to":end.isoformat(),"opening_balances_complete":opening_balances_complete,"state_assignment_annual_plan":plan,"cells":result_cells,"gaps":list(gaps.values()),"section_coverage":coverage}
+    return {"version":VERSION,"rules_version":column_rules.RULES_VERSION,"column_rules":column_rules.explanations(mode,delay_reason_policy=policy),'delay_reason_policy':policy if mode=='registry' else None,"status":"preliminary","year":year,"month":month,"from":start.isoformat(),"to":end.isoformat(),"opening_balances_complete":opening_balances_complete,"state_assignment_annual_plan":plan,"cells":result_cells,"gaps":list(gaps.values()),"section_coverage":coverage}

@@ -16,7 +16,7 @@ from django.utils import timezone
 from apps.expertises.models import Expertise,WorkClosure,UnresolvedAllocation,HistoricalUnresolvedAllocation,PreviousConclusion,TimingReason
 from .calculation import calculate
 
-VERSION='form151-registry-v6'
+VERSION='form151-registry-v7'
 RESULT_FIELDS=('result_kind','completed_on','return_decided_on','complexity_level','questions','categorical','probable','unresolved','authority_type')
 COUNT_FIELDS=('complexity_level','questions','categorical','probable','unresolved')
 
@@ -28,7 +28,7 @@ class ReportRecord:
     raw:dict
 
 
-def calculate_registry(*,year,month,opening_balances_complete=False):
+def calculate_registry(*,year,month,opening_balances_complete=False,delay_reason_policy=None):
     timing_reasons=TimingReason.objects.filter(timing__expertise_id=OuterRef('pk')).order_by('reason__code').annotate(
         payload=JSONObject(reason_id=F('reason_id'),report_group=F('reason__report_group'))
     ).values('payload')
@@ -87,7 +87,7 @@ def calculate_registry(*,year,month,opening_balances_complete=False):
         fingerprint.append(item)
         if item['state'] in ('in_progress','suspended') and (facts['completed_on'] or facts['return_decided_on']):
             extra.append(key)
-    report=calculate(rows,year,month,opening_balances_complete,mode='registry')
+    report=calculate(rows,year,month,opening_balances_complete,mode='registry',delay_reason_policy=delay_reason_policy)
     for gap in report['gaps']:
         if gap['code']=='deadlines':gap['message']='Причины превышения 30 дней и учёт согласований в форме 15.1 ещё не сопоставлены.'
         if gap['code']=='returnDate':gap.update(message='Не указана дата решения без исполнения. Дата выдачи не заменяет её.',fields='return_decided_on / WorkClosure.ended_on')

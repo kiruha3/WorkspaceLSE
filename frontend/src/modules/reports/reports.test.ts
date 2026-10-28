@@ -5,6 +5,28 @@ import { ApiClient,apiKey } from '../../api/client'
 import { json,page,sessionWith } from '../../test/fixtures'
 import { useSessionStore } from '../../stores/session'
 enableAutoUnmount(afterEach)
+it('selects a counting policy, labels the server result and discards an obsolete mode response',async()=>{
+ const paths:string[]=[];let resolve!:(value:Response)=>void;let pending=false
+ const live={...result,delay_reason_policy:'all',source:{type:'registry',id:null,name:'АИС',row_count:1,calculated_at:'2026-10-28T03:00:00Z',data_revision:'abc',excluded_demo_count:0},cells:[],gaps:[]}
+ const {wrapper}=await open(async input=>{paths.push(String(input));return pending?new Promise<Response>(r=>{resolve=r}):json({...live,delay_reason_policy:String(input).includes('delay_reason_policy=primary')?'primary':'all'})},['expertise.view','reports.form151.run','reports.form151.download'],'/reports')
+ expect(wrapper.get('[name="delay_reason_policy"]').element).toHaveProperty('value','all')
+ await wrapper.get('form').trigger('submit');await flushPromises()
+ expect(paths.at(-1)).toContain('delay_reason_policy=all')
+ expect(wrapper.get('[data-result-delay-policy]').text()).toContain('По всем указанным причинам')
+ await wrapper.get('[name="delay_reason_policy"]').setValue('primary');expect(wrapper.find('[data-report-result]').exists()).toBe(false)
+ await wrapper.get('form').trigger('submit');await flushPromises()
+ expect(paths.at(-1)).toContain('delay_reason_policy=primary');expect(wrapper.get('[data-result-delay-policy]').text()).toContain('Только по основной причине')
+ pending=true;await wrapper.get('form').trigger('submit');await flushPromises()
+ await wrapper.get('[name="delay_reason_policy"]').setValue('all');resolve(json({...live,delay_reason_policy:'primary'}));await flushPromises()
+ expect(wrapper.find('[data-report-result]').exists()).toBe(false);expect(wrapper.find('[data-download-report]').exists()).toBe(false)
+})
+it('does not offer or send a delay policy for a source snapshot',async()=>{
+ const paths:string[]=[]
+ const {wrapper}=await open(async input=>{paths.push(String(input));return json(String(input).includes('/imports/')?page([batch]):result)})
+ expect(wrapper.find('[name="delay_reason_policy"]').exists()).toBe(false)
+ await wrapper.get('form').trigger('submit');await flushPromises()
+ expect(paths.at(-1)).not.toContain('delay_reason_policy');expect(wrapper.find('[data-result-delay-policy]').exists()).toBe(false)
+})
 const batch={id:'batch-1',source_name:'Журнал Google',source_origin:'google_csv',created_at:'2026-10-28T00:00:00Z',row_count:472,sheet_name:'Лист1',source_sha256:'abc'}
 const result={status:'preliminary',version:'v1',year:2026,month:9,from:'2026-01-01',to:'2026-09-30',source:{id:'batch-1',name:'Журнал Google',sha256:'abc',row_count:472,created_at:batch.created_at},download_url:'/api/v1/reports/form151/xlsx/?batch_id=batch-1&year=2026&month=9',cells:[{sheet:'Раздел 1',address:'J108',value:321,rows:[4]}],section_coverage:[{section:1,filled:10,unavailable:2,status:'Частично'}],gaps:[{code:'dates',sections:[1],message:'Не указана дата окончания',fields:'P',rows:[4]}]}
 async function open(transport:typeof fetch,actions=['imports.results.view','reports.form151.run','reports.form151.download'],initial='/reports?batch_id=batch-1'){

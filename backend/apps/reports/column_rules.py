@@ -3,7 +3,7 @@
 Keep the rules version in export fingerprints when these interpretations change.
 No domain reads here: the calculation and explanations share one source snapshot.
 """
-RULES_VERSION='form151-column-rules-v2'
+RULES_VERSION='form151-column-rules-v3'
 
 SOURCE_FIELDS={
  'registry':{
@@ -87,7 +87,7 @@ for col,name in zip('MNOPQR',('СК РФ','МВД','ФСБ','ФТС','ФССП',
 for col,category in zip('HIJKL',('уголовным делам (1)','гражданским делам (2)','арбитражным делам (3)','административным делам / КоАП (4)','КУСП (5)')):
  BASE[6][col]=(f'Законченные заключения госзадания по {category}. Сохраняется общий фильтр категорий 1 и 5.','ended kind category','ended')
 
-def explanations(mode):
+def explanations(mode,*,delay_reason_policy=None):
  sources=SOURCE_FIELDS[mode];rules=[]
  period={
   'opening':'Состояние на начало 1 января выбранного года. Поступление строго раньше 1 января.',
@@ -122,10 +122,11 @@ def explanations(mode):
    add(section,col,meaning,fields,when,unit='вопрос' if section==2 else 'работа в год' if section==6 and col=='D' else 'работа',unknown=unknown,limitations=limits)
  if mode=='registry':
   from .timing_columns import DELAY_COLUMNS,DELAY_REASON_POLICY
-  policy_text={'all':'Каждая работа считается один раз в каждой указанной группе причин.','primary':'Каждая работа считается только по основной причине.'}.get(DELAY_REASON_POLICY,'Правило нескольких причин ещё не подтверждено. Используется только совпадающий результат способов «все причины» и «основная»; различие остаётся неизвестным.')
+  policy=DELAY_REASON_POLICY if delay_reason_policy is None else delay_reason_policy
+  policy_text={'all':'Каждая работа считается один раз в каждой указанной группе причин.','primary':'Каждая работа считается только по основной причине. Если полный список содержит единственную известную группу, она однозначна и без отдельной отметки основной.'}.get(policy,'Правило нескольких причин ещё не подтверждено. Используется только совпадающий результат способов «все причины» и «основная»; различие остаётся неизвестным.')
   for code,col in DELAY_COLUMNS.items():
    meaning={'research_complexity':'сложность исследований','large_material_volume':'объём материалов','expert_workload':'загруженность экспертов','long_research_methods':'длительные методики','appointing_party_deadline':'срок назначившего органа','other':'иные причины'}[code]
-   add(3,col,'Законченные заключения свыше30календарных дней по причине: '+meaning+'.','received ended kind WorkTimingFacts.reasons_complete WorkTimingFacts.primary_reason TimingReason.reason.report_group',unknown=['Неполный список или несопоставленная причина не доказывают отсутствие других групп.'],limitations=[policy_text,'Паузы не вычитаются; неизвестная причина не становится «иной». Несколько причин одного report_group не умножают одну работу.'])
+   add(3,col,'Законченные заключения свыше30календарных дней по причине: '+meaning+'.','received ended kind WorkTimingFacts.reasons_complete WorkTimingFacts.primary_reason TimingReason.reason.report_group',unknown=['Неполный список или несопоставленная причина не доказывают отсутствие других групп.',*(['При нескольких возможных группах без однозначной основной причины зависимые значения неизвестны.'] if policy=='primary' else [])],limitations=[policy_text,'Паузы не вычитаются; неизвестная причина не становится «иной». Несколько причин одного report_group не умножают одну работу.'])
   add(3,'M','Законченные заключения с подтверждёнными информированием и ходатайством о продлении. Оба факта должны быть не позднее окончания.','ended kind WorkTimingFacts.notification_sent WorkTimingFacts.notification_on WorkTimingFacts.notification_document WorkTimingFacts.extension_requested WorkTimingFacts.request_on WorkTimingFacts.request_document',unknown=['Для подтверждённой отправки с неизвестной датой своевременность остаётся неизвестной.'],limitations=['Нет ограничения свыше30дней: орган мог установить меньший срок.','DeadlineEvent.request, черновик и наличие файла не заменяют подтверждение фактической отправки. Запись факта сама письмо не отправляет.'])
   add(3,'N','Законченные заключения с явно подтверждённым нарушением установленного или согласованного срока.','ended kind WorkTimingFacts.deadline_breached WorkTimingFacts.breach_basis WorkTimingFacts.breach_document',unknown=['Неизвестная оценка не считается отсутствием нарушения.'],limitations=['Нет ограничения свыше30дней. Календарный срок и отсутствие события согласования автоматически не определяют юридическую оценку.','Используется подтверждённый факт с основанием и документом, а не вручную введённое число отчёта.'])
   for col,meaning in {'G':'Вопросы за пределами специальных знаний эксперта.','H':'Объекты или материалы непригодны / недостаточны и в дополнении отказано.','I':'Современный уровень науки не позволяет ответить.'}.items():
