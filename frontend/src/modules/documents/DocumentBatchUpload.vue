@@ -8,13 +8,14 @@ const emit=defineEmits<{saved:[value:WorkDocumentResponse];changed:[];refresh:[]
 type Row={id:number;file:File;status:'waiting'|'done'|'failed';expanded:boolean}
 const rows=ref<Row[]>([]),reason=ref(''),error=ref(''),busy=ref(false),started=ref(false),workVersion=ref(props.expectedVersion)
 const forms=shallowReactive(new Map<number,InstanceType<typeof DocumentSourceForm>>())
+let nextRowId=0
 const complete=computed(()=>rows.value.filter(row=>row.status==='done').length),dirty=computed(()=>rows.value.some(row=>row.status!=='done'))
 const conflict=computed(()=>rows.value.some(row=>forms.get(row.id)?.workConflict))
 function select(event:Event){
   const selected=Array.from((event.target as HTMLInputElement).files??[])
   if(selected.length>100){error.value='За один раз выберите не больше100 файлов.';return}
   if(started.value)return
-  forms.clear();rows.value=selected.map((file,id)=>({id,file,status:'waiting',expanded:false}));error.value='';emit('changed')
+  forms.clear();rows.value=selected.map(file=>({id:nextRowId++,file,status:'waiting',expanded:false}));error.value='';emit('changed')
 }
 function bind(id:number,value:unknown){if(value)forms.set(id,value as InstanceType<typeof DocumentSourceForm>);else forms.delete(id)}
 function acceptVersion(){

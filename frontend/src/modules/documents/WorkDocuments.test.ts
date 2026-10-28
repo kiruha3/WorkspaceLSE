@@ -154,6 +154,35 @@ it('uploads a folder sequentially, retains partial failures and skips confirmed 
   expect(links.map(body=>body.expected_version)).toEqual([3,4,4])
   expect(wrapper.text()).toContain('2 из 2')
 })
+it.each([
+  {label:'replacement',first:['A.pdf'],second:['B.pdf'],want:[{name:'B.pdf',path:'folder/B.pdf',bytes:'bytes-B.pdf'}]},
+  {label:'reordered files',first:['A.pdf','B.pdf'],second:['B.pdf','A.pdf'],want:[{name:'B.pdf',path:'folder/B.pdf',bytes:'bytes-B.pdf'},{name:'A.pdf',path:'folder/A.pdf',bytes:'bytes-A.pdf'}]},
+])('uploads the latest selection after $label before starting the batch',async({first,second,want})=>{
+  const titles:string[]=[],uploaded:{name:string;path:string;bytes:string}[]=[],linked:string[]=[]
+  const client=new ApiClient(async(input,init)=>{
+    const path=String(input)
+    if(path.endsWith('/csrf/'))return json({csrf_token:'token'})
+    if(init?.body instanceof FormData){
+      const file=init.body.get('file') as File
+      uploaded.push({name:file.name,path:String(init.body.get('relative_path')),bytes:await file.text()})
+      return json({...v1,id:'file-'+uploaded.length},201)
+    }
+    const body=JSON.parse(String(init?.body))
+    if(!path.includes('/expertises/')){titles.push(body.title);return json({...doc,id:body.title,version:1,versions:[]},201)}
+    linked.push(body.document_id)
+    return json({event:{id:'linked'},library:{...library,context:{...context,version:Number(body.expected_version)+1}}})
+  })
+  const selected=(names:string[])=>names.map(name=>{const file=new File(['bytes-'+name],name);Object.defineProperty(file,'webkitRelativePath',{value:'folder/'+name});return file})
+  const wrapper=mount(DocumentBatchUpload,{props:sourceProps,global:globals(client)})
+  await files(wrapper,'[data-folder-files]',selected(first))
+  await files(wrapper,'[data-folder-files]',selected(second))
+  expect(wrapper.findAll('.archive-batch-row strong').map(row=>row.text())).toEqual(want.map(file=>file.path))
+  await wrapper.get('[name="batch_reason"]').setValue('Последний выбранный набор')
+  await wrapper.get('[data-run-batch]').trigger('click');await flushPromises()
+  expect(titles).toEqual(want.map(file=>file.name))
+  expect(uploaded).toEqual(want)
+  expect(linked).toEqual(want.map(file=>file.name))
+})
 it('rejects more than100 selected files without starting writes',async()=>{
   let writes=0;const wrapper=mount(DocumentBatchUpload,{props:sourceProps,global:globals(new ApiClient(async()=>{writes++;return json(library)}))})
   await files(wrapper,'[data-folder-files]',Array.from({length:101},(_,i)=>new File(['x'],`${i}.pdf`)))
