@@ -25,6 +25,10 @@ def issue_setup(employee_factory, grant, *, completed=False, category="1", kind=
 
 
 def create_package(client, material_id, *, key=None, **values):
+    # Existing positive fixtures explicitly represent non-paid synthetic work.
+    # Tests for unknown or paid work pass their own billing list.
+    values.setdefault("billing", [{"expertise_id": str(pk), "is_paid": False}
+                                  for pk in Expertise.objects.filter(material_id=material_id).values_list("pk", flat=True)])
     return client.post(f"/api/v1/materials/{material_id}/issue-packages/", {
         "reason": "ДЕМО · подготовка выдачи", **values,
     }, content_type="application/json", HTTP_IDEMPOTENCY_KEY=key or str(uuid.uuid4()))
@@ -124,7 +128,7 @@ def test_readiness_requires_correct_category_documents_without_payment_assumptio
     assert any(item["code"] == "item_missing" and item["field"] == extra for item in missing["readiness"]["blockers"])
 
 
-@pytest.mark.parametrize("variant", ["4", "6", "sndz", "commission", "return"])
+@pytest.mark.parametrize("variant", ["sndz", "commission", "return"])
 def test_unconfirmed_issue_policy_is_explicit_not_ordinary_conclusion_default(employee_factory, grant, settings, tmp_path, variant):
     settings.MEDIA_ROOT = tmp_path
     category = variant if variant in ("4", "6") else "1"

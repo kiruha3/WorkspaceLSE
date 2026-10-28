@@ -6,7 +6,7 @@ from apps.accounts.services import audit, check_version
 from apps.documents.policies import require_document
 from apps.intake.models import Material
 from apps.intake.locking import require_not_issued
-from .models import IssuePackage, PackageRevision, PackageItem
+from .models import IssuePackage, PackageRevision, PackageItem, PackageWorkBilling
 from .policies import require_material
 from .readiness import DOCUMENT_KINDS
 
@@ -19,6 +19,7 @@ class PackageConflict(APIException):
 
 def append_revision(package, actor, data):
     values = data.copy(); reason = values.pop("reason"); items = values.pop("items")
+    updates = values.pop("billing", [])
     values.pop("expected_version", None)
     if package.current_revision_id:
         # No silent unlink through a redacted document projection.
@@ -35,8 +36,20 @@ def append_revision(package, actor, data):
         if item["document"].kind not in DOCUMENT_KINDS[item["kind"]]:
             raise ValidationError({"items": "Вид документа не соответствует назначению в комплекте."})
     previous = package.current_revision
+    billing = {item.expertise_id: item.is_paid for item in previous.billing.all()} if previous else {}
+    allowed = set(package.material.expertises.values_list("pk", flat=True))
+    seen_billing = set()
+    for item in updates:
+        work_id = item["expertise_id"]
+        if work_id in seen_billing:
+            raise ValidationError({"billing": "Платность одной работы указана повторно."})
+        if work_id not in allowed:
+            raise ValidationError({"billing": "Работа не относится к этому материалу."})
+        seen_billing.add(work_id)
+        billing[work_id] = item["is_paid"]
     revision = PackageRevision.objects.create(package=package, number=previous.number + 1 if previous else 1, actor=actor, reason=reason, **values)
     PackageItem.objects.bulk_create([PackageItem(revision=revision, **item) for item in items])
+    PackageWorkBilling.objects.bulk_create([PackageWorkBilling(revision=revision, expertise_id=pk, is_paid=paid) for pk, paid in billing.items()])
     package.current_revision = revision; package.save(update_fields=["current_revision"])
     audit(actor, "issue.prepare", package, {"revision_id": revision.pk}, reason)
     return {"id": str(revision.pk), "package_id": str(package.pk)}

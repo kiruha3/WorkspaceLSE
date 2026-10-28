@@ -4,8 +4,9 @@ export type IssueItemKind = 'expert_subscription' | 'cover_letter' | 'notificati
 export interface IssuePerson { id: string; full_name: string }
 export interface IssueRecorded { id: string; actor: IssuePerson | null; created_at: string; reason: string }
 export interface PackageItem { id: string; kind: IssueItemKind; expertise_id: string; document: DocumentLink; note: string }
-export interface PackageRevision extends IssueRecorded { number: number; materials_description: string; note: string; items: PackageItem[] }
-export interface IssueWork { id: string; registration_number: string; category_code: string; state: string; department: { id: string; code: string; name: string }; is_commission: boolean; closure: { id: string; kind: string; ended_on: string | null; result_kind: string | null; document: DocumentLink } | null; required_items: string[] }
+export interface IssueWorkBilling { expertise_id: string; is_paid: boolean | null }
+export interface PackageRevision extends IssueRecorded { number: number; materials_description: string; note: string; items: PackageItem[]; billing: IssueWorkBilling[] }
+export interface IssueWork { id: string; registration_number: string; category_code: string; state: string; department: { id: string; code: string; name: string }; is_commission: boolean; is_paid: boolean | null; closure: { id: string; kind: string; ended_on: string | null; result_kind: string | null; document: DocumentLink } | null; required_items: string[] }
 export interface PackageReadiness { blockers: { code: string; field: string; message: string; expertise_id?: string }[]; can_check: boolean; can_issue: boolean; check_current: boolean }
 export interface PackageCheck extends IssueRecorded { revision_id: string; works: { expertise_id: string; closure_id: string }[]; files: { item_id: string | null; closure_id: string | null; document: DocumentLink }[] }
 export interface MaterialIssue extends IssueRecorded { check_id: string; issued_on: string; method: Reference; recipient_name: string; recipient_basis: string; tracking: string; comment: string; evidence: DocumentLink }
@@ -17,4 +18,5 @@ export interface WorkIssueStatus { status: 'unavailable' | 'not_issued' | 'issue
 export const emptyIssueOptions = (): IssueOptions => ({ methods: [], item_kinds: [] })
 export const issueStateLabels: Record<IssueState, string> = { draft: 'Черновик', checked: 'Проверен', needs_recheck: 'Требуется повторная проверка', issued: 'Выдано' }
 export const issueItemLabels: Record<IssueItemKind, string> = { expert_subscription: 'Подписка эксперта', cover_letter: 'Сопроводительное', notification: 'Уведомление', invoice: 'Счёт', other: 'Прочее приложение' }
+export const issueBillingLabel = (value: boolean | null | undefined) => value == null ? 'Не уточнено' : value ? 'Платная — требуется счёт' : 'Не платная'
 export const issueToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Krasnoyarsk', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())

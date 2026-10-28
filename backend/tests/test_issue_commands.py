@@ -179,9 +179,13 @@ def test_incomplete_package_cannot_be_checked(employee_factory, grant):
     assert client.get(f"/api/v1/issue-packages/{package['id']}/").json()["checks"] == []
 
 
-def test_unknown_package_policy_cannot_be_checked(employee_factory, grant, settings, tmp_path):
+def test_mismatched_research_result_policy_cannot_be_checked(employee_factory, grant, settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path
-    client, _, _, package, _, _, _, _ = ready_package(employee_factory, grant, category="4")
+    client, _, work, package, _, _, _, _ = ready_package(employee_factory, grant)
+    # A mismatched result cannot be created through result commands. Exercise
+    # readiness against an inconsistent historical/imported pair instead.
+    from apps.expertises.models import Expertise
+    Expertise.objects.filter(pk=work["id"]).update(category_code="6")
     assert package_command(client, package, "check").status_code == 400
     assert not AuditEvent.objects.filter(action="issue.check").exists()
 

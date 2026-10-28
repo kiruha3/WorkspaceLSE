@@ -23,7 +23,7 @@ from .commands import check_package, issue_material
 
 def loaded(queryset=None):
     return (queryset if queryset is not None else IssuePackage.objects.all()).select_related("material", "current_revision", "issuance__method", "issuance__actor__employee", "issuance__evidence_document").prefetch_related(
-        "revisions__actor__employee", "revisions__items__document__versions", "checks__actor__employee", "checks__works", "checks__files__document__versions", "issuance__evidence_document__versions")
+        "revisions__actor__employee", "revisions__items__document__versions", "revisions__billing", "checks__actor__employee", "checks__works", "checks__files__document__versions", "issuance__evidence_document__versions")
 
 
 def read_package(request, pk):

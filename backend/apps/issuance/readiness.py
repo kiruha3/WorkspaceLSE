@@ -9,10 +9,19 @@ DOCUMENT_KINDS = {
 }
 
 
-def required_items(work, closure):
+def required_items(work, closure, is_paid=None):
     if not closure: return []
-    if work.is_commission or closure.kind != "completed" or closure.result.kind != "expert_conclusion" or work.category_code not in ("1", "2", "3", "5"): return []
-    return ["expert_subscription", "cover_letter", "notification" if work.category_code in ("1", "5") else "invoice"]
+    if work.is_commission or closure.kind != "completed" or not closure.result_id: return []
+    expected_result = "research_act" if work.category_code == "6" else "expert_conclusion"
+    if work.category_code not in ("1", "2", "3", "4", "5", "6") or closure.result.kind != expected_result: return []
+    kinds = ["expert_subscription", "cover_letter"]
+    if work.category_code in ("1", "5"): kinds.append("notification")
+    if work.category_code in ("2", "3") or is_paid is True: kinds.append("invoice")
+    return kinds
+
+
+def billing_values(package):
+    return {item.expertise_id: item.is_paid for item in package.current_revision.billing.all()}
 
 
 def current_facts(package):
@@ -51,6 +60,7 @@ def readiness(package, user, scopes=None):
         blockers.append(item)
     facts = current_facts(package)
     works, closures, items, files = facts
+    billing = billing_values(package)
     if not package.current_revision.materials_description.strip(): add("materials_missing", "materials_description", "Опишите передаваемые материалы дела.")
     if not works: add("works_missing", "works", "У материала нет зарегистрированных работ.")
     for work in works:
@@ -59,11 +69,14 @@ def readiness(package, user, scopes=None):
         closure = closures[work.pk]
         if work.state not in ("completed", "without_execution") or not closure:
             add("work_open", "works", "Работа ещё не завершена.", work); continue
+        required = required_items(work, closure, billing.get(work.pk))
         if work.is_commission:
             add("commission_policy_unconfirmed", "items", "Нужно подтвердить комплект подписок комиссии.", work)
-        elif not required_items(work, closure):
+        elif not required:
             add("policy_unconfirmed", "items", "Состав выдачи для этого вида результата или категории пока не утверждён.", work)
-        for kind in required_items(work, closure):
+        elif billing.get(work.pk) is None:
+            add("billing_unknown", "billing", "Уточните платность работы перед проверкой и выдачей комплекта.", work)
+        for kind in required:
             if not any(item.kind == kind and item.expertise_id == work.pk for item in items):
                 add("item_missing", kind, "Нет обязательного документа комплекта.", work)
         if not closure.accepted_version_id: add("file_missing", "result", "У подтверждённого итога нет принятого файла.", work)

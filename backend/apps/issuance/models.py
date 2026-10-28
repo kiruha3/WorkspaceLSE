@@ -47,6 +47,17 @@ class PackageItem(models.Model):
         constraints = [models.UniqueConstraint(fields=["revision", "kind", "expertise"], condition=~Q(kind="other"), name="unique_issue_item_role")]
 
 
+class PackageWorkBilling(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    revision = models.ForeignKey(PackageRevision, related_name="billing", on_delete=models.PROTECT)
+    expertise = models.ForeignKey("expertises.Expertise", related_name="issue_billing", on_delete=models.PROTECT)
+    is_paid = models.BooleanField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["expertise_id"]
+        constraints = [models.UniqueConstraint(fields=["revision", "expertise"], name="unique_issue_work_billing")]
+
+
 class PackageCheck(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     package = models.ForeignKey(IssuePackage, related_name="checks", on_delete=models.PROTECT)

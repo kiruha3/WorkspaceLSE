@@ -7,7 +7,7 @@ from apps.expertises.result_serializers import document_link
 from apps.references.api import reference_data
 from .models import ITEM_KINDS
 from .policies import material_queryset
-from .readiness import current_facts, required_items, readiness
+from .readiness import current_facts, required_items, readiness, billing_values
 
 
 class ItemInput(StrictSerializer):
@@ -17,10 +17,16 @@ class ItemInput(StrictSerializer):
     note = serializers.CharField(allow_blank=True, required=False, default="")
 
 
+class WorkBillingInput(StrictSerializer):
+    expertise_id = serializers.UUIDField()
+    is_paid = serializers.BooleanField(allow_null=True)
+
+
 class ContentInput(StrictSerializer):
     materials_description = serializers.CharField(allow_blank=True, required=False, default="")
     note = serializers.CharField(allow_blank=True, required=False, default="")
     items = ItemInput(many=True, required=False, default=list)
+    billing = WorkBillingInput(many=True, required=False, max_length=1000)
     reason = serializers.CharField()
 
 
@@ -48,6 +54,7 @@ def recorded_data(record):
 
 def revision_data(revision, user):
     return {**recorded_data(revision), "number": revision.number, "materials_description": revision.materials_description, "note": revision.note,
+        "billing": [{"expertise_id": str(item.expertise_id), "is_paid": item.is_paid} for item in revision.billing.all()],
         "items": [{"id": str(item.pk), "kind": item.kind, "expertise_id": str(item.expertise_id), "document": document_link(item.document, user), "note": item.note} for item in revision.items.all()]}
 
 
@@ -55,6 +62,8 @@ def package_data(package, user, scopes=None):
     scopes = permission_scopes(user) if scopes is None else scopes
     revisions = list(package.revisions.all())
     current = next(item for item in revisions if item.pk == package.current_revision_id)
+    package.current_revision = current
+    billing = billing_values(package)
     ready = readiness(package, user, scopes)
     works, closures, _, _ = current_facts(package)
     check_records = list(package.checks.all())
@@ -71,7 +80,7 @@ def package_data(package, user, scopes=None):
             "closure": {"id": str(closures[work.pk].pk), "kind": closures[work.pk].kind, "ended_on": closures[work.pk].ended_on,
                 "result_kind": closures[work.pk].result.kind if closures[work.pk].result_id else None,
                 "document": document_link(closures[work.pk].document, user, closures[work.pk].accepted_version_id)} if closures[work.pk] else None,
-            "required_items": required_items(work, closures[work.pk])} for work in works],
+            "is_paid": billing.get(work.pk), "required_items": required_items(work, closures[work.pk], billing.get(work.pk))} for work in works],
         "readiness": ready,
         "checks": [{**recorded_data(check), "revision_id": str(check.revision_id), "works": [{"expertise_id": str(work.expertise_id), "closure_id": str(work.closure_id)} for work in check.works.all()],
             "files": [{"item_id": str(file.item_id) if file.item_id else None, "closure_id": str(file.closure_id) if file.closure_id else None, "document": document_link(file.document, user, file.accepted_version_id)} for file in check.files.all()]} for check in check_records],
