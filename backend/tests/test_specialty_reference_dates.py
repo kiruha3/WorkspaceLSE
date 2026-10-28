@@ -12,6 +12,22 @@ from test_expert_assignments import assignment_setup, assign
 pytestmark = pytest.mark.django_db
 
 
+@pytest.mark.parametrize("status", ["training", "qualified"])
+def test_create_checks_scoped_right_before_resolving_any_mentor(employee_factory, status):
+    from uuid import uuid4
+    actor = employee_factory()
+    active_mentor = employee_factory()
+    inactive_mentor = employee_factory(active=False)
+    specialty = Specialty.objects.create(code="18.1",name="Транспорт")
+    client = client_for(actor)
+    responses = [client.post(f"/api/v1/employees/{actor.id}/specialties/", {
+        "status":status,"specialty_id":str(specialty.pk),"mentor_id":str(mentor_id),
+    },content_type="application/json") for mentor_id in (active_mentor.pk,inactive_mentor.pk,uuid4())]
+    assert [r.status_code for r in responses] == [403,403,403]
+    assert responses[0].json() == responses[1].json() == responses[2].json()
+    assert not EmployeeSpecialty.objects.exists()
+
+
 @pytest.mark.parametrize("payload", [[], "not an object"])
 def test_malformed_create_is_a_validation_error_without_creating_a_specialty(employee_factory, grant, payload):
     actor = employee_factory()

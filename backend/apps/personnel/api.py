@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from django.db import transaction
 from django.db.models import Q, FilteredRelation
 from django.shortcuts import get_object_or_404
@@ -86,11 +87,14 @@ class EmployeeSpecialtiesView(GenericAPIView):
     def post(self,request,pk):
         employee = get_object_or_404(Employee.objects.select_for_update(),pk=pk)
         serializer = SpecialtyCreate(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        require_employee(request.user,"specialties.qualify" if data["status"] == "qualified" else "specialties.training.manage",employee)
+        # Reject the JSON shape without querying references or other employees.
+        if not isinstance(request.data,Mapping):
+            serializer.is_valid(raise_exception=True)
+        require_employee(request.user,"specialties.qualify" if request.data.get("status") == "qualified" else "specialties.training.manage",employee)
         if not employee.is_active:
             raise ValidationError("Сотрудник неактивен.")
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
         if EmployeeSpecialty.objects.filter(employee=employee,specialty=data["specialty"]).exists():
             raise ValidationError({"specialty_id":"Эта специальность уже связана с сотрудником."})
         item = EmployeeSpecialty.objects.create(employee=employee,**data)
