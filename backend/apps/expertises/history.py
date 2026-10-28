@@ -62,11 +62,14 @@ def report_gaps(work,history):
     if work.state=="without_execution" and history.return_decided_on is None:gap("historical_end_unknown","return_decided_on","Дата решения без исполнения не уточнена; выдача не заменяет её.")
     if not history.suspension_history_complete:gap("pause_history_unknown","suspensions","История приостановок до переноса не подтверждена как полная.")
     if not history.statistics_confirmed:gap("statistics_unconfirmed","statistics_confirmed","Статистика вопросов источника не подтверждена как полная.")
-    if history.unresolved:gap("historical_reasons_unmapped","unresolved_reason_raw","Причины нерешённых вопросов сохранены текстом, но не распределены по справочнику.")
+    if history.unresolved and not history.allocations_complete:gap("historical_reasons_unmapped","unresolved_reason_raw","Причины нерешённых вопросов не распределены полностью по справочнику.")
+    if work.state=='completed' and history.result_kind=='sndz' and not history.sndz_reason_id:gap('sndz_reason_missing','sndz_reason','Причина полного СНДЗ не уточнена.')
+    if work.state=='without_execution' and not history.return_reason_id:gap('return_reason_missing','return_reason','Причина решения без исполнения не уточнена.')
     return gaps
 
 
 def historical_output(work,user,scopes):
+    from .historical_report_serializers import historical_report_output,historical_corrections_output
     history=historical_record(work)
     if history is None:return None
     source=history.source_row;batch=source.batch
@@ -78,4 +81,4 @@ def historical_output(work,user,scopes):
         "suspension_history_complete":history.suspension_history_complete,"statistics_confirmed":history.statistics_confirmed,
         "current_participants":[{"id":str(item.employee_id),"full_name":item.employee.full_name} for item in history.participants.all()],
         "source":{"batch_id":str(batch.pk),"row_id":str(source.pk),"source_row":source.source_row,"origin_url":batch.origin_url if can_source else None,"source_observed_at":batch.source_observed_at},
-        "report_gaps":report_gaps(work,history)}
+        "report_gaps":report_gaps(work,history),'report_details':historical_report_output(history,user),'corrections':historical_corrections_output(history)}

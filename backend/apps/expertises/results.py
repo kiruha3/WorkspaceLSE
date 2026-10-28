@@ -44,7 +44,8 @@ def checked_document(actor,document,*,kind=None):
     return document
 
 
-def create_revision(work,actor,data,reason):
+def create_revision(work,actor,data,reason,*,retained_references=None):
+    retained_references=retained_references or {}
     values=data.copy();allocations=values.pop("unresolved_allocations")
     previous=latest_result(work)
     kind=values["kind"]
@@ -56,8 +57,8 @@ def create_revision(work,actor,data,reason):
     # document: different works can cross-reference each other's evidence.
     list(Document.objects.select_for_update().filter(pk__in=document_ids).order_by("pk"))
     values["document"]=checked_document(actor,values["document"],kind=kind)
-    values["sndz_reason"]=locked_reference(values["sndz_reason"],set(work.result_revisions.values_list("sndz_reason_id",flat=True)),"sndz_reason_id")
-    previous_reasons=set(UnresolvedAllocation.objects.filter(result__expertise=work).values_list("reason_id",flat=True))
+    values["sndz_reason"]=locked_reference(values["sndz_reason"],set(work.result_revisions.values_list("sndz_reason_id",flat=True))|retained_references.get('sndz_reason',set()),"sndz_reason_id")
+    previous_reasons=set(UnresolvedAllocation.objects.filter(result__expertise=work).values_list("reason_id",flat=True))|retained_references.get('unresolved_allocations',set())
     # Deterministic reference/document order avoids opposite allocation lock orders.
     checked=[]
     for allocation in sorted(allocations,key=lambda a:str(a["reason"].pk)):
@@ -135,11 +136,11 @@ def create_closure(work,actor,*,reason,kind,ended_on,document,result=None,return
     return closure
 
 
-def return_values(work,actor,data):
+def return_values(work,actor,data,*,retained_references=None):
     validate_ending(work,data["decided_on"],"decided_on")
     document=checked_document(actor,data["document"],kind="return_decision")
     if not document.versions.exists():raise ValidationError({"document_id":"Подкрепите сохранённый файл решения."})
-    reason=locked_reference(data["return_reason"],set(work.closures.values_list("return_reason_id",flat=True)),"return_reason_id")
+    reason=locked_reference(data["return_reason"],set(work.closures.values_list("return_reason_id",flat=True))|(retained_references or {}).get('return_reason',set()),"return_reason_id")
     if reason and reason.code=="other" and not data["comment"]:
         raise ValidationError({"comment":"Для иной причины нужно пояснение."})
     return {"kind":"without_execution","ended_on":data["decided_on"],"document":document,"return_reason":reason,"comment":data["comment"]}

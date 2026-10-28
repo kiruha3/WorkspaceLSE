@@ -12,10 +12,11 @@ const textFields = [
 <template>
   <section data-historical-facts class="card stack-card">
     <div class="section-heading"><div><p class="eyebrow">Перенос журнала</p><h2>Исторические сведения</h2></div><span class="badge badge-amber">{{ history.operational ? 'Продолжение учёта подтверждено' : 'Нуждается в подтверждении для нового учёта' }}</span></div>
-    <p class="muted compact">Сведения сохранены из источника. Перенос не подтверждает новый электронный комплект, допуск эксперта или фактическое назначение.</p>
+    <p v-if="history.corrections?.length" class="message">Показаны текущие уточнённые сведения. Исходный снимок не изменён; автор и основание правок указаны в истории уточнений.</p>
+    <p class="muted compact">Перенос не подтверждает новый электронный комплект, допуск эксперта или фактическое назначение.</p>
     <dl class="work-facts">
-      <div><dt>Результат в источнике</dt><dd>{{ history.result_kind ? kinds[history.result_kind] : 'Неизвестно' }}</dd></div>
-      <div><dt>Окончание в журнале</dt><dd>{{ history.completed_on ?? 'Неизвестно' }}</dd></div>
+      <div><dt>Исторический результат</dt><dd>{{ history.result_kind ? kinds[history.result_kind] : 'Неизвестно' }}</dd></div>
+      <div><dt>Историческая дата окончания</dt><dd>{{ history.completed_on ?? 'Неизвестно' }}</dd></div>
       <div><dt>Решение без исполнения</dt><dd>{{ history.return_decided_on ?? 'Неизвестно' }}</dd></div>
       <div><dt>Фактическая выдача в журнале</dt><dd data-history-issued>{{ history.issued_on ?? 'Не подтверждена — дата отсутствует' }}</dd></div>
       <div><dt>Категория сложности</dt><dd data-history-complexity>{{ history.complexity_level ?? 'Неизвестно' }}</dd></div>

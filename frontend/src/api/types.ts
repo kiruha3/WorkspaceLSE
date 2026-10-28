@@ -109,7 +109,11 @@ export interface HistoricalWork {
   current_participants: { id: string; full_name: string }[]
   source: { batch_id: string; row_id: string; source_row: number; origin_url: string | null; source_observed_at: string | null }
   report_gaps: ResultIssue[]
+  report_details?: { sndz_reason: Reference | null; sndz_comment: string; allocations_complete: boolean; note: string; return_reason: Reference | null; return_comment: string; unresolved_allocations: ResultRevision['unresolved_allocations'] }
+  corrections?: { id: string; number: number; actor: { id: string; full_name: string }; created_at: string; reason: string; before: Record<string,unknown>; after: Record<string,unknown> }[]
 }
+export interface HistoricalReportOptions { specialties: Reference[]; sndz_reasons: Reference[]; return_reasons: Reference[]; unresolved_reasons: Reference[] }
+export interface HistoricalReportPayload { expected_version: number; reason: string; specialty_id: string | null; correction_kind: 'result' | 'return'; result?: Omit<ResultPayload,'document_id'>; return_data?: { decided_on: string | null; return_reason_id: string | null; comment: string } }
 export interface Expertise {
   id: string; registration_number: string; registration_department_code?: string | null; historical_number: string; sequence: number; year: number; category_code: string
   origin_kind: 'native' | 'historical'; historical: HistoricalWork | null

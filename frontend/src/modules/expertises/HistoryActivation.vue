@@ -22,13 +22,14 @@ const resultMode = ref('existing'), resultId = ref(''), existingResult = ref<Bas
 const basisForm = ref<InstanceType<typeof BasisDocumentForm> | null>(null), resultForm = ref<InstanceType<typeof BasisDocumentForm> | null>(null)
 const resultKind = ref<ResultKind | ''>(''), endDate = ref(''), complexity = ref(''), questions = ref(''), categorical = ref(''), probable = ref(''), unresolved = ref('')
 const statistics = ref(false), sndzReason = ref(''), sndzComment = ref(''), returnReason = ref(''), comment = ref('')
+const allocationsComplete=ref(false),allocations=ref<{reason_id:string;count:string;comment:string;document:BasisDocument|{id:string;restricted:true}|null}[]>([])
 const attempt = ref<{ key: string; body: HistoryActivationPayload } | null>(null)
 let active = true
 const closed = computed(() => ['completed', 'without_execution'].includes(props.expertise.state)), isReturn = computed(() => props.expertise.state === 'without_execution')
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Krasnoyarsk', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 const resultKinds = computed<{ value: ResultKind; label: string }[]>(() => props.expertise.category_code === '6' ? [{ value: 'research_act', label: 'Акт экспертного исследования' }] : [{ value: 'expert_conclusion', label: 'Заключение эксперта' }, { value: 'sndz', label: 'Сообщение о невозможности дать заключение' }])
 const evidenceKinds = computed<{ value: DocumentKind; label: string }[]>(() => isReturn.value ? [{ value: 'return_decision', label: 'Решение без исполнения' }] : resultKind.value ? [{ value: resultKind.value, label: resultKinds.value.find(item => item.value === resultKind.value)?.label || 'Итоговый документ' }] : [])
-const stamp = computed(() => JSON.stringify([nature.value, commission.value, complexConfirmed.value, specialtyId.value, reason.value.trim(), pausesComplete.value, openPause.value, pauses.value, basisMode.value, basisId.value, resultMode.value, resultId.value, resultKind.value, endDate.value, complexity.value, questions.value, categorical.value, probable.value, unresolved.value, statistics.value, sndzReason.value, sndzComment.value, returnReason.value, comment.value]))
+const stamp = computed(() => JSON.stringify([nature.value, commission.value, complexConfirmed.value, specialtyId.value, reason.value.trim(), pausesComplete.value, openPause.value, pauses.value, basisMode.value, basisId.value, resultMode.value, resultId.value, resultKind.value, endDate.value, complexity.value, questions.value, categorical.value, probable.value, unresolved.value, statistics.value, sndzReason.value, sndzComment.value, returnReason.value, comment.value,allocations.value,allocationsComplete.value]))
 const original = ref('')
 const confirmLeave = useDirtyGuard(() => editing.value && !saved.value && (stamp.value !== original.value || busy.value || Boolean(attempt.value) || Boolean(basisForm.value?.dirty || resultForm.value?.dirty)), inject(routerKey, undefined))
 function invalidate() { attempt.value = null; uncertain.value = false; error.value = null }
@@ -66,7 +67,9 @@ function start() {
   resultKind.value = history.result_kind ?? ''; endDate.value = (isReturn.value ? history.return_decided_on : history.completed_on) ?? ''
   const numberText = (value: number | null) => value === null ? '' : String(value)
   complexity.value = numberText(history.complexity_level); questions.value = numberText(history.questions); categorical.value = numberText(history.categorical); probable.value = numberText(history.probable); unresolved.value = numberText(history.unresolved)
-  statistics.value = history.statistics_confirmed; sndzReason.value = ''; sndzComment.value = ''; returnReason.value = ''; comment.value = ''
+  const details=history.report_details
+  statistics.value = history.statistics_confirmed; sndzReason.value = details?.sndz_reason?.id??''; sndzComment.value = details?.sndz_comment??''; returnReason.value = details?.return_reason?.id??''; comment.value = (isReturn.value?details?.return_comment:details?.note)??''
+  allocationsComplete.value=details?.allocations_complete??false;allocations.value=(details?.unresolved_allocations??[]).map(item=>({reason_id:item.reason.id,count:String(item.count),comment:item.comment,document:item.document}))
   resultMode.value = canUpload.value ? 'new' : 'existing'; resultId.value = ''; existingResult.value = null
   saved.value = false; editing.value = true; invalidate(); original.value = stamp.value; void loadOptions()
 }
@@ -109,7 +112,7 @@ async function submit() {
         else {
           const numeric = (value: string) => value === '' ? null : Number(value)
           body.result = { kind: resultKind.value as ResultKind, completed_on: endDate.value, document_id: resultDocument.id, complexity_level: numeric(complexity.value), questions: numeric(questions.value), categorical: numeric(categorical.value), probable: numeric(probable.value), unresolved: numeric(unresolved.value), statistics_complete: statistics.value,
-            sndz_reason_id: resultKind.value === 'sndz' ? sndzReason.value || null : null, sndz_comment: resultKind.value === 'sndz' ? sndzComment.value.trim() : '', unresolved_allocations: [], allocations_complete: false, note: comment.value.trim() }
+            sndz_reason_id: resultKind.value === 'sndz' ? sndzReason.value || null : null, sndz_comment: resultKind.value === 'sndz' ? sndzComment.value.trim() : '', unresolved_allocations: allocations.value.map(item=>({reason_id:item.reason_id,count:Number(item.count),comment:item.comment.trim(),document_id:item.document?.id??null})), allocations_complete: allocationsComplete.value, note: comment.value.trim() }
         }
       }
       attempt.value = { key: newCommandKey(), body }
@@ -146,12 +149,16 @@ onBeforeUnmount(() => { active = false; requests.cancel(); documentRequests.canc
           <div class="form-columns"><label v-if="!isReturn">Вид результата<select v-model="resultKind" name="history_result_kind"><option value="">Выберите вид</option><option v-for="item in resultKinds" :key="item.value" :value="item.value">{{ item.label }}</option></select></label><label>{{ isReturn ? 'Дата решения' : 'Дата окончания' }}<input v-model="endDate" name="history_end_date" type="date" :min="expertise.receipt.received_at" :max="today()" required /></label></div>
           <template v-if="!isReturn"><div class="form-columns"><label>Сложность<input v-model="complexity" name="history_complexity" type="number" min="1" /></label><label>Q — вопросов<input v-model="questions" type="number" min="0" /></label><label>R — категорических<input v-model="categorical" type="number" min="0" /></label><label>S — вероятных<input v-model="probable" type="number" min="0" /></label><label>T — нерешённых<input v-model="unresolved" type="number" min="0" /></label></div><label class="check-label"><input v-model="statistics" type="checkbox" />Подтверждаю полноту статистики вопросов</label><label v-if="resultKind === 'sndz'">Причина СНДЗ<select v-model="sndzReason"><option value="">Пока не определена</option><option v-for="ref in options?.sndz_reasons ?? []" :key="ref.id" :value="ref.id">{{ ref.name }}</option></select></label><label v-if="resultKind === 'sndz'">Пояснение СНДЗ<textarea v-model="sndzComment" /></label></template>
           <label v-else>Причина решения<select v-model="returnReason"><option value="">Пока не определена</option><option v-for="ref in options?.return_reasons ?? []" :key="ref.id" :value="ref.id">{{ ref.name }}</option></select></label>
+          <section v-if="!isReturn" class="subsection"><h4>Подтвердить причины нерешённых вопросов T</h4><p class="muted compact">Уточнённые сведения перенесены из истории. Проверьте их перед подтверждением нового учёта.</p>
+            <div v-for="(item,index) in allocations" :key="index" class="inset-form form-grid"><div class="form-columns"><label>Причина<select v-model="item.reason_id" :name="`history_activation_allocation_reason_${index}`"><option value="">Выберите причину</option><option v-for="ref in options?.unresolved_reasons??[]" :key="ref.id" :value="ref.id">{{ref.name}}</option></select></label><label>Количество<input v-model="item.count" :name="`history_allocation_count_${index}`" type="number" min="1" step="1" required/></label></div><label>Пояснение<textarea v-model="item.comment" rows="2"/></label><template v-if="item.document"><BasisPreview :document="item.document" heading="Подтверждающий документ"/><button type="button" @click="item.document=null">Убрать ссылку на документ</button></template><button type="button" @click="allocations.splice(index,1)">Убрать причину</button></div>
+            <button type="button" @click="allocations.push({reason_id:'',count:'',comment:'',document:null})">Добавить причину вопроса</button><label class="check-label"><input v-model="allocationsComplete" type="checkbox"/>Подтверждаю полное распределение T</label>
+          </section>
           <label>Примечание к подтверждаемому итогу<textarea v-model="comment" /></label>
           <template v-if="evidenceKinds.length"><label>Источник итогового документа<select v-model="resultMode" name="history_result_mode"><option value="existing">Использовать сохранённый документ</option><option v-if="canUpload" value="new">Подкрепить новый документ</option></select></label>
             <template v-if="resultMode === 'existing'"><div class="button-row"><label class="grow">Код сохранённого итогового документа<input v-model="resultId" name="history_result_id" /></label><button data-load-history-result type="button" :disabled="loadingResult || !resultId.trim()" @click="loadResult">Проверить итоговый документ</button></div><BasisPreview v-if="existingResult" :document="existingResult" /><p v-else class="muted compact">Нужен доступный итоговый документ выбранного вида с сохранённым файлом.</p></template>
             <div v-else data-history-result-document><BasisDocumentForm :key="isReturn ? 'return' : resultKind" ref="resultForm" :department-id="expertise.department.id" :kind-options="evidenceKinds" :require-file="true" :busy="busy" heading="Реальный итоговый документ" saved-note="Подтверждение окончания выполняется отдельно." @changed="invalidate" /></div>
           </template>
-          <p class="muted compact">Нужен сохранённый файл. Причины нерешённых вопросов уточняются в обычной карточке результата; исходный текст журнала сохраняется.</p>
+          <p class="muted compact">Нужен сохранённый файл. Исходный текст журнала и история уточнений сохраняются.</p>
         </template>
         <label>Основание подтверждения<textarea v-model="reason" name="history_reason" required rows="2" /></label>
       </fieldset>

@@ -12,6 +12,8 @@ import ExpertiseLetters from '../letters/ExpertiseLetters.vue'
 import ExpertiseIssueStatus from '../issuance/ExpertiseIssueStatus.vue'
 import HistoricalFacts from './HistoricalFacts.vue'
 import HistoryActivation from './HistoryActivation.vue'
+import HistoryReportEditor from './HistoryReportEditor.vue'
+import HistoryReportDetails from './HistoryReportDetails.vue'
 import { useSessionStore } from '../../stores/session'
 const api = useApi(), route = useRoute(), requests = new LatestRequest()
 const session = useSessionStore()
@@ -29,6 +31,7 @@ function updated(value: Expertise) { requests.cancel(); loading.value = false; e
 function productionUpdated(value: Expertise) { requests.cancel(); loading.value = false; expertise.value = value; success.value = 'Событие производства сохранено сервером.' }
 function resultUpdated(value: Expertise) { requests.cancel(); loading.value = false; expertise.value = value; success.value = 'Сведения о результате сохранены сервером.' }
 function historyUpdated(value: Expertise) { requests.cancel(); loading.value = false; expertise.value = value; action.value = null; success.value = 'Историческая работа подтверждена для нового учёта. Назначение выполняется отдельно.' }
+function historyReportUpdated(value: Expertise) { requests.cancel();loading.value=false;expertise.value=value;success.value='Уточнение сохранено. Номер и состояние работы не изменены.' }
 watch(() => route.params.id, () => { if (route.path.startsWith('/expertises/')) { action.value = null; expertise.value = null; success.value = ''; void load() } }, { immediate: true })
 onBeforeUnmount(() => requests.cancel())
 </script>
@@ -54,6 +57,8 @@ onBeforeUnmount(() => requests.cancel())
     <section class="card stack-card"><div class="section-heading"><div><h2>Текущие исполнители</h2><p class="muted compact">{{ expertise.is_commission ? 'Комиссия выполняет одну работу под одним номером.' : 'Назначение по специальности этой работы.' }}</p></div><div class="button-row"><button v-if="expertise.allowed_actions.includes('expertise.assign') && !action" data-start-assignment class="button-primary" @click="action = 'assign'">Назначить эксперта{{ expertise.is_commission ? 'ов' : '' }}</button><button v-if="expertise.allowed_actions.includes('expertise.reassign') && !action" data-start-assignment @click="action = 'reassign'">Перепоручить</button></div></div><div data-current-assignments><div v-for="assignment in expertise.current_assignments" :key="assignment.id" class="assignment-line"><strong>{{ assignment.employee.full_name }}</strong><small>Назначен: {{ time(assignment.started_at) }}</small><p class="muted compact">{{ assignment.reason || 'Основание не указано' }}</p></div><p v-if="!expertise.current_assignments.length" class="muted">Исполнитель ещё не назначен. Это отдельный признак, состояние работы — {{ stateLabels[expertise.state].toLowerCase() }}.</p></div><AssignmentForm v-if="action" :key="`${expertise.id}-${action}`" :expertise="expertise" :action="action" @updated="updated" @cancel="action = null" /></section>
     <section data-assignment-history class="card stack-card"><h2>История назначений</h2><div v-for="assignment in expertise.assignment_history" :key="assignment.id" class="assignment-line"><strong>{{ assignment.employee.full_name }}</strong><small>{{ time(assignment.started_at) }} → {{ assignment.ended_at ? time(assignment.ended_at) : 'действует' }}</small><p class="muted compact">{{ assignment.reason || 'Основание не указано' }}</p></div><p v-if="!expertise.assignment_history.length" class="muted compact">Предыдущих назначений нет.</p></section><section class="card stack-card"><BasisPreview :document="expertise.basis_document" /></section>
     <HistoricalFacts v-if="expertise.historical" :key="`history-${expertise.id}`" :history="expertise.historical" />
+    <section v-if="expertise.historical?.operational" class="card stack-card"><h2>Исторические отчётные сведения и уточнения</h2><p class="muted compact">Сохраняются после перехода к новому учёту. В отчёте принятый итог нового учёта имеет приоритет.</p><HistoryReportDetails :history="expertise.historical"/></section>
+    <HistoryReportEditor v-if="expertise.historical&&!expertise.historical.operational&&['completed','without_execution'].includes(expertise.state)" :key="`report-history-${expertise.id}`" :expertise="expertise" @updated="historyReportUpdated"/>
     <HistoryActivation v-if="expertise.historical && !expertise.historical.operational" :key="`activation-${expertise.id}`" :expertise="expertise" @updated="historyUpdated" />
     <ProductionPanel :key="expertise.id" :expertise="expertise" @updated="productionUpdated" />
     <ResultPanel v-if="expertise.result_readiness" :key="expertise.id" :expertise="expertise" @updated="resultUpdated" />

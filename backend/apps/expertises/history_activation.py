@@ -1,4 +1,5 @@
 from django.db import transaction,IntegrityError
+from uuid import UUID
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -99,10 +100,12 @@ def _activate_history(*,actor,expertise_id,data,key,payload):
                 Suspension.objects.create(expertise=work,**item,actor=actor,resumed_by=actor,resume_reason=item['reason'],resumed_recorded_at=timezone.now())
             if work.state=='suspended':Suspension.objects.create(expertise=work,suspended_on=data['suspended_on'],reason=data['reason'],actor=actor)
             closure=None
+            from .historical_reports import previous_reference_ids
+            retained={field:{UUID(pk) for pk in previous_reference_ids(history,field)} for field in ('sndz_reason','return_reason','unresolved_allocations')}
             if work.state=='completed':
-                result=create_revision(work,actor,data['result'],data['reason']);confirm_result(work,actor,result)
+                result=create_revision(work,actor,data['result'],data['reason'],retained_references=retained);confirm_result(work,actor,result)
                 closure=create_closure(work,actor,reason=data['reason'],kind='completed',ended_on=result.completed_on,document=result.document,result=result)
-            elif work.state=='without_execution':closure=create_closure(work,actor,reason=data['reason'],**return_values(work,actor,data['return_data']))
+            elif work.state=='without_execution':closure=create_closure(work,actor,reason=data['reason'],**return_values(work,actor,data['return_data'],retained_references=retained))
             else:
                 work.version+=1;work.save(update_fields=['version'])
             history.operational=True;history.complex_known=True;history.suspension_history_complete=data['suspension_history_complete']

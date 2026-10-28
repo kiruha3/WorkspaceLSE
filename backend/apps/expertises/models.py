@@ -197,6 +197,40 @@ class HistoricalWork(models.Model):
     unresolved_reason_raw=models.TextField(blank=True)
     notes=models.TextField(blank=True)
     delivery=models.TextField(blank=True)
+    sndz_reason=models.ForeignKey('references.SndzReason',null=True,blank=True,on_delete=models.PROTECT)
+    sndz_comment=models.TextField(blank=True)
+    allocations_complete=models.BooleanField(default=False)
+    report_note=models.TextField(blank=True)
+    return_reason=models.ForeignKey('references.ReturnReason',null=True,blank=True,on_delete=models.PROTECT)
+    return_comment=models.TextField(blank=True)
+
+
+class HistoricalUnresolvedAllocation(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    history=models.ForeignKey(HistoricalWork,related_name='unresolved_allocations',on_delete=models.PROTECT)
+    reason=models.ForeignKey('references.UnresolvedQuestionReason',on_delete=models.PROTECT)
+    count=models.PositiveIntegerField()
+    comment=models.TextField(blank=True)
+    document=models.ForeignKey('documents.Document',null=True,blank=True,on_delete=models.PROTECT)
+
+    class Meta:
+        ordering=['reason__code','id']
+        constraints=[models.UniqueConstraint(fields=['history','reason'],name='unique_historical_unresolved_reason'),models.CheckConstraint(condition=Q(count__gte=1),name='positive_historical_allocation')]
+
+
+class HistoricalCorrection(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    history=models.ForeignKey(HistoricalWork,related_name='corrections',on_delete=models.PROTECT)
+    number=models.PositiveIntegerField()
+    actor=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    created_at=models.DateTimeField(auto_now_add=True)
+    reason=models.TextField()
+    before=models.JSONField()
+    after=models.JSONField()
+
+    class Meta:
+        ordering=['number','id']
+        constraints=[models.UniqueConstraint(fields=['history','number'],name='unique_historical_correction')]
 
 
 class HistoricalParticipant(models.Model):

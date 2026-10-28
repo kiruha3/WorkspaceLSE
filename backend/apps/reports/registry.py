@@ -13,10 +13,10 @@ from django.db.models import OuterRef,Subquery,F
 from django.db.models.functions import JSONObject
 from django.contrib.postgres.expressions import ArraySubquery
 from django.utils import timezone
-from apps.expertises.models import Expertise,WorkClosure,UnresolvedAllocation
+from apps.expertises.models import Expertise,WorkClosure,UnresolvedAllocation,HistoricalUnresolvedAllocation
 from .calculation import calculate
 
-VERSION='form151-registry-v2'
+VERSION='form151-registry-v3'
 RESULT_FIELDS=('result_kind','completed_on','return_decided_on','complexity_level','questions','categorical','probable','unresolved','authority_type')
 COUNT_FIELDS=('complexity_level','questions','categorical','probable','unresolved')
 
@@ -29,6 +29,9 @@ class ReportRecord:
 
 
 def calculate_registry(*,year,month,opening_balances_complete=False):
+    historical_allocations=HistoricalUnresolvedAllocation.objects.filter(history__expertise_id=OuterRef('pk')).order_by('reason__code').annotate(
+        payload=JSONObject(reason=F('reason__code'),count=F('count'))
+    ).values('payload')
     allocations=UnresolvedAllocation.objects.filter(result_id=OuterRef('result_id')).order_by('reason__code').annotate(
         payload=JSONObject(reason=F('reason__code'),count=F('count'))
     ).values('payload')
@@ -40,15 +43,17 @@ def calculate_registry(*,year,month,opening_balances_complete=False):
     ).values('payload')[:1]
     fields=('id','registration_number','category_code','state','origin_kind','receipt__received_at','department__code',
             'specialty__code','material__is_demo','appointment_nature','is_commission','historical__statistics_confirmed',
+            'historical__sndz_reason__code','historical__return_reason__code','historical__allocations_complete',
             'historical__source_row_id','historical__source_row__batch_id','historical__source_row__source_row',
             *('historical__'+field for field in RESULT_FIELDS))
-    stored=list(Expertise.objects.annotate(accepted=Subquery(accepted)).order_by('id').values(*fields,'accepted'))
+    stored=list(Expertise.objects.annotate(accepted=Subquery(accepted),historical_allocations=ArraySubquery(historical_allocations)).order_by('id').values(*fields,'accepted','historical_allocations'))
     rows=[];records={};extra=[];excluded=0;fingerprint=[]
     for item in stored:
         if item['material__is_demo']:
             excluded+=1;continue
         key=str(item['id']);closure=item['accepted']
         facts={field:item['historical__'+field] for field in RESULT_FIELDS}
+        facts.update(sndz_reason=item['historical__sndz_reason__code'],return_reason=item['historical__return_reason__code'],allocations_complete=item['historical__allocations_complete'],unresolved_allocations=item['historical_allocations'])
         facts.update(registration_number=item['registration_number'],received_on=item['receipt__received_at'],
             category_code=item['category_code'],state=item['state'],department_code=item['department__code'],specialty_code=item['specialty__code'])
         if closure:

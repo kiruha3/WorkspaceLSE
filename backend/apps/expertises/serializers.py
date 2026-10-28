@@ -101,7 +101,10 @@ class ExpertiseOutput(serializers.ModelSerializer):
         history=historical_record(obj)
         if obj.origin_kind=="historical" and (history is None or not history.operational):
             from .history_activation import can_activate_history
-            return ['imports.history.activate'] if history is not None and can_activate_history(self.context['user'],obj,scopes) else []
+            from .historical_reports import can_correct_historical_report
+            actions=['imports.history.activate'] if history is not None and can_activate_history(self.context['user'],obj,scopes) else []
+            if can_correct_historical_report(self.context['user'],obj,scopes):actions.append('expertise.closed.correct')
+            return actions
         if obj.state not in ("in_progress","suspended"):
             from apps.issuance.models import MaterialIssue
             if MaterialIssue.objects.filter(package__material_id=obj.material_id).exists():return []

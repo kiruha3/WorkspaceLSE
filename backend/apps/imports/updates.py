@@ -53,6 +53,7 @@ def update_preview(row,work):
     history=getattr(work,'historical',None)
     if work.origin_kind!='historical' or history is None:
         blockers.append('Это не перенесённая историческая работа.');return result
+    if history.corrections.exists():blockers.append('Есть ручное уточнение исторических сведений. Источник его не перезаписывает.')
     previous=history.source_row;result['expected_source_row_id']=str(previous.pk)
     previous_choice=getattr(previous,'selection',None)
     item=getattr(previous,'application_item',None)

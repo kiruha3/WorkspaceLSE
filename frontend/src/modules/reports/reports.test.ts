@@ -83,7 +83,7 @@ it('shows unknown reason as a dash with a concrete card gap, not zero',async()=>
   const live={...result,source:{type:'registry',id:null,name:'Рабочая база АИС',row_count:1,calculated_at:'2026-10-28T03:00:00Z',data_revision:'abc',excluded_demo_count:0},records:{'work-unknown':{id:'work-unknown',registration_number:'151/1-1-26'}},cells:[{sheet:'Раздел 1',address:'H108',value:null,rows:['work-unknown']}],gaps:[{code:'sndzReason',sections:[1],message:'Не определена причина полного СНДЗ.',fields:'sndz_reason',rows:['work-unknown']}]}
   const {wrapper}=await open(async()=>json(live),['expertise.view','reports.form151.run'],'/reports')
   await wrapper.get('form').trigger('submit');await flushPromises()
-  expect(wrapper.findAll('th').map(c=>c.text())).toContain('СНДЗ: материалы непригодны / недостаточны')
+  expect(wrapper.findAll('th').map(c=>c.text())).toContain('СНДЗ: материалы непригодны / недостаточны, отказано в дополнении')
   expect(wrapper.get('tbody .report-number').text()).toBe('—')
   expect(wrapper.get('.report-gap').text()).toContain('Не определена причина полного СНДЗ.')
   expect(wrapper.get('a[href="/expertises/work-unknown"]').text()).toBe('151/1-1-26')

@@ -32,6 +32,35 @@ async function fill(wrapper: ReturnType<typeof mount>) {
 }
 enableAutoUnmount(afterEach); afterEach(() => vi.restoreAllMocks())
 
+it.each(['sndz','expert_conclusion','return'] as const)('explicitly retains corrected historical reporting facts during %s activation',async kind=>{
+  const ref={id:'reason',code:'materials_insufficient',name:'Недостаточно материалов',is_active:true,version:1}
+  const evidence={...basis,id:'evidence'}
+  const details={sndz_reason:ref,sndz_comment:'Подтверждённая причина СНДЗ',allocations_complete:true,note:'Уточнённое примечание',unresolved_allocations:[{id:'a',reason:ref,count:1,comment:'Подтверждённый вопрос',document:evidence}],return_reason:ref,return_comment:'Подтверждённый отзыв'}
+  const current:Expertise={...imported,state:kind==='return'?'without_execution':'completed',historical:{...history,completed_on:kind==='return'?null:'2026-10-06',return_decided_on:kind==='return'?'2026-10-06':null,result_kind:kind==='return'?null:kind,questions:3,categorical:2,probable:0,unresolved:1,report_details:details}}
+  const writes:any[]=[]
+  const {wrapper,pinia}=await open(current,async(input,init)=>{
+    const path=String(input)
+    if(path.endsWith('/csrf/'))return json({csrf_token:'t'})
+    if(init?.method==='POST'){writes.push(JSON.parse(String(init.body)));return json({event:{id:'event'},expertise:{...current,historical:{...current.historical!,operational:true}}})}
+    if(path.includes('/documents/'))return json({...basis,id:'result-existing',kind:kind==='return'?'return_decision':kind,versions:[fileVersion]})
+    return json({result_kinds:[],complexity_groups:[],sndz_reasons:[ref],return_reasons:[ref],unresolved_reasons:[ref]})
+  })
+  delete useSessionStore(pinia).user!.access['documents.upload'];await fill(wrapper)
+  if(kind!=='return'){
+    expect(wrapper.get('[name="history_allocation_count_0"]').element).toHaveProperty('value','1')
+    expect(wrapper.text()).toContain('Подтверждающий документ')
+    await wrapper.get('[name="history_allocation_count_0"]').setValue('1')
+  }
+  await wrapper.get('[name="history_result_id"]').setValue('result-existing');await wrapper.get('[data-load-history-result]').trigger('click');await flushPromises()
+  await wrapper.get('[data-history-form]').trigger('submit');await flushPromises()
+  expect(writes).toHaveLength(1)
+  if(kind==='return')expect(writes[0].return_data).toMatchObject({return_reason_id:'reason',comment:'Подтверждённый отзыв'})
+  else{
+    expect(writes[0].result).toMatchObject({allocations_complete:true,note:'Уточнённое примечание',unresolved_allocations:[{reason_id:'reason',count:1,comment:'Подтверждённый вопрос',document_id:'evidence'}]})
+    if(kind==='sndz')expect(writes[0].result).toMatchObject({sndz_reason_id:'reason',sndz_comment:'Подтверждённая причина СНДЗ'})
+  }
+})
+
 describe('explicit history activation', () => {
   it.each(['unsupported', 'no_action'])('does not offer confirmation or fetch data when %s', async condition => {
     const paths: string[] = []
