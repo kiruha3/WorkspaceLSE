@@ -15,6 +15,7 @@ export const useSessionStore = defineStore('session', () => {
   const canAccessDirectory = computed(()=>canAny(...accessDirectoryActions))
   const correspondenceEnabled = computed(() => Boolean(user.value?.supported_modules?.includes('correspondence')))
   const issuanceEnabled = computed(() => Boolean(user.value?.supported_modules?.includes('issuance')))
+  const workDocumentsEnabled = computed(() => Boolean(user.value?.supported_modules?.includes('work_documents')))
   const importPreviewEnabled = computed(() => Boolean(user.value?.supported_modules?.includes('journal_import_preview')))
   const googlePreviewEnabled = computed(() => Boolean(user.value?.supported_modules?.includes('journal_google_preview')))
   const journalApplicationEnabled = computed(() => Boolean(user.value?.supported_modules?.includes('journal_application')))
@@ -39,5 +40,5 @@ export const useSessionStore = defineStore('session', () => {
     user.value = null
     ready.value = true
   }
-  return { user, ready, error, authenticated, can, canAny, canAccessDirectory, correspondenceEnabled, issuanceEnabled, importPreviewEnabled, googlePreviewEnabled, journalApplicationEnabled, refresh, login, logout }
+  return { user, ready, error, authenticated, can, canAny, canAccessDirectory, correspondenceEnabled, issuanceEnabled, workDocumentsEnabled, importPreviewEnabled, googlePreviewEnabled, journalApplicationEnabled, refresh, login, logout }
 })

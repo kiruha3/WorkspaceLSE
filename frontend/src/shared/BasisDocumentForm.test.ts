@@ -5,6 +5,44 @@ import { json } from '../test/fixtures'
 import { basis } from '../test/intakeFixtures'
 import BasisDocumentForm from './BasisDocumentForm.vue'
 
+it('registers an explicit URL without uploading or changing the legacy default payload', async () => {
+  const writes: Record<string,unknown>[]=[]
+  const client=new ApiClient(async (input,init)=>{
+    if(String(input).endsWith('/csrf/'))return json({csrf_token:'token'})
+    writes.push(JSON.parse(String(init?.body)))
+    return json({...basis,...writes.at(-1),source_url:writes.at(-1)?.source_url??''},201)
+  })
+  const old=mount(BasisDocumentForm,{props:{departmentId:'d-4'},global:{provide:{[apiKey as symbol]:client}}})
+  await old.get('[name="document_title"]').setValue('Определение')
+  await old.vm.persist()
+  expect(writes[0]).toEqual({kind:'resolution',title:'Определение',source_kind:'paper_original',department_id:'d-4'})
+  old.unmount()
+  const wrapper=mount(BasisDocumentForm,{props:{departmentId:'d-4',allowExternalSource:true},global:{provide:{[apiKey as symbol]:client}}})
+  await wrapper.get('[name="document_title"]').setValue('Внешнее основание')
+  await wrapper.get('[name="source_kind"]').setValue('external_link')
+  await wrapper.get('[name="source_url"]').setValue('https://example.org/document.pdf')
+  const result=await wrapper.vm.persist()
+  expect(writes[1]).toEqual({kind:'resolution',title:'Внешнее основание',source_kind:'external_link',source_url:'https://example.org/document.pdf',department_id:'d-4'})
+  expect(result.versions).toEqual([])
+  wrapper.unmount()
+})
+
+it('prepares a selected folder file with its relative path as metadata only', async () => {
+  const file=new File(['scan'],'document.pdf');Object.defineProperty(file,'webkitRelativePath',{value:'Дело/document.pdf'})
+  const uploads:FormData[]=[]
+  const client=new ApiClient(async(input,init)=>{
+    if(String(input).endsWith('/csrf/'))return json({csrf_token:'token'})
+    if(init?.body instanceof FormData){uploads.push(init.body);return json({id:'file-1',number:1,original_name:'document.pdf',relative_path:'Дело/document.pdf',content_type:'application/pdf',size:4,sha256:'sha',created_at:'2026-10-28',download_url:'/download/',preview_url:'/preview/'},201)}
+    return json({...basis,...JSON.parse(String(init?.body))},201)
+  })
+  const wrapper=mount(BasisDocumentForm,{props:{departmentId:'d-4',initialFile:file},global:{provide:{[apiKey as symbol]:client}}})
+  await wrapper.vm.persist()
+  expect(uploads[0]?.get('relative_path')).toBe('Дело/document.pdf')
+  const saved=uploads[0]?.get('file') as File
+  expect(saved.name).toBe('document.pdf');expect(await saved.text()).toBe('scan')
+  wrapper.unmount()
+})
+
 it('requires an actual scan for a confirmation even when the source is a paper original', async () => {
   const writes: string[] = []
   const client = new ApiClient(async input => { writes.push(String(input)); return json(basis,201) })

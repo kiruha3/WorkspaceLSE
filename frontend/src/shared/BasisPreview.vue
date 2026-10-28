@@ -2,7 +2,8 @@
 import { computed, ref, watch } from 'vue'
 import type { DocumentLink } from '../api/types'
 const props = defineProps<{ document: DocumentLink; heading?: string; emptyText?: string; acceptedLabel?: string }>()
-const kindLabels = { resolution: 'Постановление', decision: 'Определение', deadline_agreement: 'Подтверждение согласования срока', deadline_request: 'Запрос срока', expert_conclusion: 'Заключение эксперта', research_act: 'Акт исследования', sndz: 'СНДЗ', return_decision: 'Решение без исполнения', letter: 'Документ переписки', expert_subscription: 'Подписка эксперта', cover_letter: 'Сопроводительное', notification: 'Уведомление', invoice: 'Счёт' }
+const kindLabels = { resolution: 'Постановление', decision: 'Определение', deadline_agreement: 'Подтверждение согласования срока', deadline_request: 'Запрос срока', expert_conclusion: 'Заключение эксперта', research_act: 'Акт исследования', sndz: 'СНДЗ', return_decision: 'Решение без исполнения', letter: 'Документ переписки', expert_subscription: 'Подписка эксперта', cover_letter: 'Сопроводительное', notification: 'Уведомление', invoice: 'Счёт',case_material:'Материалы дела / иные документы' }
+const externalOpen=ref(false)
 const selected = ref(''), previewFailed = ref(false)
 const document = computed(() => props.document && !('restricted' in props.document) ? props.document : null)
 const versions = computed(() => [...(document.value?.versions ?? [])].sort((a, b) => b.number - a.number))
@@ -13,6 +14,7 @@ watch(versions, value => { if (!value.some(item => item.id === selected.value)) 
 watch([() => document.value?.id, () => document.value?.accepted_version_id], () => { selected.value = defaultVersion() })
 const file = computed(() => versions.value.find(item => item.id === selected.value))
 watch(() => file.value?.id, () => { previewFailed.value = false })
+watch(()=>document.value?.id,()=>{externalOpen.value=false})
 </script>
 <template>
   <section class="document-preview">
@@ -20,11 +22,16 @@ watch(() => file.value?.id, () => { previewFailed.value = false })
     <p v-if="!document && !props.document" class="muted">{{ emptyText || 'Основание пока не указано. До приёмки добавьте постановление или определение.' }}</p>
     <p v-else-if="!document" class="muted">Доступ к документу ограничен.</p>
     <template v-else>
-      <p><strong>{{ document.title || kindLabels[document.kind] }}</strong> <span class="badge">{{ document.source_kind === 'paper_original' ? 'Бумажный оригинал' : 'Загруженная копия' }}</span></p>
+      <p><strong>{{ document.title || kindLabels[document.kind] }}</strong> <span class="badge">{{ document.source_kind === 'paper_original' ? 'Бумажный оригинал' : document.source_kind==='external_link'?'Внешняя ссылка':'Загруженная копия' }}</span></p>
+      <section v-if="document.source_kind==='external_link'&&document.source_url" class="inset-form">
+        <p class="muted compact">Внешний источник не загружается автоматически. Он может запрещать просмотр внутри системы. Изменения источника не изменяют сохранённые версии.</p>
+        <div class="button-row"><a data-external-source :href="document.source_url" target="_blank" rel="noopener noreferrer">Открыть источник отдельно ↗</a><button v-if="!externalOpen" data-open-external-preview type="button" @click="externalOpen=true">Показать внешний источник</button><button v-else type="button" @click="externalOpen=false">Закрыть внешний просмотр</button></div>
+        <iframe v-if="externalOpen" class="document-frame" :src="document.source_url" title="Внешний источник документа" sandbox="" referrerpolicy="no-referrer"/>
+      </section>
       <p v-if="acceptedContext" class="muted compact">{{ accepted ? `${acceptedLabel || 'При окончании подтверждена'} версия ${accepted.number}. Последующие загрузки не изменяют это подтверждение.` : 'Подтверждённая версия файла не установлена; позднейшая загрузка не считается подтверждением.' }}</p>
       <label v-if="acceptedContext && !file && versions.length" class="version-select">Просмотреть другую версию<select v-model="selected"><option value="">Подтверждённая версия неизвестна</option><option v-for="item in versions" :key="item.id" :value="item.id">Версия {{ item.number }} · {{ item.original_name }}</option></select></label>
       <p v-if="acceptedContext && file && file.id !== document.accepted_version_id" data-unconfirmed-file class="message">{{ acceptedLabel ? 'Просматриваемая версия не подтверждена этим событием.' : 'Просматриваемая версия не подтверждена этим окончанием.' }}</p>
-      <p v-if="!versions.length" class="muted compact">{{ document.source_kind === 'paper_original' ? 'Заявлено наличие бумажного оригинала. Электронный скан пока не добавлен.' : heading ? 'Копия ещё не сохранена. Необходимо загрузить файл.' : 'Копия ещё не сохранена. Для приёмки необходимо загрузить файл.' }}</p>
+      <p v-if="!versions.length" class="muted compact">{{ document.source_kind === 'paper_original' ? 'Заявлено наличие бумажного оригинала. Электронный скан пока не добавлен.' : document.source_kind==='external_link'?'Сохранённой копии нет. Ссылка не считается принятым файлом или бумажным оригиналом.': heading ? 'Копия ещё не сохранена. Необходимо загрузить файл.' : 'Копия ещё не сохранена. Для приёмки необходимо загрузить файл.' }}</p>
       <template v-if="file">
         <label v-if="versions.length > 1" class="version-select">Версия файла<select v-model="selected"><option v-for="item in versions" :key="item.id" :value="item.id">Версия {{ item.number }} · {{ item.original_name }}</option></select></label>
         <div class="document-meta"><span>{{ file.original_name }} · {{ Math.ceil(file.size / 1024) }} КБ · версия {{ file.number }}</span><a :href="file.download_url" download>Скачать оригинал</a></div>

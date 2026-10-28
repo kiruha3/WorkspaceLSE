@@ -78,12 +78,14 @@ export interface EmployeeAccount { id: string; username: string; is_active: bool
 export interface FileVersion {
   id: string; number: number; original_name: string; content_type: string; size: number
   sha256: string; created_at: string; download_url: string; preview_url: string | null
+  relative_path?: string
 }
 export type ResultKind = 'expert_conclusion' | 'research_act' | 'sndz'
-export type DocumentKind = 'resolution' | 'decision' | 'deadline_agreement' | 'deadline_request' | ResultKind | 'return_decision' | 'letter' | 'expert_subscription' | 'cover_letter' | 'notification' | 'invoice'
+export type DocumentKind = 'resolution' | 'decision' | 'deadline_agreement' | 'deadline_request' | ResultKind | 'return_decision' | 'letter' | 'expert_subscription' | 'cover_letter' | 'notification' | 'invoice' | 'case_material'
 export interface BasisDocument {
   accepted_version_id?: string | null
-  id: string; kind: DocumentKind; title: string; source_kind: 'paper_original' | 'uploaded_copy'
+  id: string; kind: DocumentKind; title: string; source_kind: 'paper_original' | 'uploaded_copy' | 'external_link'
+  source_url?: string
   department_id: string | null; version: number; versions: FileVersion[]
 }
 export type DocumentLink = BasisDocument | { id: string; restricted: true } | null

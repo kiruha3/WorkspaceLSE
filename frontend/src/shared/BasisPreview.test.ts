@@ -5,6 +5,17 @@ import type { FileVersion } from '../api/types'
 import BasisPreview from './BasisPreview.vue'
 const first: FileVersion = { id: 'f-1', number: 1, original_name: 'basis.pdf', content_type: 'application/pdf', size: 2048, sha256: 'sha-first', created_at: '2026-10-28T08:00:00Z', download_url: '/api/v1/file-versions/f-1/download/', preview_url: '/api/v1/file-versions/f-1/preview/' }
 describe('authorized basis preview', () => {
+  it('does not load a URL until explicitly requested and never calls it an archived scan',async()=>{
+    const wrapper=mount(BasisPreview,{props:{document:{...basis,source_kind:'external_link',source_url:'https://example.org/doc.pdf',versions:[]}}})
+    expect(wrapper.find('iframe').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Внешняя ссылка')
+    await wrapper.get('[data-open-external-preview]').trigger('click')
+    expect(wrapper.get('iframe').attributes('src')).toBe('https://example.org/doc.pdf')
+    expect(wrapper.get('iframe').attributes('sandbox')).toBe('')
+    expect(wrapper.get('iframe').attributes('referrerpolicy')).toBe('no-referrer')
+    expect(wrapper.get('[data-external-source]').attributes('rel')).toContain('noreferrer')
+    wrapper.unmount()
+  })
   it('opens the accepted file rather than a later ordinary upload and labels other versions unconfirmed', async () => {
     const second = { ...first, id: 'f-2', number: 2, preview_url: '/api/v1/file-versions/f-2/preview/' }
     const document = { ...basis, accepted_version_id: 'f-1', versions: [first, second] }

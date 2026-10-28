@@ -4,18 +4,18 @@ import { ApiError, LatestRequest, useApi } from '../api/client'
 import ApiMessage from './ui/ApiMessage.vue'
 import { newCommandKey } from '../api/commandKey'
 import type { BasisDocument, DocumentKind, FileVersion } from '../api/types'
-const props = defineProps<{ departmentId: string; busy?: boolean; heading?: string; savedNote?: string; requireFile?: boolean; kindOptions?: { value: DocumentKind; label: string }[] }>()
+const props = defineProps<{ departmentId: string; busy?: boolean; inputLocked?: boolean; heading?: string; savedNote?: string; requireFile?: boolean; kindOptions?: { value: DocumentKind; label: string }[]; allowExternalSource?: boolean; initialFile?: File }>()
 const emit = defineEmits<{ changed: [] }>()
 const api = useApi()
 const options = computed(() => props.kindOptions ?? [{ value: 'resolution' as const, label: 'Постановление' }, { value: 'decision' as const, label: 'Определение' }])
-const kind = ref<DocumentKind>(options.value[0]!.value), title = ref(''), sourceKind = ref<'paper_original' | 'uploaded_copy'>('paper_original')
-const file = ref<File | null>(null), prepared = ref<BasisDocument | null>(null), preparedPayload = ref(''), uploaded = ref<File | null>(null)
+const kind = ref<DocumentKind>(options.value[0]!.value), title = ref(props.initialFile?.name??''), sourceKind = ref<BasisDocument['source_kind']>(props.initialFile?'uploaded_copy':'paper_original'), sourceUrl=ref('')
+const file = ref<File | null>(props.initialFile??null), prepared = ref<BasisDocument | null>(null), preparedPayload = ref(''), uploaded = ref<File | null>(null)
 const uploadKey = ref('')
 const uploadConflict=ref(false),currentDocument=ref<BasisDocument|null>(null),versionLoading=ref(false),versionError=ref<unknown>(null),versionRequests=new LatestRequest()
 const conflictError=()=>new ApiError(409,'document_version_conflict','Изменилась версия подтверждающего документа. Сверьте актуальную версию ниже и явно примите её перед повторной загрузкой. Ввод и выбранный файл сохранены.')
 const metadataAttempt = ref<{ stamp: string; key: string } | null>(null)
 watch(file, () => { uploadKey.value = '' }, { flush: 'sync' })
-const payload = computed(() => ({ kind: kind.value, title: title.value.trim(), source_kind: sourceKind.value, department_id: props.departmentId || null }))
+const payload = computed(() => ({ kind: kind.value, title: title.value.trim(), source_kind: sourceKind.value, department_id: props.departmentId || null,...(sourceKind.value==='external_link'?{source_url:sourceUrl.value.trim()}:{}) }))
 const dirty = computed(() => Boolean(title.value || file.value || prepared.value || kind.value !== options.value[0]!.value || sourceKind.value !== 'paper_original'))
 watch([() => JSON.stringify(payload.value), file], () => emit('changed'), { flush: 'sync' })
 watch(()=>JSON.stringify(payload.value),()=>{versionRequests.cancel();uploadConflict.value=false;currentDocument.value=null;versionLoading.value=false;versionError.value=null},{flush:'sync'})
@@ -43,6 +43,7 @@ async function persist(): Promise<BasisDocument> {
   if (file.value && uploaded.value !== file.value) {
     const body = new FormData()
     body.append('expected_version', String(prepared.value.version)); body.append('file', file.value)
+    if(file.value.webkitRelativePath)body.append('relative_path',file.value.webkitRelativePath)
     if (!uploadKey.value) uploadKey.value = newCommandKey()
     let version:FileVersion
     try{version = await api.request<FileVersion>(`/documents/${prepared.value.id}/versions/`, { method: 'POST', body, headers: { 'Idempotency-Key': uploadKey.value } })}
@@ -58,10 +59,13 @@ defineExpose({ persist, dirty, uploadConflict })
 <template>
   <fieldset class="form-grid" :disabled="busy">
     <h4 v-if="heading">{{ heading }}</h4>
-    <div class="form-columns"><label>{{ heading ? 'Вид документа' : 'Вид основания' }}<select v-model="kind" name="document_kind"><option v-for="option in options" :key="option.value" :value="option.value">{{ option.label }}</option></select></label><label>{{ heading ? 'Источник документа' : 'Источник основания' }}<select v-model="sourceKind" name="source_kind"><option value="paper_original">Бумажный оригинал</option><option value="uploaded_copy">Загруженная копия / фото</option></select></label></div>
+    <fieldset class="form-grid" :disabled="inputLocked">
+    <div class="form-columns"><label>{{ heading ? 'Вид документа' : 'Вид основания' }}<select v-model="kind" name="document_kind"><option v-for="option in options" :key="option.value" :value="option.value">{{ option.label }}</option></select></label><label>{{ heading ? 'Источник документа' : 'Источник основания' }}<select v-model="sourceKind" name="source_kind"><option value="paper_original">Бумажный оригинал</option><option value="uploaded_copy">Загруженная копия / фото</option><option v-if="allowExternalSource" value="external_link">Внешняя ссылка</option></select></label></div>
+    <label v-if="sourceKind==='external_link'">Адрес источника<input v-model="sourceUrl" name="source_url" type="url" maxlength="2048" required/><small>Ссылка сама по себе не подтверждает наличие принятого файла. Сохранённую копию можно загрузить отдельно.</small></label>
     <label>Название или известные реквизиты<input v-model="title" name="document_title" maxlength="500" required /></label>
     <p v-if="sourceKind === 'paper_original' && !requireFile" class="muted compact">Заявляется наличие бумажного оригинала. {{ heading ? 'Электронного файла может пока не быть.' : 'Скан можно добавить позднее в карточке поступления.' }}</p>
-    <label v-else>Файл копии или фото<input name="basis_file" type="file" :required="requireFile && !prepared?.versions.length" @change="chooseFile" /><small>{{ heading ? 'Копия подтвердит документ после успешного сохранения файла на сервере.' : 'Копия станет основанием после успешного сохранения файла на сервере.' }}</small></label>
+    <label v-else>Файл копии или фото{{initialFile?` · выбран ${initialFile.webkitRelativePath||initialFile.name}`:''}}<input name="basis_file" type="file" :required="requireFile && !prepared?.versions.length" @change="chooseFile" /><small>{{ heading ? 'Копия подтвердит документ после успешного сохранения файла на сервере.' : 'Копия станет основанием после успешного сохранения файла на сервере.' }}</small></label>
+    </fieldset>
     <p v-if="prepared" class="message message-success" role="status">Документ подготовлен: {{ prepared.id }}. {{ prepared.versions.length ? 'Файл сохранён.' : 'Электронного файла пока нет.' }} {{ savedNote || (heading ? 'Событие срока сохраняется отдельно.' : 'Поступление и номер экспертизы сохраняются отдельно.') }}</p>
     <section v-if="uploadConflict" class="message" data-document-conflict>
       <p>Другой пользователь изменил документ. Карточку экспертизы обновлять не требуется. Сначала сверьте актуальные файлы; ваш выбранный файл не заменён.</p>
