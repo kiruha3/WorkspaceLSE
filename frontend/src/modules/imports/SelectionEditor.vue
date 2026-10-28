@@ -9,6 +9,7 @@ import ApiMessage from '../../shared/ui/ApiMessage.vue'
 const props = defineProps<{ batchId: string; item: ReconciliationRow; options: ReconciliationOptions; canEdit: boolean }>()
 const emit = defineEmits<{ saved: [value: ImportSelection]; cancel: [] }>(), api = useApi()
 const initial = props.item.selection
+const departmentOptions = computed(() => props.options.departments.filter(ref => !props.item.row.facts.department_code || ref.code === props.item.row.facts.department_code))
 const department = ref(initial?.department_id ?? props.item.suggested_department?.id ?? '')
 const specialty = ref(initial?.specialty_id ?? props.item.suggested_specialty?.id ?? '')
 const employees = ref([...(initial?.employee_ids ?? [])]), nature = ref<'' | NonNullable<SelectionPayload['appointment_nature']>>(initial?.appointment_nature ?? '')
@@ -46,11 +47,12 @@ defineExpose({ confirmLeave })
   <section class="card stack-card">
     <div class="section-heading"><div><p class="eyebrow">Явный выбор ответственного</p><h2>Сопоставление {{ item.row.facts.registration_number || item.row.raw.B }}</h2></div><button :disabled="busy" @click="cancel">Закрыть</button></div>
     <p class="muted compact">Строка {{ item.row.source_row }} · в источнике: {{ item.row.facts.executor_raw || 'исполнитель не указан' }}. Сотрудник и допуск не создаются автоматически.</p>
+    <p class="message">Фактический код отдела в номере: {{ item.row.facts.department_code || 'не распознан' }}. Старый отдел сохраняется, даже если сотрудник сейчас работает в другом. Номер и исходная строка не изменятся.</p>
     <form data-selection-form class="form-grid" @submit.prevent="submit">
       <ApiMessage :error="error" /><p v-if="uncertain" class="message">Ответ не получен. Повтор сохраняет исходные сведения, версию и ключ.</p><p v-if="!canEdit" class="message">Новое сопоставление больше не разрешено. Подготовленные сведения сохранены.</p>
       <fieldset class="form-grid" :disabled="busy || (!canEdit && !uncertain)">
         <div class="form-columns">
-          <label>Отдел текущего номера<select v-model="department" name="selection_department"><option value="">Выберите отдел</option><option v-for="ref in options.departments" :key="ref.id" :value="ref.id">{{ ref.code }} · {{ ref.name }}{{ ref.is_active ? '' : ' · неактивен, исторический' }}</option></select></label>
+          <label>Фактический отдел экспертизы<select v-model="department" name="selection_department"><option value="">Выберите отдел</option><option v-for="ref in departmentOptions" :key="ref.id" :value="ref.id">{{ ref.code }} · {{ ref.name }}{{ ref.is_active ? '' : ' · неактивен, исторический' }}</option></select></label>
           <label>Специальность<select v-model="specialty" name="selection_specialty"><option value="">Неизвестна</option><option v-for="ref in options.specialties" :key="ref.id" :value="ref.id">{{ ref.code }} · {{ ref.name }}{{ ref.is_active ? '' : ' · неактивна, историческая' }}</option></select></label>
           <label>Характер назначения<select v-model="nature" name="selection_nature"><option value="">Не уточнён</option><option value="primary">Первичная</option><option value="repeated">Повторная</option><option value="additional">Дополнительная</option></select></label>
           <label>Состав<select v-model="commission" name="selection_commission"><option value="">Не уточнён</option><option value="no">Единоличная</option><option value="yes">Комиссионная — один номер</option></select></label>
@@ -62,7 +64,7 @@ defineExpose({ confirmLeave })
         <label class="check-label"><input v-model="statistics" name="selection_statistics" type="checkbox" />Подтверждаю полноту статистики вопросов</label><label>Основание сопоставления<textarea v-model="reason" name="selection_reason" required rows="2" /></label>
       </fieldset>
       <button class="button-primary align-start" :disabled="busy || !valid">{{ busy ? 'Сохранение…' : uncertain ? 'Повторить ту же попытку' : 'Сохранить сопоставление' }}</button>
-      <p class="muted compact">Сохранение выбора ещё не переносит экспертизу. Код отдела и признанная специальность сверяются сервером; пустое количество не становится нулём.</p>
+      <p class="muted compact">Сохранение выбора ещё не переносит экспертизу. Фактический отдел и признанный код специальности сверяются сервером. Нынешний отдел сотрудника не меняется; пустое количество не становится нулём.</p>
     </form>
   </section>
 </template>

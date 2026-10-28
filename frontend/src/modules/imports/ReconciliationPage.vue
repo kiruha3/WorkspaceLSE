@@ -55,7 +55,9 @@ function toggle(item: ReconciliationRow, selected: boolean) {
 }
 function saved(value: ImportSelection) {
   if (editing.value?.row.id !== value.row_id) return
-  editing.value.selection = value; delete chosen.value[value.row_id]; editing.value = null
+  editing.value.selection = value
+  editing.value.mapped_department = options.value?.departments.find(ref => ref.id === value.department_id) ?? null
+  delete chosen.value[value.row_id]; editing.value = null
 }
 function reload() { if (!editor.value || editor.value.confirmLeave()) void load() }
 function edit(item: ReconciliationRow) { if (!editor.value || editor.value.confirmLeave()) editing.value = item }
@@ -91,7 +93,7 @@ onBeforeUnmount(() => { generation++; requests.cancel(); optionRequests.cancel()
           <td v-if="canApply"><input data-select-application-row type="checkbox" :aria-label="`Выбрать ${item.row.facts.registration_number || item.row.raw.B}`" :checked="Boolean(chosen[item.row.id])" :disabled="busy || !item.selection || item.classification !== 'new' || Boolean(item.blockers.length)" @change="toggle(item, ($event.target as HTMLInputElement).checked)" /></td>
           <td><strong>{{ item.row.facts.registration_number || item.row.raw.B }}</strong><small>Строка {{ item.row.source_row }}</small></td>
           <td>{{ labels[item.classification] }}<small v-for="blocker in item.blockers" :key="blocker.code">{{ blocker.message }}</small><small v-if="item.existing_work">Уже в реестре: <RouterLink v-if="session.can('expertise.view')" data-existing-work :to="`/expertises/${item.existing_work.id}`">{{ item.existing_work.registration_number }}</RouterLink><template v-else>{{ item.existing_work.registration_number }}</template>. Новый снимок не переписывает работу.</small></td>
-          <td>{{ item.suggested_department?.code || 'Отдел не сопоставлен' }} / {{ item.suggested_specialty?.code || 'Специальность не уточнена' }}</td>
+          <td><span>Отдел номера: {{ item.row.facts.department_code || 'не распознан' }}</span><small data-mapped-department>Отдел экспертизы: {{ item.mapped_department ? `${item.mapped_department.code} · ${item.mapped_department.name}` : 'сопоставление ещё не сохранено' }}</small><small>Специальность: {{ item.suggested_specialty?.code || 'не уточнена' }}</small></td>
           <td>{{ item.row.facts.executor_raw || 'В источнике не указан' }}</td>
           <td><span v-if="item.selection">Сохранено · версия {{ item.selection.version }}</span><span v-else>Не сохранено</span><button v-if="canEdit" data-edit-selection :disabled="busy || !options" @click="edit(item)">{{ item.selection ? 'Проверить выбор' : 'Сопоставить' }}</button></td>
         </tr><tr v-if="!rows.results.length"><td colspan="6" class="state">Строк по выбранным условиям нет.</td></tr>

@@ -1,4 +1,5 @@
 import uuid
+import re
 from django.conf import settings
 from django.db import models
 from django.db.models import Q,F
@@ -30,6 +31,13 @@ class Expertise(models.Model):
     version = models.PositiveIntegerField(default=1)
     registered_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     registered_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def registration_department_code(self):
+        # Both native and canonical imported numbers keep their own historical
+        # department. No dependency on the mutable current department FK.
+        match=re.fullmatch(r"[1-9]\d*/([1-9]\d*)-[1-6]-\d{2}",self.registration_number)
+        return match[1] if match else None
 
     class Meta:
         ordering = ["-year","-sequence","id"]

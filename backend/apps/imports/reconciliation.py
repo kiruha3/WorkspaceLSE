@@ -48,12 +48,14 @@ def classify_row(row,context=None):
     blockers=identity_blockers(row)
     department=context.departments.get(row.facts.get("department_code"))
     if row.facts.get("department_code") and department is None:
-        blockers.append({"code":"department_unmapped","severity":"error","columns":["B"],"message":"Отдел текущего номера отсутствует в справочнике; другой код не подставляется."})
+        blockers.append({"code":"department_unmapped","severity":"error","columns":["B"],"message":"Фактический отдел номера отсутствует в справочнике. Сохраните исторический код отдельно от нынешнего отдела сотрудника."})
+    selection=getattr(row,"selection",None)
+    mapped=next((ref for ref in context.departments.values() if selection and ref.pk==selection.department_id),None)
     work=context.works.get(row.facts.get("registration_number"))
     history=getattr(work,"historical",None) if work else None
     classification="invalid" if blockers else "new" if work is None else "unchanged" if history and history.source_row.facts==row.facts else "changed"
     return {"classification":classification,"existing_work":{"id":str(work.pk),"registration_number":work.registration_number,"version":work.version} if work else None,
-        "blockers":blockers,"suggested_department":reference_data(department),"suggested_specialty":reference_data(context.specialties.get(row.facts.get("specialty_code")))}
+        "blockers":blockers,"suggested_department":reference_data(department),"mapped_department":reference_data(mapped),"suggested_specialty":reference_data(context.specialties.get(row.facts.get("specialty_code")))}
 
 
 def selection_data(selection):
@@ -67,7 +69,7 @@ def selection_data(selection):
 
 def validate_mapping(row,department,specialty,statistics_confirmed):
     code=row.facts.get("department_code")
-    if code and department.code!=code:raise ValidationError({"department_id":"Код отдела должен совпадать с текущим номером источника."})
+    if code and department.code!=code:raise ValidationError({"department_id":"Сохраните фактический код отдела из номера. Нынешний отдел сотрудника не меняет историю экспертизы."})
     code=row.facts.get("specialty_code")
     if code and (specialty is None or specialty.code!=code):raise ValidationError({"specialty_id":"Признанный код M связывается только с той же специальностью."})
     if statistics_confirmed:

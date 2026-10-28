@@ -39,7 +39,7 @@ onBeforeUnmount(() => requests.cancel())
     <section class="card">
       <div class="section-heading"><div><h2>{{ expertise.registration_number }}</h2><p v-if="expertise.historical_number" class="muted compact">Исторический номер: {{ expertise.historical_number }}</p></div><div class="button-row"><span class="badge" :class="expertise.state === 'in_progress' ? 'badge-green' : ''">{{ stateLabels[expertise.state] }}</span><button :disabled="loading" @click="load">Обновить серверные сведения</button></div></div>
       <dl class="work-facts">
-        <div><dt>Отдел</dt><dd>{{ expertise.department.code }} · {{ expertise.department.name }}</dd></div>
+        <div><dt>{{ expertise.origin_kind === 'historical' ? 'Фактический отдел в журнале' : 'Отдел регистрации' }}</dt><dd>{{ expertise.department.code }} · {{ expertise.department.name }}</dd></div>
         <div><dt>Специальность</dt><dd>{{ expertise.specialty ? `${expertise.specialty.code} · ${expertise.specialty.name}` : 'Специальность не уточнена' }}</dd></div>
         <div><dt>Характер назначения</dt><dd>{{ expertise.appointment_nature ? natureLabels[expertise.appointment_nature] : 'Характер назначения не уточнён' }}</dd></div>
         <div><dt>Состав</dt><dd>{{ expertise.is_commission === null ? 'Состав не уточнён' : expertise.is_commission ? 'Комиссионная · один номер' : 'Единоличная' }}</dd></div>

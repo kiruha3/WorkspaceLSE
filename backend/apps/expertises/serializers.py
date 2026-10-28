@@ -63,6 +63,7 @@ class AssignmentOutput(serializers.ModelSerializer):
 
 
 class ExpertiseOutput(serializers.ModelSerializer):
+    registration_department_code = serializers.ReadOnlyField()
     department = serializers.SerializerMethodField()
     specialty = serializers.SerializerMethodField()
     receipt = serializers.SerializerMethodField()
@@ -84,7 +85,7 @@ class ExpertiseOutput(serializers.ModelSerializer):
 
     class Meta:
         model = Expertise
-        fields = ["id","origin_kind","historical","registration_number","historical_number","sequence","year","category_code","department","specialty","receipt","material","appointment_nature","is_commission","complex_group","state","version","current_assignments","assignment_history","allowed_actions","basis_document","production","suspensions","deadline_events","result","result_history","closure","closure_history","result_readiness"]
+        fields = ["id","origin_kind","historical","registration_number","registration_department_code","historical_number","sequence","year","category_code","department","specialty","receipt","material","appointment_nature","is_commission","complex_group","state","version","current_assignments","assignment_history","allowed_actions","basis_document","production","suspensions","deadline_events","result","result_history","closure","closure_history","result_readiness"]
 
     def get_department(self,obj): return {"id":str(obj.department_id),"code":obj.department.code,"name":obj.department.name}
     def get_specialty(self,obj): return {"id":str(obj.specialty_id),"code":obj.specialty.code,"name":obj.specialty.name} if obj.specialty_id else None

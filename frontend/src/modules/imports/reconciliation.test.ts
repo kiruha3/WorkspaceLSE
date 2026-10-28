@@ -30,6 +30,35 @@ async function open({ url = '/imports/batch-1/reconciliation', saved = false, co
 enableAutoUnmount(afterEach)
 afterEach(() => vi.restoreAllMocks())
 
+it('keeps factual department1 instead of substituting a modern staff department4',async()=>{
+  const oldDepartment={id:'department-1',code:'1',name:'Исторический отдел1',is_active:false}
+  const oldItem={...item,row:{...row,raw:{B:'151/1-1-26'},facts:{...row.facts,registration_number:'151/1-1-26',department_code:'1'}},suggested_department:oldDepartment,mapped_department:null}
+  const writes:unknown[]=[]
+  const {wrapper}=await open({transport:async(input,init)=>{
+    const path=String(input)
+    if(path.endsWith('/csrf/'))return json({csrf_token:'t'})
+    if(init?.method==='PUT'){writes.push(JSON.parse(String(init.body)));return json({event:{id:'e'},selection:{...selection,department_id:'department-1',version:1}})}
+    return json(path.includes('options')?{...options,departments:[oldDepartment,department]}:{...resultPage(),results:[oldItem]})
+  }})
+  expect(wrapper.text()).toContain('Отдел номера: 1')
+  await wrapper.get('[data-edit-selection]').trigger('click');await flushPromises()
+  expect(wrapper.get('[name="selection_department"]').element).toHaveProperty('value','department-1')
+  expect(wrapper.find('[name="selection_department"] option[value="department-4"]').exists()).toBe(false)
+  await wrapper.get('[name="selection_reason"]').setValue('Фактический отдел1 сохраняется')
+  await wrapper.get('[data-selection-form]').trigger('submit');await flushPromises()
+  expect(writes[0]).toMatchObject({department_id:'department-1'})
+  expect(wrapper.text()).toContain('151/1-1-26')
+  expect(wrapper.get('[data-mapped-department]').text()).toContain('1 · Исторический отдел1')
+})
+
+it('shows factual mapped department to a source reader without personnel options',async()=>{
+  const oldDepartment={id:'department-1',code:'1',name:'Исторический отдел1',is_active:false}
+  const {wrapper}=await open({codes:['imports.results.view'],transport:async()=>json({...resultPage(true),results:[{...item,selection:{...selection,department_id:'department-1'},mapped_department:oldDepartment,row:{...row,raw:{B:'151/1-1-26'},facts:{...row.facts,registration_number:'151/1-1-26',department_code:'1'}}}]})})
+  expect(wrapper.get('[data-mapped-department]').text()).toContain('1 · Исторический отдел1')
+  expect(wrapper.text()).toContain('Отдел номера: 1')
+  expect(wrapper.find('[data-edit-selection]').exists()).toBe(false)
+})
+
 describe('confirmed journal reconciliation', () => {
   it('lets an allowed reader reopen the existing work after the protocol page was reloaded', async () => {
     const { wrapper } = await open({ codes:['imports.results.view','expertise.view'],transport:async()=>json({...resultPage(),results:[{...item,classification:'unchanged',existing_work:{id:'existing-work',registration_number:'151/4-1-26',version:1}}]}) })

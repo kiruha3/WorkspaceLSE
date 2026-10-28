@@ -111,7 +111,7 @@ export interface HistoricalWork {
   report_gaps: ResultIssue[]
 }
 export interface Expertise {
-  id: string; registration_number: string; historical_number: string; sequence: number; year: number; category_code: string
+  id: string; registration_number: string; registration_department_code?: string | null; historical_number: string; sequence: number; year: number; category_code: string
   origin_kind: 'native' | 'historical'; historical: HistoricalWork | null
   department: Pick<Reference, 'id' | 'code' | 'name'>; specialty: Pick<Reference, 'id' | 'code' | 'name'> | null
   receipt: { id: string; received_at: string; status: 'draft' | 'accepted' | 'historical' }; material: { id: string; title: string }

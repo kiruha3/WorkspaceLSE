@@ -33,7 +33,7 @@ def historical_facts(work):
     facts={field:getattr(history,field) if history else None for field in FIELDS}
     facts.update(expertise_id=str(work.pk),registration_number=work.registration_number,origin_kind=work.origin_kind,
         state=work.state,received_on=work.receipt.received_at,category_code=work.category_code,
-        department_code=work.department.code,specialty_code=work.specialty.code if work.specialty_id else None,
+        department_code=work.registration_department_code,specialty_code=work.specialty.code if work.specialty_id else None,
         appointment_nature=work.appointment_nature,is_commission=work.is_commission,
         statistics_confirmed=history.statistics_confirmed if history else False,
         source_row_id=str(history.source_row_id) if history else None)
