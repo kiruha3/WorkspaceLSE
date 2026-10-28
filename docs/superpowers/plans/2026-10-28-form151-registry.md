@@ -33,4 +33,6 @@
 - [x] RED Vue: default registry works without import grant; snapshot bookmark retains source mode; provenance links real UUIDs; changing mode invalidates old result; binary download errors visible/no save; training checkbox only sends true explicitly. Implement GREEN.
 - [x] Full backend pytest, frontend test/build, Django check/migration drift, diffcheck. Expected allpass. One final independent whole-slice review; one importantfixpass with RED→GREEN/full suite if needed.
 - [x] Back up DB, apply field migration; verify/mark only six exact prior demo materials with audit, not 472 real works. Run registry report on live472 and compare explained differences with source, verify count/traces and zero source mutation. Browser calculate+download same revision, inspect/render affected Excel ranges using artifact tool. Leave one Vite bound0.0.0.0:5173 and owned Django. No extra persistent Node services.
-- [ ] Local commit/evidence, task-done, next explicit outstanding report/workflow requirements, goal stays active.
+- [x] Local commit/evidence, task-done, next explicit outstanding report/workflow requirements, goal stays active.
+
+Evidence: `docs/verification/form151-registry-2026-10-28.md`. Implementation commit `3f8eee8`. task-done:25 focused backend tests green; final full546 backend/231 frontend, build green. No push/merge. Next: controlled reconciliation of6 newer source edits, then outstanding official report graphs and full role workflows; goal remains active.

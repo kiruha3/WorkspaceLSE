@@ -89,7 +89,7 @@
 
 Один независимый финальный review всего изменения: Critical0, Important1, Minor1. Important подтверждён: XLSX-only Accept давал DRF406 до вызова представления. Тест точного заголовка клиента сначала упал, после добавления допустимого JSON прошёл. Backend-регрессия отправляет тот же заголовок и проверяет200 и409; оба реальных режима скачаны через браузер.
 
-Полный backend до review:546/546 за511.33с. После исправления повторно546/546 за515.46с, exit0. Frontend после исправления:231/231, production build успешен (2.12с). Django check без замечаний, makemigrations --check без новых миграций, diffcheck чистый. Логи: `.runtime/form151-registry-backend-final.log`, `.runtime/form151-registry-frontend-final.log`, `.runtime/form151-registry-build-final.log`.
+Полный backend до review:546/546 за511.33с. После исправления повторно546/546 за515.46с, exit0. Frontend после исправления:231/231, production build успешен (2.12с). Django check без замечаний, makemigrations --check без новых миграций, diffcheck чистый. После локального коммита `3f8eee8` task-done повторил25 профильных backend-тестов: зелёные. Логи: `.runtime/form151-registry-backend-final.log`, `.runtime/form151-registry-frontend-final.log`, `.runtime/form151-registry-build-final.log`.
 
 Minor отложен: после409 интерфейс оставляет старые показатели/кнопку до пересчёта; сервер повторно отклоняет устаревшую редакцию и файл не сохраняется. Пересчёт или изменение фильтра сбрасывает результат. Повторное ревью и новый цикл мелких улучшений не запускались.
 
