@@ -35,4 +35,4 @@ Keep implementation checkout/outputs/.superpowers. NoPHP/Googlewrites/push/merge
 
 ## Final gate
 
-- [ ] Fresh whole-range reviewer/spec/ledger/ReviewFocus, regrade, one Important RED→GREEN fix pass, defer minors. Fullbackend once/freshDB +frontend/typecheck/build/check/drift/diff. Original live data unchanged, isolatedserver stopped, docs/claims/rulings accurate. Keep branch/no push; overall goal active.
+- [x] Fresh whole-range reviewer/spec/ledger/ReviewFocus, regrade, one Important RED→GREEN fix pass, defer minors. Fullbackend once/freshDB +frontend/typecheck/build/check/drift/diff. Isolatedserver stopped; working files/report/63tables unchanged; four import/audit tables differ after a new preview, explicitly reconciled without rollback or false full-equality claim (closing ledger ruling). Docs/claims/rulings accurate. Keep branch/no push; overall goal active.
