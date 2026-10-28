@@ -1,21 +1,25 @@
 from rest_framework.exceptions import PermissionDenied
 from django.db.models import Q
-from apps.accounts.policies import can,permission_scopes,AccessScope
+from apps.accounts.policies import permission_scopes,AccessScope
 
 
 def document_context(document):
     return {"employee_id":document.created_by_id,"department_ids":[document.department_id] if document.department_id else []}
 
 
-def can_document(user,action,document):
-    if can(user,action,**document_context(document)):return True
+def can_document(user,action,document,scopes=None):
+    scopes=permission_scopes(user) if scopes is None else scopes
+    if scopes.get(action,AccessScope()).allows(**document_context(document)):return True
     # A work's shared basis is readable through an allowed link, not through
     # every sibling work/material. This does not confer write/upload authority.
     if action!="documents.view":return False
     from apps.expertises.policies import expertise_scope_queryset,work_context
-    scopes=permission_scopes(user);scope=scopes.get(action,AccessScope())
+    scope=scopes.get(action,AccessScope())
     if not scope.rules:return False
     if scopes.get("expertise.view"):
+        extra=expertise_scope_queryset(user,'expertise.view',scopes).filter(document_links__document=document,document_links__detached_at__isnull=True).prefetch_related('assignments','historical__participants')
+        for work in extra:
+            if scope.allows(**work_document_context(user,work,scopes)):return True
         works=expertise_scope_queryset(user,"expertise.view",scopes).filter(Q(receipt__basis_document=document)|Q(deadline_events__document=document)|Q(result_revisions__document=document)|Q(result_revisions__unresolved_allocations__document=document)|Q(closures__document=document)|Q(case_details__decree_document=document)|Q(classification__previous_conclusions__document=document)|Q(timing__notification_document=document)|Q(timing__request_document=document)|Q(timing__breach_document=document)|Q(timing__reasons__document=document)).distinct().select_related('case_details','classification','timing').prefetch_related("assignments","historical__participants","classification__previous_conclusions","timing__reasons")
         for work in works:
             context=work_context(work,user,scopes)
@@ -47,3 +51,23 @@ def can_document(user,action,document):
 
 def require_document(user,action,document):
     if not can_document(user,action,document):raise PermissionDenied("Нет права на этот документ.")
+
+
+def work_document_context(user,work,scopes):
+    from apps.expertises.policies import work_context
+    from apps.expertises.history import current_history_employee_ids
+    context=work_context(work,user,scopes)
+    actor_id=next((scope.actor_employee_id for scope in scopes.values()),None)
+    if (str(actor_id) in {str(pk) for pk in current_history_employee_ids(work)}
+        or work.origin_kind=='native' and work.registered_by_id==user.pk):
+        context['employee_id']=actor_id
+    return context
+
+
+def can_link_work(user,action,work,scopes=None):
+    from apps.expertises.policies import require_work
+    scopes=permission_scopes(user) if scopes is None else scopes
+    if not scopes.get('documents.view',AccessScope()).rules:return False
+    try:require_work(user,'expertise.view',work,scopes)
+    except PermissionDenied:return False
+    return scopes.get(action,AccessScope()).allows(**work_document_context(user,work,scopes))

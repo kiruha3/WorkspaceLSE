@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from apps.accounts.commands import execute_once
 from apps.accounts.services import audit,check_version
+from apps.documents.sources import has_archived_evidence
 from .models import Expertise,Suspension,DeadlineEvent
 from .policies import require_work
 
@@ -113,7 +114,7 @@ def record_deadline(*,actor,expertise_id,data,key,payload):
         if document:
             document=Document.objects.select_for_update().get(pk=document.pk)
             require_document(actor,"documents.view",document)
-            if document.source_kind=="uploaded_copy" and not document.versions.exists():
+            if not has_archived_evidence(document):
                 raise ValidationError({"document_id":"Сначала сохраните копию документа."})
         if data["kind"]=="agreement" and (document is None or document.kind not in ("deadline_agreement","resolution","decision")):
             raise ValidationError({"document_id":"Согласование требует подтверждения, а не документа запроса."})

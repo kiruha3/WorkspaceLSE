@@ -7,6 +7,7 @@ from apps.accounts.commands import execute_once
 from apps.accounts.services import audit,check_version
 from apps.documents.models import Document
 from apps.documents.policies import require_document
+from apps.documents.sources import has_archived_evidence
 from apps.references.models import DelayReason
 from apps.references.api import reference_data
 from .models import WorkTimingFacts,TimingReason,TimingRevision
@@ -70,7 +71,7 @@ def save_timing(*,actor,expertise_id,data,key,payload):
     docs={}
     for pk in sorted({d.pk for d in documents if d is not None}):
         doc=get_object_or_404(Document.objects.select_for_update(),pk=pk);require_document(actor,'documents.view',doc)
-        if doc.source_kind=='uploaded_copy' and not doc.versions.exists():raise ValidationError({'documents':'Сначала сохраните файл копии подтверждающего документа.'})
+        if not has_archived_evidence(doc):raise ValidationError({'documents':'Сначала сохраните файл копии подтверждающего документа.'})
         docs[pk]=doc
     def operation():
         require_case_edit(actor,work);check_version(work,data['expected_version'])

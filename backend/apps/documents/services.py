@@ -11,6 +11,7 @@ from apps.accounts.commands import execute_once
 from .models import Document,FileVersion
 from .policies import require_document
 from .serializers import DocumentOutput,FileVersionOutput
+from .sources import normalize_relative_path
 
 
 @transaction.atomic
@@ -26,13 +27,14 @@ def create_document(*,actor,data,idempotency_key=None):
     # Keep unkeyed legacy callers compatible; the shared UI always supplies a
     # stable key before its first metadata POST, not only before file upload.
     payload={"kind":data["kind"],"title":data["title"],"source_kind":data["source_kind"],"department_id":str(department.pk) if department else None}
+    if data.get('source_url'):payload['source_url']=data['source_url']
     result=operation() if idempotency_key is None else execute_once(actor=actor,action="document.create",key=idempotency_key,payload=payload,operation=operation)
     document=Document.objects.get(pk=result["id"])
     if idempotency_key is not None:require_document(actor,"documents.view",document)
     return document
 
 
-def add_file_version(*,actor,document_id,expected_version,upload,idempotency_key=None):
+def add_file_version(*,actor,document_id,expected_version,upload,idempotency_key=None,relative_path=''):
     saved_file=None
     try:
         with transaction.atomic():
@@ -47,12 +49,13 @@ def add_file_version(*,actor,document_id,expected_version,upload,idempotency_key
                 digest.update(chunk)
             upload.seek(0)
             original_name=PureWindowsPath(upload.name).name[:255]
+            relative_path=normalize_relative_path(relative_path,original_name)
 
             def operation():
                 nonlocal saved_file
                 check_version(document,expected_version)
                 number=(document.versions.aggregate(n=Max("number"))["n"] or 0)+1
-                version=FileVersion(document=document,number=number,original_name=original_name,content_type=content_type,size=upload.size,sha256=digest.hexdigest(),created_by=active_employee(actor))
+                version=FileVersion(document=document,number=number,original_name=original_name,relative_path=relative_path,content_type=content_type,size=upload.size,sha256=digest.hexdigest(),created_by=active_employee(actor))
                 version.file.save(version.original_name,upload,save=False)
                 saved_file=version.file
                 version.save()
@@ -60,7 +63,9 @@ def add_file_version(*,actor,document_id,expected_version,upload,idempotency_key
                 audit(actor,"document.version.add",version,FileVersionOutput(version).data)
                 return {"id":str(version.id)}
 
-            result=operation() if idempotency_key is None else execute_once(actor=actor,action="document.version.add",key=idempotency_key,payload={"document_id":str(document_id),"expected_version":expected_version,"original_name":original_name,"size":upload.size,"sha256":digest.hexdigest()},operation=operation)
+            payload={"document_id":str(document_id),"expected_version":expected_version,"original_name":original_name,"size":upload.size,"sha256":digest.hexdigest()}
+            if relative_path:payload['relative_path']=relative_path
+            result=operation() if idempotency_key is None else execute_once(actor=actor,action="document.version.add",key=idempotency_key,payload=payload,operation=operation)
             return FileVersion.objects.get(pk=result["id"])
     except Exception:
         if saved_file is not None:

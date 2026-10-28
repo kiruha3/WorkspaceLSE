@@ -8,6 +8,7 @@ from apps.accounts.policies import active_employee, AccessScope, permission_scop
 from apps.accounts.services import audit, check_version
 from apps.documents.models import Document
 from apps.documents.policies import require_document
+from apps.documents.sources import has_archived_evidence
 from apps.personnel.models import Employee
 from .models import (LetterRegistration, LetterRegistrationFile, LetterDispatch, LetterDispatchFile,
     LetterReceipt, LetterDelivery, LetterAssignment, ControlTask, ControlEvent, Letter)
@@ -42,6 +43,7 @@ def locked_documents(letter, evidence=None):
 def evidence_data(actor, documents, evidence):
     if evidence is None: return {"evidence_document": None, "accepted_version": None}
     document = documents[evidence.pk]; require_document(actor, "documents.view", document)
+    if not has_archived_evidence(document):raise ValidationError({'evidence_document_id':'Сначала сохраните копию подтверждающего документа.'})
     return {"evidence_document": document, "accepted_version": max(document.versions.all(), key=lambda v: v.number, default=None)}
 
 

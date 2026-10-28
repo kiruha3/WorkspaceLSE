@@ -5,6 +5,7 @@ from rest_framework.exceptions import ValidationError
 from apps.accounts.policies import active_employee,require
 from apps.accounts.services import audit,check_version
 from apps.documents.policies import require_document
+from apps.documents.sources import has_archived_evidence
 from .models import Receipt,Material
 from .locking import locked_receipt, require_not_issued
 
@@ -17,7 +18,7 @@ def validate_basis(receipt):
     document=receipt.basis_document
     if document is None or document.kind not in ("resolution","decision"):
         raise ValidationError({"basis_document_id":"Нужно постановление или определение."})
-    if document.source_kind=="uploaded_copy" and not document.versions.exists():
+    if not has_archived_evidence(document):
         raise ValidationError({"basis_document_id":"Сначала сохраните файл копии основания."})
 
 

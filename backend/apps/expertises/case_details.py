@@ -7,6 +7,7 @@ from apps.accounts.policies import permission_scopes,AccessScope
 from apps.accounts.services import audit,check_version
 from apps.documents.models import Document
 from apps.documents.policies import require_document
+from apps.documents.sources import has_archived_evidence
 from apps.references.models import AuthorityType
 from apps.references.api import reference_data
 from apps.references.authority_seeds import legacy_authority_code
@@ -99,7 +100,7 @@ def save_case_details(*,actor,expertise_id,data,key,payload):
     if document:
         document=get_object_or_404(Document.objects.select_for_update(),pk=document.pk)
         require_document(actor,'documents.view',document)
-        if document.source_kind=='uploaded_copy' and not document.versions.exists():
+        if not has_archived_evidence(document):
             raise ValidationError({'decree_document_id':'Сначала подкрепите файл копии документа.'})
     def operation():
         require_case_edit(actor,work);check_version(work,data['expected_version'])

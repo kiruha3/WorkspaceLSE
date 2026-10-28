@@ -6,6 +6,7 @@ from apps.accounts.commands import execute_once
 from apps.accounts.services import audit,check_version
 from apps.documents.models import Document
 from apps.documents.policies import require_document
+from apps.documents.sources import has_archived_evidence
 from .case_details import case_edit_permission,can_edit_case_details,require_case_edit
 from .history import historical_record
 from .models import WorkClassification,PreviousConclusion,ClassificationRevision
@@ -47,7 +48,7 @@ def save_classification(*,actor,expertise_id,data,key,payload):
     for pk in sorted({entry['document'].pk for entry in data['previous_conclusions'] if entry['document']}):
         document=get_object_or_404(Document.objects.select_for_update(),pk=pk)
         require_document(actor,'documents.view',document)
-        if document.source_kind=='uploaded_copy' and not document.versions.exists():
+        if not has_archived_evidence(document):
             raise ValidationError({'previous_conclusions':'Сначала сохраните файл предыдущего заключения.'})
         docs[pk]=document
     def operation():

@@ -47,6 +47,8 @@ PERMISSIONS = {item.code: item for item in [
     Permission("expertise.export", "Выгружать выборку экспертиз", "Экспертизы"),
     Permission("documents.view", "Просматривать документы", "Документы"),
     Permission("documents.upload", "Подкреплять документы", "Документы"),
+    Permission("documents.link", "Связывать документы с экспертизой", "Документы"),
+    Permission("documents.unlink", "Снимать дополнительные связи документов", "Документы"),
     Permission("letters.view", "Просматривать переписку", "Переписка"),
     Permission("letters.draft", "Готовить письма", "Переписка"),
     Permission("letters.reply", "Готовить связанные ответы", "Переписка"),

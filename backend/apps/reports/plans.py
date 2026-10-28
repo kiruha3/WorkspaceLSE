@@ -9,6 +9,7 @@ from apps.accounts.policies import can,require
 from apps.accounts.services import audit,check_version,require_any
 from apps.documents.models import Document
 from apps.documents.policies import require_document
+from apps.documents.sources import has_archived_evidence
 from apps.references.api import reference_data
 from apps.references.models import Specialty
 from apps.expertises.production_serializers import actor_data
@@ -54,7 +55,7 @@ def save_plan(*,actor,year,data,key,payload):
     if data['document'] is not None:
         document=get_object_or_404(Document.objects.select_for_update(),pk=data['document'].pk)
         require_document(actor,'documents.view',document)
-        if document.source_kind=='uploaded_copy' and not document.versions.exists():
+        if not has_archived_evidence(document):
             raise ValidationError({'document_id':'Сначала сохраните файл копии подтверждающего документа.'})
     def operation():
         require(actor,MANAGE);check_version(plan,data['expected_version'])
