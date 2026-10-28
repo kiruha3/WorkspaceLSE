@@ -72,7 +72,7 @@ def test_policy_and_reference_mapping_changes_invalidate_export_fingerprint(acce
  from apps.reports import timing_columns
  from django.apps import apps
  work,_,_=accepted_work();client,reasons=configure(work,grant)
- first=calculate_registry(year=2026,month=10)
+ monkeypatch.setattr(timing_columns,'DELAY_REASON_POLICY',None);first=calculate_registry(year=2026,month=10)
  monkeypatch.setattr(timing_columns,'DELAY_REASON_POLICY','all');second=calculate_registry(year=2026,month=10)
  assert second['data_revision']!=first['data_revision']
  work.refresh_from_db();assert send(client,work,body(work,reasons=[entry(reasons['other'])])).status_code==200
@@ -114,6 +114,16 @@ def test_empty_complete_reasons_do_not_become_false_zeros_at_later_completion(em
  assert cell(report,3,'F107')['value']==1
  assert all(cell(report,3,f'{c}107')['value'] is None for c in 'GHIJKL')
  assert str(work.pk) in next(g for g in report['gaps'] if g['code']=='delayReasons')['rows']
+
+
+def test_owner_policy_counts_each_selected_group_without_requiring_primary(accepted_work,grant):
+ work,_,_=accepted_work();work.receipt.received_at=date(2026,8,1);work.receipt.save(update_fields=['received_at'])
+ actor=work.registered_by.employee;grant(actor,'expertise.view');grant(actor,'expertise.closed.correct');client=Client();client.force_login(actor.user);reasons=refs(client,work)
+ assert send(client,work,body(work,reasons_complete=True,reasons=[entry(reasons['research_complexity']),entry(reasons['expert_workload'])])).status_code==200
+ report=calculate_registry(year=2026,month=10)
+ assert [cell(report,3,f'{c}107')['value'] for c in 'GHIJKL']==[1,0,1,0,0,0]
+ assert not any(g['code']=='delayReasons' for g in report['gaps'])
+ assert client.get(f'/api/v1/expertises/{work.pk}/timing/').json()['delay_reason_policy']=='all'
 
 @pytest.mark.parametrize('policy,complete,entries,primary,want',[
  ('all',True,[('a','expert_workload'),('b','expert_workload')],None,[0,0,1,0,0,0]),

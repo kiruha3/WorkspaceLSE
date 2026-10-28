@@ -1,7 +1,7 @@
 """Tri-state timing facts. No inference of legal breach or outgoing delivery."""
 from datetime import date
 
-DELAY_REASON_POLICY=None  # Owner question pending; neither interpretation wins by default.
+DELAY_REASON_POLICY='all'  # Owner: once in each selected report group, 2026-10-28.
 DELAY_COLUMNS={'research_complexity':'G','large_material_volume':'H','expert_workload':'I','long_research_methods':'J','appointing_party_deadline':'K','other':'L'}
 
 def delay_counts(facts,policy):
