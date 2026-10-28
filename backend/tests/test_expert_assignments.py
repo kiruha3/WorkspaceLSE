@@ -58,17 +58,16 @@ def test_unknown_date_confirmed_basis_allowed(employee_factory,grant):
     assert ExpertAssignment.objects.get(employee=head).qualification_snapshot==snapshot
 
 
-@pytest.mark.parametrize("change",["inactive","expired","training","unconfirmed"])
-def test_inactive_or_expired_candidate_rechecked(employee_factory,grant,change):
+@pytest.mark.parametrize("change",["inactive","training","unconfirmed"])
+def test_inactive_or_unqualified_candidate_rechecked(employee_factory,grant,change):
     client,_,work,_,specialty=assignment_setup(employee_factory,grant)
     employee=qualified(employee_factory,specialty)
     assert next(c for c in client.get(f"/api/v1/expertises/{work['id']}/assignment-candidates/").json() if c["id"]==str(employee.id))["eligible"]
     if change=="inactive":employee.is_active=False;employee.save()
     else:
         item=employee.specialties.get()
-        if change=="expired":item.valid_until=date(2020,1,1)
-        elif change=="training":item.status="training"
-        else:item.basis=""
+        if change=="training":item.status="training"
+        else:item.status="unknown_legacy"
         item.save()
     assert assign(client,work,[employee]).status_code==400
     from apps.expertises.models import ExpertAssignment

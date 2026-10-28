@@ -61,7 +61,7 @@ def test_training_form_cannot_directly_claim_qualification_or_duplicate(employee
     spec = Specialty.objects.create(code="18.1",name="Транспорт")
     url = f"/api/v1/employees/{actor.id}/specialties/"
     client = client_for(actor)
-    assert client.post(url,{"specialty_id":str(spec.id),"status":"qualified"},content_type="application/json").status_code == 400
+    assert client.post(url,{"specialty_id":str(spec.id),"status":"qualified"},content_type="application/json").status_code == 403
     payload = {"specialty_id":str(spec.id),"status":"training"}
     assert client.post(url,payload,content_type="application/json").status_code == 201
     assert client.post(url,payload,content_type="application/json").status_code == 400
@@ -84,15 +84,15 @@ def test_authorized_confirmation_allows_unknown_qualification_date_with_basis(em
     assert qualification_eligibility(target,specialty,date(2026,10,28))["eligible"] is True
 
 
-def test_unknown_date_confirmation_still_requires_basis(employee_factory,grant):
+def test_unknown_date_obtained_status_does_not_require_basis(employee_factory,grant):
     actor = employee_factory()
     grant(actor,"specialties.qualify")
     specialty = Specialty.objects.create(code="18.1",name="Транспорт")
     item = EmployeeSpecialty.objects.create(employee=actor,specialty=specialty,status="training")
     response = client_for(actor).post(f"/api/v1/employee-specialties/{item.id}/qualify/",{"expected_version":1,"qualified_at":None,"basis":""},content_type="application/json")
-    assert response.status_code == 400
+    assert response.status_code == 200
     item.refresh_from_db()
-    assert item.status == "training"
+    assert item.status == "qualified"
 
 
 def test_employee_updates_cannot_self_assign_roles_or_deactivate_without_right(employee_factory, grant):

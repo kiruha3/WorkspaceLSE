@@ -4,6 +4,7 @@ _UNSET = object()
 
 
 def qualification_eligibility(employee, specialty, at, *, qualification=_UNSET):
+    """Eligibility follows the recorded status; specialty dates are reference data."""
     def denied(code, message):
         return {"eligible":False,"code":code,"message":message}
     if not employee.is_active or not specialty.is_active:
@@ -14,11 +15,5 @@ def qualification_eligibility(employee, specialty, at, *, qualification=_UNSET):
     if item.status == "training":
         return denied("specialty_training","По этой специальности сотрудник обучается: назначение на экспертизу недоступно.")
     if item.status != "qualified":
-        return denied("qualification_unconfirmed","Получение специальности пока не подтверждено.")
-    if item.qualified_at is None and not item.basis.strip():
-        return denied("qualification_unconfirmed","При неизвестной дате получения требуется явное подтверждение и основание.")
-    if item.qualified_at is not None and item.qualified_at > at:
-        return denied("qualification_not_yet_valid","Дата получения специальности позже даты назначения.")
-    if item.valid_until is not None and item.valid_until < at:
-        return denied("qualification_expired","Указанный срок действия специальности закончился.")
+        return denied("qualification_unconfirmed","Специальность ещё не отмечена как полученная.")
     return {"eligible":True,"code":"qualified","message":"Полученная специальность соответствует назначению."}

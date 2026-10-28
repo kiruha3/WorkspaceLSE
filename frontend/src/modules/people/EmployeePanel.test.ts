@@ -89,20 +89,26 @@ describe('employee edits', () => {
     const updated = wrapper.emitted('updated')![0]![0] as typeof employee
     await wrapper.setProps({ employee: updated })
     expect((wrapper.get('input:not([type])').element as HTMLInputElement).value).toBe('Несохранённое имя')
-    expect(wrapper.get('[role="status"]').text()).toContain('Квалификация подтверждена')
+    expect(wrapper.get('[role="status"]').text()).toContain('Специальность сохранена')
     wrapper.unmount()
   })
 
-  it('does not confirm a qualification without a nonblank basis', async () => {
-    let requests = 0
-    const client = new ApiClient(async () => { requests++; return json({ csrf_token: 'token' }) })
+  it('marks an obtained specialty without a date or mandatory basis', async () => {
+    const writes:unknown[]=[]
+    const client = new ApiClient(async (input,init) => {
+      if(String(input).endsWith('/csrf/'))return json({csrf_token:'token'})
+      writes.push(JSON.parse(String(init?.body)))
+      return json({...employee.specialties[1],status:'qualified',qualified_at:null,basis:'',version:2})
+    })
     const wrapper = mount(EmployeePanel, { props: { employee }, global: { plugins: [sessionWith('specialties.qualify')], provide: { [apiKey as symbol]: client } } })
     await wrapper.get('[data-qualify="es-2"]').trigger('click')
     await wrapper.get('[name="qualification_basis"]').setValue('   ')
+    expect((wrapper.get('[name="qualification_basis"]').element as HTMLInputElement).required).toBe(false)
+    expect((wrapper.get('[data-confirm-qualification] button.button-primary').element as HTMLButtonElement).disabled).toBe(false)
     await wrapper.get('[data-confirm-qualification]').trigger('submit')
     await flushPromises()
-    expect(requests).toBe(0)
-    expect(wrapper.find('[data-confirm-qualification]').exists()).toBe(true)
+    expect(writes).toEqual([{expected_version:1,qualified_at:null,basis:''}])
+    expect(wrapper.find('[data-confirm-qualification]').exists()).toBe(false)
     wrapper.unmount()
   })
 
@@ -121,5 +127,74 @@ describe('employee edits', () => {
     expect(payload).toEqual({ expected_version: 2, full_name: 'Черновик' })
     expect(wrapper.get('[role="alert"]').text()).toContain('Конфликт')
     expect((wrapper.get('input:not([type])').element as HTMLInputElement).value).toBe('Черновик')
+  })
+})
+
+describe('specialty reference dates',()=>{
+  it('adds an obtained specialty directly with all optional details empty using only the obtained-specialty right',async()=>{
+    const writes:{path:string;body:unknown}[]=[]
+    const created={...employee.specialties[0],id:'new-specialty',qualified_at:null,basis:'',version:1}
+    const client=new ApiClient(async(input,init)=>{
+      const path=String(input)
+      if(path.endsWith('/csrf/'))return json({csrf_token:'token'})
+      if(path.includes('/references/specialties/'))return json({count:1,next:null,previous:null,results:[{...created.specialty,is_active:true,version:1}]})
+      if(init?.method==='POST'){writes.push({path,body:JSON.parse(String(init.body))});return json(created,201)}
+      return json({...employee,specialties:[...employee.specialties,created]})
+    })
+    const wrapper=mount(EmployeePanel,{props:{employee},global:{plugins:[sessionWith('specialties.qualify')],provide:{[apiKey as symbol]:client}}})
+    await wrapper.get('[data-add-specialty]').trigger('click');await flushPromises()
+    expect(wrapper.get('[name="specialty_status"]').findAll('option').map(o=>o.attributes('value'))).toEqual(['qualified'])
+    await wrapper.get('[name="specialty_id"]').setValue('s-18')
+    await wrapper.get('[data-specialty-create]').trigger('submit');await flushPromises()
+    expect(writes).toEqual([{path:'/api/v1/employees/employee-1/specialties/',body:{specialty_id:'s-18',status:'qualified',training_started_at:null,qualified_at:null,valid_until:null,basis:''}}])
+    expect(wrapper.find('[data-confirm-qualification]').exists()).toBe(false)
+    expect(wrapper.get('[role="status"]').text()).toContain('Специальность сохранена')
+    wrapper.unmount()
+  })
+
+  it('does not offer obtained status to a training-only operator',async()=>{
+    const client=new ApiClient(async()=>json({count:0,next:null,previous:null,results:[]}))
+    const wrapper=mount(EmployeePanel,{props:{employee},global:{plugins:[sessionWith('specialties.training.manage')],provide:{[apiKey as symbol]:client}}})
+    await flushPromises();await wrapper.get('[data-add-specialty]').trigger('click')
+    expect(wrapper.get('[name="specialty_status"]').findAll('option').map(o=>o.attributes('value'))).toEqual(['training','unknown_legacy'])
+    expect(wrapper.find('[data-edit-specialty="es-1"]').exists()).toBe(false)
+    expect(wrapper.find('[data-edit-specialty="es-2"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('edits reference dates without changing the status or losing unsaved employee metadata',async()=>{
+    const writes:{method:string|undefined;body:unknown}[]=[]
+    const client=new ApiClient(async(input,init)=>{
+      if(String(input).endsWith('/csrf/'))return json({csrf_token:'token'})
+      writes.push({method:init?.method,body:JSON.parse(String(init?.body))})
+      return json({...employee.specialties[0],qualified_at:null,valid_until:'2020-01-01',basis:'',version:3})
+    })
+    const wrapper=mount(EmployeePanel,{props:{employee},global:{plugins:[sessionWith('employees.update','specialties.qualify')],provide:{[apiKey as symbol]:client}}})
+    await wrapper.get('[data-edit-specialty="es-1"]').trigger('click')
+    expect(wrapper.text()).not.toContain('Есть изменения')
+    expect((wrapper.get('[name="qualified_at"]').element as HTMLInputElement).value).toBe('2025-04-03')
+    await wrapper.get('input:not([type])').setValue('Несохранённое ФИО')
+    await wrapper.get('[name="qualified_at"]').setValue('')
+    await wrapper.get('[name="qualification_valid_until"]').setValue('2020-01-01')
+    await wrapper.get('[name="qualification_basis"]').setValue('')
+    await wrapper.get('[data-specialty-metadata]').trigger('submit');await flushPromises()
+    expect(writes).toEqual([{method:'PATCH',body:{expected_version:2,training_started_at:null,qualified_at:null,valid_until:'2020-01-01',basis:''}}])
+    const updated=wrapper.emitted('updated')![0]![0] as typeof employee
+    await wrapper.setProps({employee:updated})
+    expect(updated.specialties[0]!.status).toBe('qualified')
+    expect((wrapper.get('input:not([type])').element as HTMLInputElement).value).toBe('Несохранённое ФИО')
+    wrapper.unmount()
+  })
+
+  it.each([403,409])('keeps specialty date input when the server rejects with %s',async(status)=>{
+    const client=new ApiClient(async input=>String(input).endsWith('/csrf/')?json({csrf_token:'token'}):json({code:status===409?'version_conflict':'permission_denied',message:'Сведения не сохранены',field_errors:{}},status))
+    const wrapper=mount(EmployeePanel,{props:{employee},global:{plugins:[sessionWith('specialties.qualify')],provide:{[apiKey as symbol]:client}}})
+    await wrapper.get('[data-edit-specialty="es-1"]').trigger('click')
+    await wrapper.get('[name="qualified_at"]').setValue('2024-01-01')
+    await wrapper.get('[data-specialty-metadata]').trigger('submit');await flushPromises()
+    expect((wrapper.get('[name="qualified_at"]').element as HTMLInputElement).value).toBe('2024-01-01')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    expect(wrapper.emitted('updated')).toBeUndefined()
+    wrapper.unmount()
   })
 })

@@ -7,7 +7,7 @@ from .models import Role
 class StrictSerializer(serializers.Serializer):
     def to_internal_value(self, data):
         if not isinstance(data, Mapping):
-            raise serializers.ValidationError("Ожидается объект полей.")
+            raise serializers.ValidationError({"non_field_errors":["Ожидается объект полей."]})
         unknown = set(data) - set(self.fields)
         if unknown:
             raise serializers.ValidationError({key:"Неизвестное поле." for key in unknown})

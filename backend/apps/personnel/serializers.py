@@ -50,22 +50,35 @@ class EmployeeUpdate(VersionedSerializer):
 
 class SpecialtyCreate(StrictSerializer):
     specialty_id = serializers.PrimaryKeyRelatedField(queryset=Specialty.objects.filter(is_active=True),source="specialty")
-    status = serializers.ChoiceField(choices=["training","unknown_legacy"])
+    status = serializers.ChoiceField(choices=["training","unknown_legacy","qualified"])
     training_started_at = serializers.DateField(allow_null=True,required=False)
+    qualified_at = serializers.DateField(allow_null=True,required=False)
     valid_until = serializers.DateField(allow_null=True,required=False)
     basis = serializers.CharField(allow_blank=True,required=False,default="")
     mentor_id = serializers.PrimaryKeyRelatedField(queryset=Employee.objects.filter(is_active=True),source="mentor",allow_null=True,required=False)
 
+    def validate(self, attrs):
+        if attrs.get("qualified_at") and attrs.get("valid_until") and attrs["valid_until"] < attrs["qualified_at"]:
+            raise serializers.ValidationError({"valid_until":"Окончание срока раньше даты получения. Уточните справочные даты или оставьте неизвестные пустыми."})
+        return attrs
+
 
 class SpecialtyQualify(VersionedSerializer):
-    qualified_at = serializers.DateField(allow_null=True,required=False,default=None)
+    qualified_at = serializers.DateField(allow_null=True,required=False)
     valid_until = serializers.DateField(allow_null=True,required=False)
-    basis = serializers.CharField()
+    basis = serializers.CharField(allow_blank=True,required=False)
 
     def validate(self, attrs):
-        if attrs.get("valid_until") and attrs["qualified_at"] and attrs["valid_until"] < attrs["qualified_at"]:
-            raise serializers.ValidationError({"valid_until":"Окончание допуска раньше его получения."})
+        if attrs.get("valid_until") and attrs.get("qualified_at") and attrs["valid_until"] < attrs["qualified_at"]:
+            raise serializers.ValidationError({"valid_until":"Окончание срока раньше даты получения."})
         return attrs
+
+
+class SpecialtyMetadataUpdate(VersionedSerializer):
+    training_started_at = serializers.DateField(allow_null=True,required=False)
+    qualified_at = serializers.DateField(allow_null=True,required=False)
+    valid_until = serializers.DateField(allow_null=True,required=False)
+    basis = serializers.CharField(allow_blank=True,required=False)
 
 
 class OrderedDates(StrictSerializer):

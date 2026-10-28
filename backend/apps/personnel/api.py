@@ -9,7 +9,7 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 from apps.accounts.policies import effective_scope, require, access_snapshot, can
 from apps.accounts.services import audit, check_version, require_any
 from .models import Employee, EmployeeOrgAssignment, EmployeeSpecialty, EmployeeRole
-from .serializers import EmployeeOutput, EmployeeCreate, EmployeeUpdate, SpecialtyOutput, SpecialtyCreate, SpecialtyQualify, RoleAssignmentOutput, RoleAssignmentCreate, OrgAssignmentCreate, OrgAssignmentEnd, OrgAssignmentOutput, RoleAssignmentRevoke, AccountCreate, AccountUpdate
+from .serializers import EmployeeOutput, EmployeeCreate, EmployeeUpdate, SpecialtyOutput, SpecialtyCreate, SpecialtyQualify, SpecialtyMetadataUpdate, RoleAssignmentOutput, RoleAssignmentCreate, OrgAssignmentCreate, OrgAssignmentEnd, OrgAssignmentOutput, RoleAssignmentRevoke, AccountCreate, AccountUpdate
 
 
 def current_assignments():
@@ -85,12 +85,12 @@ class EmployeeSpecialtiesView(GenericAPIView):
     @transaction.atomic
     def post(self,request,pk):
         employee = get_object_or_404(Employee.objects.select_for_update(),pk=pk)
-        require_employee(request.user,"specialties.training.manage",employee)
-        if not employee.is_active:
-            raise ValidationError("Сотрудник неактивен.")
         serializer = SpecialtyCreate(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        require_employee(request.user,"specialties.qualify" if data["status"] == "qualified" else "specialties.training.manage",employee)
+        if not employee.is_active:
+            raise ValidationError("Сотрудник неактивен.")
         if EmployeeSpecialty.objects.filter(employee=employee,specialty=data["specialty"]).exists():
             raise ValidationError({"specialty_id":"Эта специальность уже связана с сотрудником."})
         item = EmployeeSpecialty.objects.create(employee=employee,**data)
@@ -112,7 +112,8 @@ class SpecialtyQualifyView(GenericAPIView):
         if item.status == "qualified":
             raise ValidationError("Специальность уже подтверждена; нужна отдельная процедура корректировки.")
         expiry = data.get("valid_until",item.valid_until)
-        if expiry and data["qualified_at"] and expiry < data["qualified_at"]:
+        obtained = data.get("qualified_at",item.qualified_at)
+        if expiry and obtained and expiry < obtained:
             raise ValidationError({"valid_until":"Сохранённый срок раньше даты получения. Уточните срок или явно очистите его."})
         before = SpecialtyOutput(item).data
         for key,value in data.items():
@@ -121,6 +122,32 @@ class SpecialtyQualifyView(GenericAPIView):
         item.version += 1
         item.save()
         audit(request.user,"employee.specialty.qualify",item,{"before":before,"after":SpecialtyOutput(item).data})
+        return Response(SpecialtyOutput(item).data)
+
+
+class SpecialtyDetailView(GenericAPIView):
+    @transaction.atomic
+    def patch(self,request,pk):
+        item = get_object_or_404(EmployeeSpecialty.objects.select_for_update(),pk=pk)
+        require_employee(request.user,"specialties.qualify" if item.status == "qualified" else "specialties.training.manage",item.employee)
+        if not item.employee.is_active or not item.specialty.is_active:
+            raise ValidationError("Сотрудник или специальность неактивны.")
+        serializer = SpecialtyMetadataUpdate(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data.copy()
+        check_version(item,data.pop("expected_version"))
+        if not data:
+            raise ValidationError("Укажите справочные сведения для изменения.")
+        obtained = data.get("qualified_at",item.qualified_at)
+        expiry = data.get("valid_until",item.valid_until)
+        if obtained and expiry and expiry < obtained:
+            raise ValidationError({"valid_until":"Окончание срока раньше даты получения. Уточните справочные даты или явно очистите неизвестную."})
+        before = SpecialtyOutput(item).data
+        for key,value in data.items():
+            setattr(item,key,value)
+        item.version += 1
+        item.save()
+        audit(request.user,"employee.specialty.update",item,{"before":before,"after":SpecialtyOutput(item).data})
         return Response(SpecialtyOutput(item).data)
 
 

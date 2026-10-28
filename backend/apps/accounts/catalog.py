@@ -22,7 +22,7 @@ PERMISSIONS = {item.code: item for item in [
     Permission("employees.deactivate", "Деактивировать сотрудников", "Сотрудники", ("departments", "institution")),
     Permission("employees.org_assignments.manage", "Вести должности и подразделения", "Сотрудники", ("institution",)),
     Permission("specialties.training.manage", "Вести обучение по специальностям", "Специальности", ("departments", "institution")),
-    Permission("specialties.qualify", "Подтверждать получение специальности", "Специальности", ("departments", "institution")),
+    Permission("specialties.qualify", "Вести полученные специальности", "Специальности", ("departments", "institution")),
     Permission("references.view", "Просматривать справочники", "Справочники", ("institution",)),
     Permission("references.manage", "Изменять справочники", "Справочники", ("institution",)),
     Permission("access.roles.view", "Просматривать роли", "Доступ", ("institution",)),

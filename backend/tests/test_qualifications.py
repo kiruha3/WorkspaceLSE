@@ -20,7 +20,7 @@ def test_trainee_for_one_specialty_remains_eligible_for_another(employee_factory
 
 
 @pytest.mark.django_db
-def test_unknown_or_expired_qualification_cannot_be_used_for_new_assignment(employee_factory):
+def test_unknown_status_is_not_eligible_but_recorded_dates_are_only_reference_information(employee_factory):
     from apps.personnel.models import EmployeeSpecialty
     from apps.personnel.services import qualification_eligibility
     from apps.references.models import Specialty
@@ -32,7 +32,7 @@ def test_unknown_or_expired_qualification_cannot_be_used_for_new_assignment(empl
     item.qualified_at = date(2026,1,1)
     item.valid_until = date(2026,10,26)
     item.save()
-    assert qualification_eligibility(employee,specialty,date(2026,10,27))["eligible"] is False
+    assert qualification_eligibility(employee,specialty,date(2026,10,27))["eligible"] is True
     item.valid_until = date(2026,10,27)
     item.save()
     assert qualification_eligibility(employee,specialty,date(2026,10,27))["eligible"] is True
