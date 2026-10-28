@@ -5,8 +5,11 @@ from apps.personnel.api import EmployeeListView, EmployeeDetailView, EmployeeSpe
 from apps.references.api import ReferenceListView, ReferenceDetailView
 from apps.personnel.api import EmployeeOrgAssignmentsView, OrgAssignmentDetailView, EmployeeRoleDetailView, EmployeeAccountView
 from apps.personnel.api import AccessEmployeeDirectoryView
+from apps.reports.api import Form151View
 
 urlpatterns = [
+    path("api/v1/reports/form151/",Form151View.as_view()),
+    path("api/v1/reports/form151/xlsx/",Form151View.as_view(download=True)),
     path("api/v1/",include("apps.imports.urls")),
     path("api/v1/",include("apps.issuance.urls")),
     path("api/v1/",include("apps.correspondence.urls")),

@@ -16,6 +16,7 @@ import IssuePackagePage from './modules/issuance/IssuePackagePage.vue'
 import ImportPreviewsPage from './modules/imports/ImportPreviewsPage.vue'
 import ImportPreviewPage from './modules/imports/ImportPreviewPage.vue'
 import ReconciliationPage from './modules/imports/ReconciliationPage.vue'
+import ReportsPage from './modules/reports/ReportsPage.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -23,6 +24,7 @@ export const router = createRouter({
     { path: '/', redirect: '/workspace' },
     { path: '/login', component: LoginPage, meta: { title: 'Вход' } },
     { path: '/workspace', component: HomePage, meta: { title: 'Рабочее место' } },
+    { path: '/reports', component: ReportsPage, meta: { permissionsAny: ['reports.form151.run'], title: 'Отчёт 15.1' } },
     { path: '/intake', component: IntakePage, meta: { permission: 'receipts.view', title: 'Приёмка материалов' } },
     { path: '/receipts/:id', component: ReceiptPage, meta: { permission: 'receipts.view', title: 'Поступление' } },
     { path: '/expertises', component: ExpertisesPage, meta: { permission: 'expertise.view', title: 'Реестр экспертиз' } },
