@@ -10,12 +10,13 @@ const reasonRef={id:'reason-1',code:'expert_workload',name:'Загруженно
 const timing={id:null,can_edit:true,edit_permission:'expertise.work.update',reasons_complete:false,primary_reason_id:null,reasons:[],notification_sent:null,notification_on:null,notification_document_id:null,notification_document:null,extension_requested:null,request_on:null,request_document_id:null,request_document:null,deadline_breached:null,breach_basis:'',breach_document_id:null,breach_document:null,revisions:[]}
 const initial={...expertise,allowed_actions:[],timing} as unknown as Expertise
 type Write={path:string;body:any;key:string|null}
-async function open(current=initial,respond?:(write:Write,n:number)=>Response|Promise<Response>){
+async function open(current=initial,respond?:(write:Write,n:number)=>Response|Promise<Response>,readDocument?:()=>Response|Promise<Response>){
  let work=current;const writes:Write[]=[],router=await testRouter('/expertises/work-1')
  const wrapper=mount(ExpertisePage,{global:{plugins:[sessionWith('expertise.view','expertise.work.update','documents.upload','documents.view'),router],provide:{[apiKey as symbol]:new ApiClient(async(input,init)=>{
   const path=String(input);if(path.endsWith('/csrf/'))return json({csrf_token:'token'})
   if(init?.method==='POST'){const write={path,body:init.body instanceof FormData?init.body:JSON.parse(String(init.body)),key:new Headers(init.headers).get('Idempotency-Key')};writes.push(write);return respond?respond(write,writes.length):json({event:{id:'revision'},expertise:{...work,version:2}})}
   if(path.endsWith('/timing/'))return json({delay_reasons:[reasonRef,{...reasonRef,id:'retained',name:'Ранее использовалась',is_active:false},{...reasonRef,id:'forbidden',name:'Не выбиралась',is_active:false}],retained_reason_ids:['retained'],delay_reason_policy:null})
+  if(path.startsWith('/api/v1/documents/')&&readDocument)return readDocument()
   return json(work)
  })}}});await flushPromises();return {wrapper,writes,router,set:(next:Expertise)=>{work=next},refresh:async()=>{await wrapper.findAll('button').find(b=>b.text()==='Обновить серверные сведения')!.trigger('click');await flushPromises()}}
 }
@@ -55,6 +56,27 @@ it('shows document-only reason history readably',async()=>{
  const record={reason:reasonRef,comment:'Причина по материалам',document_id:'old-evidence'}
  const current={...initial,timing:{...timing,revisions:[{id:'r1',number:1,actor:{id:'a',full_name:'Эксперт'},created_at:'2026-10-28T01:00:00Z',reason:'Заменена ссылка',before:{reasons:[record]},after:{reasons:[{...record,document_id:'new-evidence'}]}}]}} as unknown as Expertise
  const {wrapper}=await open(current);const text=wrapper.get('[data-timing-panel] .subsection').text();expect(text).toContain('Загруженность экспертов');expect(text).toContain('old-evidence');expect(text).toContain('new-evidence');expect(text).not.toContain('"report_group"')
+})
+it('reconciles a nested upload conflict without refreshing or changing the work version',async()=>{
+ let uploads=0
+ const prior={id:'other-file',number:1,original_name:'other.txt',content_type:'text/plain',size:5,sha256:'abc',created_at:'2026-10-28T01:00:00Z',download_url:'/download/',preview_url:null}
+ const {wrapper,writes}=await open(initial,async w=>{
+  if(w.path==='/api/v1/documents/')return json({...basis,id:'new-doc',kind:'notification',source_kind:'uploaded_copy',versions:[]})
+  if(w.path.endsWith('/versions/')){uploads++;return uploads===1?json({code:'version_conflict',message:'Документ изменён другим пользователем'},409):json({...prior,id:'my-file',number:2,original_name:'notice.txt',size:6})}
+  return json({event:{id:'saved'},expertise:{...initial,version:2}})
+ },()=>json({...basis,id:'new-doc',kind:'notification',source_kind:'uploaded_copy',version:2,versions:[prior]}))
+ await edit(wrapper);await wrapper.get('[name="timing_notification_sent"]').setValue('true');await wrapper.get('[name="timing_notification_document_mode"]').setValue('new');await wrapper.get('[name="document_title"]').setValue('Подтверждение отправки');await wrapper.get('[name="source_kind"]').setValue('uploaded_copy')
+ const input=wrapper.get('[name="basis_file"]');Object.defineProperty(input.element,'files',{value:[new File(['notice'],'notice.txt',{type:'text/plain'})]});await input.trigger('change')
+ await wrapper.get('[data-timing-form]').trigger('submit');await flushPromises()
+ expect(writes.filter(w=>w.path.endsWith('/timing/'))).toHaveLength(0)
+ expect(wrapper.get('[data-timing-panel]').text()).not.toContain('Карточка изменилась.')
+ await wrapper.get('[data-refresh-document-version]').trigger('click');await flushPromises();expect(wrapper.text()).toContain('other.txt')
+ await wrapper.get('[data-accept-document-version]').trigger('click');await flushPromises()
+ expect((wrapper.get('[name="timing_reason"]').element as HTMLTextAreaElement).value).toBe('Сверено с документами')
+ await wrapper.get('[data-timing-form]').trigger('submit');await flushPromises()
+ expect(writes.filter(w=>w.path==='/api/v1/documents/')).toHaveLength(1)
+ const files=writes.filter(w=>w.path.endsWith('/versions/'));expect(files).toHaveLength(2);expect((files[1]!.body as FormData).get('expected_version')).toBe('2');expect(files[1]!.key).not.toBe(files[0]!.key)
+ expect(writes.find(w=>w.path.endsWith('/timing/'))!.body).toMatchObject({expected_version:1,notification_document_id:'new-doc'})
 })
 it('keeps a forbidden draft and guards route leave',async()=>{
  const state=await open(initial,()=>json({message:'Нет прав'},403));await edit(state.wrapper);await state.wrapper.get('[data-timing-form]').trigger('submit');await flushPromises();expect(state.wrapper.text()).toContain('Нет прав')

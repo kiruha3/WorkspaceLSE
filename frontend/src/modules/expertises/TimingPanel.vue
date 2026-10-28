@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed,onBeforeUnmount,ref,watch } from 'vue'
+import { computed,onBeforeUnmount,ref,shallowReactive,watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiError,LatestRequest,useApi } from '../../api/client'
 import type { DocumentKind,Expertise,ExpertiseCommandResponse,TimingOptions,TimingPayload } from '../../api/types'
@@ -24,7 +24,8 @@ const flags=ref<Record<Flag,string>>({notification_sent:'',extension_requested:'
 const documents=ref<Record<Slot,{id:string;mode:string}>>({notification:{id:'',mode:'existing'},request:{id:'',mode:'existing'},breach:{id:'',mode:'existing'}})
 type Entry={key:string;reason_id:string;comment:string;document_id:string;documentMode:string}
 const entries=ref<Entry[]>([]),complete=ref(false),primary=ref(''),basis=ref(''),reason=ref(''),expectedVersion=ref(0),initial=ref('')
-const documentForms=new Map<string,InstanceType<typeof BasisDocumentForm>>()
+const documentForms=shallowReactive(new Map<string,InstanceType<typeof BasisDocumentForm>>())
+const documentConflict=computed(()=>[...documentForms.values()].some(form=>form.uploadConflict))
 let sequence=0,preparation:{packet:CommandPacket;documents:{key:string;field?:string;index?:number}[]}|null=null
 const bool=(value:string)=>value===''?null:value==='true',show=(value:unknown)=>value==null||value===''?'Неизвестно':typeof value==='boolean'?value?'Да':'Нет':String(value)
 const labels={reasons:'Причины длительности',reasons_complete:'Полнота списка причин',primary_reason_id:'Основная причина',notification_sent:'Факт информирования',notification_on:'Дата информирования',notification_document_id:'Документ информирования',extension_requested:'Факт направления ходатайства',request_on:'Дата ходатайства',request_document_id:'Документ ходатайства',deadline_breached:'Оценка нарушения срока',breach_basis:'Основание оценки',breach_document_id:'Документ оценки'}
@@ -48,7 +49,8 @@ const command=useCommandAttempt<ExpertiseCommandResponse>(async()=>{
  for(const item of plan.documents){const form=documentForms.get(item.key);if(!form)throw new ApiError(400,'validation_error','Форма подтверждающего документа недоступна.');const doc=await form.persist();if(item.index!==undefined)body.reasons[item.index]!.document_id=doc.id;else (body as unknown as Record<string,unknown>)[item.field!]=doc.id}
  return plan.packet
 },response=>{editing.value=false;preparation=null;emit('updated',response.expertise)})
-const {busy,uncertain,error,conflict}=command
+const {busy,uncertain,error}=command
+const conflict=computed(()=>command.conflict.value&&!(error.value instanceof ApiError&&error.value.code==='document_version_conflict'))
 const confirmLeave=useDirtyGuard(()=>busy.value||editing.value&&(stamp.value!==initial.value||[...documentForms.values()].some(f=>f.dirty)||uncertain.value),router)
 function reset(){if(!busy.value&&!uncertain.value){preparation=null;command.reset()}}
 watch(stamp,reset,{flush:'sync'})
@@ -65,7 +67,7 @@ async function start(){
 function add(){if(entries.value.length<100)entries.value.push({key:String(++sequence),reason_id:'',comment:'',document_id:'',documentMode:'existing'})}
 function cancel(){if(!busy.value&&!uncertain.value&&confirmLeave()){editing.value=false;requests.cancel();reset()}}
 function acceptVersion(){expectedVersion.value=props.expertise.version;reset()}
-function submit(){if(uncertain.value||details.value.can_edit&&!invalid.value&&!conflict.value&&!loading.value&&!optionsError.value)void command.submit()}
+function submit(){if(uncertain.value||details.value.can_edit&&!invalid.value&&!conflict.value&&!documentConflict.value&&!loading.value&&!optionsError.value)void command.submit()}
 onBeforeUnmount(()=>requests.cancel())
 </script>
 <template>
@@ -90,7 +92,7 @@ onBeforeUnmount(()=>requests.cancel())
       <BasisDocumentForm v-else :ref="el=>{if(el)documentForms.set(slot.key,el as InstanceType<typeof BasisDocumentForm>);else documentForms.delete(slot.key)}" :department-id="expertise.department.id" :busy="busy||uncertain" :kind-options="[{value:slot.kind,label:'Документ подтверждения'}]" heading="Документ подтверждения" saved-note="Сведения о сроках сохраняются отдельно." @changed="reset"/>
      </template><p class="muted compact">{{slot.key==='breach'?'Для известного «да» или «нет» нужны основание и документ. Отсутствие согласования само по себе не подставляет оценку.':'«Да» требует документа. Неизвестную дату не выдумывайте: графа информирования останется предварительной. Запись запроса или черновик письма не означает отправку.'}}</p>
     </section><label>Основание изменения<textarea v-model="reason" name="timing_reason" rows="2" required/></label>
-   </fieldset><div class="button-row"><button data-timing-submit class="button-primary" :disabled="busy||!uncertain&&(invalid||conflict||loading||!!optionsError||!details.can_edit)" :formnovalidate="uncertain">{{busy?'Сохранение…':uncertain?'Повторить ту же попытку':'Сохранить сведения о сроках'}}</button><button type="button" :disabled="busy||uncertain" @click="cancel">Отмена</button></div>
+   </fieldset><div class="button-row"><button data-timing-submit class="button-primary" :disabled="busy||!uncertain&&(invalid||conflict||documentConflict||loading||!!optionsError||!details.can_edit)" :formnovalidate="uncertain">{{busy?'Сохранение…':uncertain?'Повторить ту же попытку':'Сохранить сведения о сроках'}}</button><button type="button" :disabled="busy||uncertain" @click="cancel">Отмена</button></div>
   </form><FactHistory :revisions="details.revisions" :labels="labels" :format-value="historyValue"/>
  </section>
 </template>

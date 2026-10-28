@@ -181,7 +181,7 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
             put(3,'N',[finish,expertise],None if type(breached) is not bool else int(breached))
             if finish is not False and expertise is not False:
                 if long_work is not False and any(value is None for value in reasons.values()):
-                    gap('delayReasons',[3],'Причины длительности, полнота списка, сопоставление или правило нескольких причин не подтверждены.','timing.reasons / reasons_complete / primary_reason / delay_reason_policy',row.source_row)
+                    gap('delayReasons',[3],'Причины длительности, полнота списка, сопоставление или правило нескольких причин не подтверждены. Пустой список после окончания или уточнения даты свыше30дней требует проверки.','timing.reasons / reasons_complete / primary_reason / delay_reason_policy',row.source_row)
                 if communication is None:gap('timingCommunication',[3],'Нет подтверждённых фактов и дат информирования и ходатайства. Запись запроса срока не означает отправку.','timing.notification_sent / notification_on / extension_requested / request_on',row.source_row)
                 if type(breached) is not bool:gap('deadlineAssessment',[3],'Нет подтверждённой оценки нарушения установленного/согласованного срока. Календарные дни её не подменяют.','timing.deadline_breached / breach_basis / breach_document',row.source_row)
         complexity=f.get("complexity_level")

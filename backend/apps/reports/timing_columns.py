@@ -6,7 +6,9 @@ DELAY_COLUMNS={'research_complexity':'G','large_material_volume':'H','expert_wor
 
 def delay_counts(facts,policy):
     entries=facts.get('delay_reasons') or []
-    complete=facts.get('delay_reasons_complete') is True
+    # An empty list saved before completion (or while duration was <=30) is
+    # not evidence of six absent causes after a later >30-day outcome.
+    complete=facts.get('delay_reasons_complete') is True and bool(entries)
     groups={item.get('report_group') for item in entries}
     unknown=any(group not in DELAY_COLUMNS for group in groups)
     all_counts={group:True if group in groups else False if complete and not unknown else None for group in DELAY_COLUMNS}

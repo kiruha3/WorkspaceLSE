@@ -86,6 +86,35 @@ def test_future_accepted_completion_does_not_enter_any_timing_column(accepted_wo
  configure(work,grant,notification_sent=True,notification_on='2026-10-03',notification_document_id=str(doc.pk),extension_requested=True,request_on='2026-10-04',request_document_id=str(doc.pk),deadline_breached=True,breach_basis='Учебная подтверждённая оценка',breach_document_id=str(doc.pk))
  assert [cell(calculate_registry(year=2026,month=10),3,f'{c}107')['value'] for c in 'GHIJKLMN']==[0]*8
 
+
+def test_empty_complete_reasons_do_not_become_false_zeros_after_end_date_correction(employee_factory,grant,settings,tmp_path):
+ from test_timing_facts import setup
+ from test_historical_report_correction import body as correction_body,send as correct
+ client,_,work,history,_,_=setup(employee_factory,grant,settings,tmp_path,ended=date(2026,8,6))
+ work.receipt.received_at=date(2026,8,1);work.receipt.save(update_fields=['received_at'])
+ assert send(client,work,body(work,reasons_complete=True)).status_code==200
+ assert all(cell(calculate_registry(year=2026,month=10),3,f'{c}107')['value']==0 for c in 'GHIJKL')
+ work.refresh_from_db();response=correct(client,work,correction_body(work));assert response.status_code==200,response.content
+ report=calculate_registry(year=2026,month=10)
+ assert cell(report,3,'F107')['value']==1
+ assert all(cell(report,3,f'{c}107')['value'] is None for c in 'GHIJKL')
+ assert str(work.pk) in next(g for g in report['gaps'] if g['code']=='delayReasons')['rows']
+
+
+def test_empty_complete_reasons_do_not_become_false_zeros_at_later_completion(employee_factory,grant,settings,tmp_path):
+ from apps.expertises.models import Expertise
+ from test_result_completion import completion_setup,ready_result,send as complete
+ settings.MEDIA_ROOT=tmp_path
+ client,actor,current,_,_,_,_=completion_setup(employee_factory,grant);grant(actor,'expertise.work.update','own')
+ work=Expertise.objects.get(pk=current['id']);work.receipt.received_at=date(2026,8,1);work.receipt.save(update_fields=['received_at'])
+ response=send(client,work,body(work,reasons_complete=True));assert response.status_code==200,response.content
+ current=ready_result(client,response.json()['expertise'],on='2026-10-08')
+ response=complete(client,current,'complete',result_id=current['result']['id']);assert response.status_code==200,response.content
+ report=calculate_registry(year=2026,month=10)
+ assert cell(report,3,'F107')['value']==1
+ assert all(cell(report,3,f'{c}107')['value'] is None for c in 'GHIJKL')
+ assert str(work.pk) in next(g for g in report['gaps'] if g['code']=='delayReasons')['rows']
+
 @pytest.mark.parametrize('policy,complete,entries,primary,want',[
  ('all',True,[('a','expert_workload'),('b','expert_workload')],None,[0,0,1,0,0,0]),
  ('all',False,[('a','expert_workload')],None,[None,None,1,None,None,None]),
