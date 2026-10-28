@@ -222,7 +222,20 @@ def test_corrected_reasons_survive_explicit_native_activation(employee_factory,g
     response=activate(client,work,activation_body(basis,specialty,expected_version=2,**{'return_data' if kind=='return' else 'result':values}))
     assert response.status_code==200,response.content
     after=calculate_registry(year=2026,month=10)
-    assert before['cells']==after['cells']
+    # This activation explicitly confirms primary nature, formerly unknown.
+    # Preserve all earlier816 cells AND provenance; separately assert the
+    # intended transition in the84 new repeat cells instead of ignoring them.
+    def original_cells(report):
+        return [c for c in report['cells'] if not(c['sheet']=='Раздел 4' and c['address'][0] in 'HIJKLMN')]
+    assert len(original_cells(before))==len(original_cells(after))==816
+    assert original_cells(before)==original_cells(after)
+    for address in [f'{column}{row}' for column in 'HIJKLMN' for row in (64,107)]:
+        old=next(c for c in before['cells'] if c['sheet']=='Раздел 4' and c['address']==address)
+        new=next(c for c in after['cells'] if c['sheet']=='Раздел 4' and c['address']==address)
+        assert old['value']==(0 if kind=='return' else None)
+        assert old['rows']==([] if kind=='return' else [str(work.pk)])
+        assert new['value']==0 and new['rows']==[]
+    assert response.json()['expertise']['appointment_nature']=='primary'
     loaded=response.json()['expertise'];assert loaded['historical']['operational'] and len(loaded['historical']['corrections'])==1
     closure=WorkClosure.objects.get(expertise=work)
     if kind=='return':assert closure.return_reason_id==ref.pk and closure.comment=='Подтверждённая причина'
