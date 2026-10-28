@@ -1,0 +1,165 @@
+"""Explicit corrections of nonoperational source history; never native events."""
+import json
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import transaction,IntegrityError
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from rest_framework.exceptions import ValidationError
+from apps.accounts.commands import execute_once,CommandConflict
+from apps.accounts.services import audit,check_version
+from apps.expertises.history import FIELDS
+from apps.expertises.models import Expertise,HistoricalWork,HistoricalParticipant
+from apps.intake.models import Material,Receipt
+from apps.issuance.models import IssuePackage
+from apps.references.models import Department,Specialty
+from apps.personnel.models import Employee
+from .models import ImportBatch,ImportRow,ImportSelection,ImportApplication,ImportApplicationItem
+from .application import require_apply,lock_numbers,source_facts
+from .reconciliation import identity_blockers,selection_data,validate_mapping
+
+
+def plain(value):
+    return json.loads(json.dumps(value,cls=DjangoJSONEncoder))
+
+
+def current_values(work):
+    history=work.historical
+    return plain({**{field:getattr(history,field) for field in FIELDS},
+        'registration_number':work.registration_number,'historical_number':work.historical_number,
+        'sequence':work.sequence,'year':work.year,'category_code':work.category_code,'department_id':str(work.department_id),
+        'specialty_id':str(work.specialty_id) if work.specialty_id else None,
+        'received_on':work.receipt.received_at,'sender_name':work.receipt.sender_name,'state':work.state,
+        'appointment_nature':work.appointment_nature,'is_commission':work.is_commission,
+        'complex_known':history.complex_known,'complex_group_key':work.complex_group.title if work.complex_group_id else None,
+        'statistics_confirmed':history.statistics_confirmed,
+        'employee_ids':sorted(str(p.employee_id) for p in history.participants.all())})
+
+
+def source_values(row,selection,*,as_of=None):
+    facts=row.facts
+    return plain({**source_facts(row,as_of=as_of),
+        'registration_number':facts['registration_number'],'historical_number':facts.get('historical_number') or '',
+        'sequence':facts['sequence'],'year':facts['year'],'category_code':facts['category_code'],
+        'department_id':selection['department_id'],'specialty_id':selection['specialty_id'],
+        'received_on':facts['received_on'],'sender_name':facts.get('authority_name','')[:500],'state':facts['state'],
+        **{key:selection[key] for key in ('appointment_nature','is_commission','complex_known','complex_group_key','statistics_confirmed')},
+        'employee_ids':sorted(selection['employee_ids'])})
+
+
+def update_preview(row,work):
+    blockers=[]
+    result={'eligible':False,'blockers':blockers,'changes':[],
+        'expected_work_version':work.version,'expected_source_row_id':None,'previous_selection':None}
+    history=getattr(work,'historical',None)
+    if work.origin_kind!='historical' or history is None:
+        blockers.append('Это не перенесённая историческая работа.');return result
+    previous=history.source_row;result['expected_source_row_id']=str(previous.pk)
+    previous_choice=getattr(previous,'selection',None)
+    item=getattr(previous,'application_item',None)
+    if previous_choice is None or item is None:
+        blockers.append('Нет подтверждённой базы прежнего переноса.');return result
+    choice=selection_data(previous_choice);result['previous_selection']=choice
+    if history.operational or work.receipt.status!='historical' or work.receipt.basis_document_id:
+        blockers.append('Работа уже продолжена в новом учёте. Источник её не перезаписывает.')
+    if any(manager.exists() for manager in (work.assignments,work.suspensions,work.deadline_events,work.result_revisions,work.closures)) or IssuePackage.objects.filter(material_id=work.material_id).exists():
+        blockers.append('Есть события или комплект нового учёта. Нужна отдельная корректировка.')
+    if work.receipt.expertises.exclude(pk=work.pk).exists():blockers.append('Поступление связано с несколькими работами; требуется совместная корректировка.')
+    if row.batch.created_at<=previous.batch.created_at or (row.batch.source_observed_at and previous.batch.source_observed_at and row.batch.source_observed_at<previous.batch.source_observed_at):
+        blockers.append('Снимок не новее применённого источника.')
+    if identity_blockers(row):blockers.append('Уточните номер, поступление или состояние в новом источнике.')
+    if row.facts==previous.facts:blockers.append('Сведения источника не изменились.')
+    baseline_link=next((link for link in item.application.links if link['row_id']==str(previous.pk) and 'after' in link),None)
+    baseline=baseline_link['after'] if baseline_link else source_values(previous,choice,as_of=timezone.localtime(history.created_at).date())
+    current=current_values(work)
+    if current!=baseline:blockers.append('Есть ручная правка относительно прежнего переноса. Автоматическое слияние не выполняется.')
+    for field in ('registration_number','sequence','year','category_code','department_code'):
+        if row.facts.get(field)!=previous.facts.get(field):blockers.append('Номер, категория и фактический отдел этим действием не меняются.');break
+    if identity_blockers(row):return result
+    selected=getattr(row,'selection',None)
+    target_choice=selection_data(selected) if selected else {**choice,
+        'specialty_id':str(ref.pk) if (ref:=Specialty.objects.filter(code=row.facts.get('specialty_code')).first()) else None,
+        'employee_ids':[] if row.facts.get('executor_raw')!=previous.facts.get('executor_raw') else choice['employee_ids']}
+    for field in ('appointment_nature','is_commission','complex_known','complex_group_key'):
+        if target_choice[field]!=choice[field]:blockers.append('Состав и комплексность обновлением источника не меняются.');break
+    target=source_values(row,target_choice)
+    result['changes']=[{'field':key,'before':current[key],'after':value} for key,value in target.items() if current[key]!=value]
+    # Source/apply readers need the meaning of selected references, not the
+    # entire personnel editing catalogue. Expose only names used by this diff.
+    reference_changes={c['field']:c for c in result['changes'] if c['field'] in ('specialty_id','employee_ids')}
+    if change:=reference_changes.get('specialty_id'):
+        refs={str(ref.pk):f'{ref.code} · {ref.name}' for ref in Specialty.objects.filter(pk__in=[value for value in (change['before'],change['after']) if value])}
+        for side in ('before','after'):change[side+'_label']=refs.get(change[side],'Неизвестно / не заполнено')
+    if change:=reference_changes.get('employee_ids'):
+        refs={str(person.pk):person.full_name for person in Employee.objects.filter(pk__in=set(change['before']+change['after']))}
+        for side in ('before','after'):change[side+'_label']=', '.join(refs[pk] for pk in change[side]) or 'Участники не подтверждены'
+    result['eligible']=not blockers
+    return result
+
+
+def _apply_updates(*,actor,batch_id,updates,reason,key,payload):
+    with transaction.atomic():
+        require_apply(actor)
+        batch=get_object_or_404(ImportBatch,pk=batch_id)
+        ids=[entry['row_id'] for entry in updates]
+        sources=list(batch.rows.filter(pk__in=ids))
+        if len(sources)!=len(ids):raise ValidationError({'updates':'Все строки должны принадлежать выбранному снимку.'})
+        lock_numbers([source.facts.get('registration_number') or '' for source in sources])
+        anchors=list(Expertise.objects.filter(registration_number__in=[r.facts.get('registration_number') for r in sources]).values('pk','material_id','receipt_id'))
+        # Same global lock order as activation/production/issuance. No batch lock:
+        # creation locks batch before material; acquiring it here would invert that order.
+        list(Material.objects.select_for_update().filter(pk__in={a['material_id'] for a in anchors}).order_by('pk'))
+        list(Receipt.objects.select_for_update().filter(pk__in={a['receipt_id'] for a in anchors}).order_by('pk'))
+        works={w.registration_number:w for w in Expertise.objects.select_for_update().filter(pk__in=[a['pk'] for a in anchors]).order_by('pk')}
+        rows=list(ImportRow.objects.select_for_update().filter(pk__in=ids).order_by('pk'))
+        choices={c.row_id:c for c in ImportSelection.objects.select_for_update().filter(row_id__in=ids).order_by('pk')}
+        expected={entry['row_id']:entry for entry in updates}
+        def operation():
+            require_apply(actor);plans=[]
+            # Lock the whole reference set once in a global order, not per row:
+            # disjoint work packets can otherwise acquire departments in reverse.
+            departments={r.pk:r for r in Department.objects.select_for_update().filter(pk__in={c.department_id for c in choices.values()}).order_by('pk')}
+            specialties={r.pk:r for r in Specialty.objects.select_for_update().filter(pk__in={c.specialty_id for c in choices.values() if c.specialty_id}).order_by('pk')}
+            people_ids=set().union(*(set(c.employees.values_list('pk',flat=True)) for c in choices.values()))
+            locked_people={p.pk:p for p in Employee.objects.select_for_update().filter(pk__in=people_ids).order_by('pk')}
+            for source in rows:
+                work=works.get(source.facts.get('registration_number'));choice=choices.get(source.pk);entry=expected[source.pk]
+                if work is None or choice is None:raise CommandConflict('Нужны существующая работа и новое сохранённое сопоставление.')
+                check_version(work,entry['expected_work_version']);check_version(choice,entry['expected_selection_version'])
+                info=update_preview(source,work)
+                if info['expected_source_row_id']!=str(entry['expected_source_row_id']):raise CommandConflict('Применённый источник уже изменился. Обновите сверку.')
+                if not info['eligible']:raise CommandConflict(' '.join(info['blockers']))
+                department=departments[choice.department_id]
+                specialty=specialties.get(choice.specialty_id)
+                validate_mapping(source,department,specialty,choice.statistics_confirmed)
+                people=[locked_people[pk] for pk in choice.employees.values_list('pk',flat=True)]
+                target=source_values(source,selection_data(choice))
+                plans.append((source,work,choice,target,people,current_values(work)))
+            application=ImportApplication.objects.create(batch=batch,actor=actor,reason=reason);links=[]
+            for source,work,choice,target,people,before in plans:
+                previous_id=work.historical.source_row_id
+                history=work.historical
+                for field,value in source_facts(source).items():setattr(history,field,value)
+                history.statistics_confirmed=choice.statistics_confirmed;history.source_row=source;history.save()
+                wanted={p.pk for p in people};present={p.employee_id for p in history.participants.all()}
+                history.participants.filter(employee_id__in=present-wanted).delete()
+                HistoricalParticipant.objects.bulk_create([HistoricalParticipant(history=history,employee=p) for p in people if p.pk not in present])
+                work.state=target['state'];work.specialty_id=choice.specialty_id;work.historical_number=target['historical_number'];work.version+=1
+                work.save(update_fields=['state','specialty','historical_number','version'])
+                receipt=work.receipt;receipt.received_at=source.facts['received_on'];receipt.sender_name=target['sender_name'];receipt.version+=1
+                receipt.save(update_fields=['received_at','sender_name','version'])
+                # Read-back serializer supplies JSON dates/decimals consistently.
+                receipt.refresh_from_db();after=current_values(work)
+                links.append({'row_id':str(source.pk),'expertise_id':str(work.pk),'action':'updated',
+                    'previous_source_row_id':str(previous_id),'before':before,'after':after,'version':work.version})
+                ImportApplicationItem.objects.create(application=application,row=source,work=work,action='updated')
+            application.links=links;application.save(update_fields=['links'])
+            event=audit(actor,'imports.update',application,{'batch_id':str(batch.pk),'items':links},reason)
+            return {'id':str(event.pk),'application_id':str(application.pk)}
+        return execute_once(actor=actor,action='imports.update',key=key,payload={'batch_id':str(batch.pk),'data':payload},operation=operation)
+
+
+def apply_updates(**kwargs):
+    try:return _apply_updates(**kwargs)
+    except IntegrityError as error:
+        if getattr(error.__cause__,'sqlstate',None)=='23505':raise CommandConflict('Источник или специальность уже применены другой командой. Обновите сверку.') from error
+        raise

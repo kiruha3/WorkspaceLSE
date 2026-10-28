@@ -11,6 +11,7 @@ from .reconciliation import classify_row,ReconciliationContext,selection_data,sa
 from .reconciliation_serializers import SelectionInput,ApplyInput,ReconciliationFilters
 from .application import apply_selection,application_data,require_apply
 from .policies import require_preview_read
+from .updates import update_preview
 
 
 class ReconciliationOptionsView(GenericAPIView):
@@ -26,7 +27,12 @@ class ReconciliationView(GenericAPIView):
         form=ReconciliationFilters(data=request.query_params);form.is_valid(raise_exception=True);filters=form.validated_data
         rows=list(batch.rows.select_related("selection").prefetch_related("selection__employees"))
         context=ReconciliationContext.for_rows(rows)
+        by_id={str(row.pk):row for row in rows}
         classified=[{"row":row_data(row),**classify_row(row,context),"selection":selection_data(getattr(row,"selection",None))} for row in rows]
+        for item in classified:
+            if item['classification']=='changed':
+                source=by_id[item['row']['id']]
+                item['update_preview']=update_preview(source,context.works[source.facts['registration_number']])
         counts=Counter(item["classification"] for item in classified)
         if filters.get("classification"):classified=[item for item in classified if item["classification"]==filters["classification"]]
         if filters.get("search"):

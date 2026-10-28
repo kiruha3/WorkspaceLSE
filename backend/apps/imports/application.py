@@ -26,7 +26,8 @@ def require_apply(actor):
 def application_data(application):
     return {"id":str(application.pk),"batch_id":str(application.batch_id),"created_at":application.created_at,
         "created_count":sum(item["action"]=="created" for item in application.links),
-        "existing_count":sum(item["action"]=="existing" for item in application.links),"items":application.links}
+        "existing_count":sum(item["action"]=="existing" for item in application.links),
+        "updated_count":sum(item["action"]=="updated" for item in application.links),"items":application.links}
 
 
 def lock_numbers(numbers):
@@ -35,7 +36,7 @@ def lock_numbers(numbers):
         for lock in sorted(locks):cursor.execute("SELECT pg_advisory_xact_lock(%s)",[lock])
 
 
-def source_facts(row):
+def source_facts(row,*,as_of=None):
     """Do not promote contradictory source values to trusted typed facts."""
     values={field:row.facts.get(field) for field in FIELDS}
     codes={item["code"] for item in row.diagnostics}
@@ -44,7 +45,7 @@ def source_facts(row):
     for field in ("completed_on","return_decided_on","issued_on"):
         parsed=date.fromisoformat(values[field]) if values[field] else None
         received=date.fromisoformat(row.facts["received_on"])
-        values[field]=parsed if parsed and received<=parsed<=timezone.localdate() else None
+        values[field]=parsed if parsed and received<=parsed<=(as_of or timezone.localdate()) else None
     return values
 
 

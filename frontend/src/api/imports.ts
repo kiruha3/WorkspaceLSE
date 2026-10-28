@@ -15,8 +15,11 @@ export interface SelectionPayload {
 }
 export interface ImportSelection extends Omit<SelectionPayload, 'expected_version'> { id: string; row_id: string; version: number }
 export type Classification = 'new' | 'unchanged' | 'changed' | 'invalid'
-export interface ReconciliationRow { row: ImportRow; classification: Classification; existing_work: { id: string; registration_number: string; version: number } | null; blockers: ImportDiagnostic[]; suggested_department: HistoryReference | null; mapped_department?: HistoryReference | null; suggested_specialty: HistoryReference | null; selection: ImportSelection | null }
+export interface HistoryChange { field:string; before:unknown; after:unknown; before_label?:string; after_label?:string }
+export interface UpdatePreview { eligible:boolean; blockers:string[]; changes:HistoryChange[]; expected_work_version:number; expected_source_row_id:string|null; previous_selection:ImportSelection|null }
+export interface ReconciliationRow { row: ImportRow; classification: Classification; existing_work: { id: string; registration_number: string; version: number } | null; blockers: ImportDiagnostic[]; suggested_department: HistoryReference | null; mapped_department?: HistoryReference | null; suggested_specialty: HistoryReference | null; selection: ImportSelection | null; update_preview?:UpdatePreview }
 export interface ApplicationPayload { reason: string; selections: { row_id: string; expected_selection_version: number }[] }
-export interface ImportApplication { id: string; batch_id: string; created_at: string; created_count: number; existing_count: number; items: { row_id: string; expertise_id: string; action: 'created' | 'existing' }[] }
+export interface UpdatePayload { reason:string; updates:{row_id:string;expected_selection_version:number;expected_work_version:number;expected_source_row_id:string}[] }
+export interface ImportApplication { id: string; batch_id: string; created_at: string; created_count: number; existing_count: number; updated_count?:number; items: { row_id: string; expertise_id: string; action: 'created' | 'existing' | 'updated'; previous_source_row_id?:string; before?:Record<string,unknown>; after?:Record<string,unknown> }[] }
 export const importedStates:Record<string,string>={completed:'Завершена',without_execution:'Без исполнения',in_progress:'В производстве',suspended:'Приостановлена',unknown:'Не распознано'}
 export function importTime(value:string){return new Intl.DateTimeFormat('ru-RU',{timeZone:'Asia/Krasnoyarsk',dateStyle:'short',timeStyle:'short'}).format(new Date(value))}

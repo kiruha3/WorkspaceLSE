@@ -8,14 +8,15 @@ import { useDirtyGuard } from '../../shared/ui/useDirtyGuard'
 import ApiMessage from '../../shared/ui/ApiMessage.vue'
 const props = defineProps<{ batchId: string; item: ReconciliationRow; options: ReconciliationOptions; canEdit: boolean }>()
 const emit = defineEmits<{ saved: [value: ImportSelection]; cancel: [] }>(), api = useApi()
-const initial = props.item.selection
+const initial = props.item.selection??props.item.update_preview?.previous_selection
 const departmentOptions = computed(() => props.options.departments.filter(ref => !props.item.row.facts.department_code || ref.code === props.item.row.facts.department_code))
 const department = ref(initial?.department_id ?? props.item.suggested_department?.id ?? '')
-const specialty = ref(initial?.specialty_id ?? props.item.suggested_specialty?.id ?? '')
-const employees = ref([...(initial?.employee_ids ?? [])]), nature = ref<'' | NonNullable<SelectionPayload['appointment_nature']>>(initial?.appointment_nature ?? '')
+const specialty = ref(props.item.selection?.specialty_id??props.item.suggested_specialty?.id??'')
+const executorChanged=props.item.update_preview?.changes.some(change=>change.field==='executor_raw')
+const employees = ref([...(props.item.selection?.employee_ids??(executorChanged?[]:initial?.employee_ids)??[])]), nature = ref<'' | NonNullable<SelectionPayload['appointment_nature']>>(initial?.appointment_nature ?? '')
 const commission = ref(initial?.is_commission === null || initial?.is_commission === undefined ? '' : initial.is_commission ? 'yes' : 'no')
 const complex = ref(initial?.complex_known ? initial.complex_group_key ? 'group' : 'no' : '')
-const groupKey = ref(initial?.complex_group_key ?? ''), statistics = ref(initial?.statistics_confirmed ?? false), reason = ref(initial?.reason ?? '')
+const groupKey = ref(initial?.complex_group_key ?? ''), statistics = ref(initial?.statistics_confirmed ?? false), reason = ref(props.item.selection?.reason ?? '')
 const busy = ref(false), saved = ref(false), error = ref<unknown>(null), uncertain = ref(false)
 const attempt = ref<{ key: string; body: SelectionPayload } | null>(null)
 let active = true

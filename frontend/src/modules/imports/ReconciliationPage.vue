@@ -11,6 +11,7 @@ import PaginationBar from '../../shared/ui/PaginationBar.vue'
 import { useDirtyGuard } from '../../shared/ui/useDirtyGuard'
 import SelectionEditor from './SelectionEditor.vue'
 import ApplicationResult from './ApplicationResult.vue'
+import HistoryUpdates from './HistoryUpdates.vue'
 type ReconciliationPageData = Page<ReconciliationRow> & { batch_id: string; summary: Record<Classification, number> }
 const api = useApi(), session = useSessionStore(), route = useRoute(), router = useRouter()
 const requests = new LatestRequest(), optionRequests = new LatestRequest()
@@ -55,9 +56,11 @@ function toggle(item: ReconciliationRow, selected: boolean) {
 }
 function saved(value: ImportSelection) {
   if (editing.value?.row.id !== value.row_id) return
+  const changed=editing.value.classification==='changed'
   editing.value.selection = value
   editing.value.mapped_department = options.value?.departments.find(ref => ref.id === value.department_id) ?? null
   delete chosen.value[value.row_id]; editing.value = null
+  if(changed)void load()
 }
 function reload() { if (!editor.value || editor.value.confirmLeave()) void load() }
 function edit(item: ReconciliationRow) { if (!editor.value || editor.value.confirmLeave()) editing.value = item }
@@ -101,6 +104,7 @@ onBeforeUnmount(() => { generation++; requests.cancel(); optionRequests.cancel()
       <PaginationBar v-if="rows" :page="page" :count="rows.count" :next="Boolean(rows.next)" :previous="Boolean(rows.previous)" :busy="loading || busy" @change="filter" />
     </section>
     <SelectionEditor ref="editor" v-if="editing && options" :key="editing.row.id" :batch-id="String(route.params.id)" :item="editing" :options="options" :can-edit="canEdit" @saved="saved" @cancel="editing = null" />
+    <HistoryUpdates :key="String(route.params.id)" :batch-id="String(route.params.id)" :items="rows?.results??[]" :can-apply="canApply&&!busy" :options="options" @applied="load"/>
     <section v-if="Object.keys(chosen).length" class="card stack-card">
       <h2>Подтвердить пакет · {{ Object.keys(chosen).length }}</h2><ul><li v-for="entry in chosen" :key="entry.row_id">{{ entry.number }} · сопоставление версии {{ entry.expected_selection_version }}</li></ul>
       <p class="muted compact">Применяются только перечисленные сохранённые сопоставления. Ошибка любой строки откатывает весь пакет. Документы, назначения и допуски этим действием не создаются.</p>
