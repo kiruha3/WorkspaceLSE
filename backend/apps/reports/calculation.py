@@ -5,6 +5,7 @@ from apps.imports.normalization import text, label, read_date
 from .reason_columns import SNDZ_COLUMNS,UNRESOLVED_COLUMNS,RETURN_COLUMNS,EXTRA_COLUMNS,unresolved_counts
 from .repeat_columns import repeat_summary,GROUPS
 from . import column_rules
+from . import timing_columns
 
 VERSION = "form151-journal-v1"
 SPECIALTIES = {"1.1": [11], "3.1": [13,14], "13.1": [49,50], "16.1": [58,59], "16.2": [58,60], "18.1": [65], "19.1": [66,67]}
@@ -71,7 +72,7 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
         ("methodical",[7],"Учебно-методическая работа отсутствует в этом журнале.","methodical_register"),
         ("lawsuits",[8],"Иски к учреждению и выплаты отсутствуют в этом журнале.","lawsuits_register"),
         ("plan",[6],"Нет разбивки годового плана по специальностям." if plan is not None else f"Не указан годовой план на {year}.","state_assignment_plan")]:
-        if mode=='journal' or args[0] not in ('reasons','decree3214','repeated'):gap(*args)
+        if mode=='journal' or args[0] not in ('reasons','decree3214','repeated','deadlines'):gap(*args)
     if not opening_balances_complete:gap("openingCoverage",[1],"Не подтверждена полнота журнала: остатки на начало и конец оставлены пустыми.","opening_balances_complete")
     for row in rows:
         f,raw=row.facts,row.raw; state=f.get("state");returned=state=="without_execution"
@@ -170,6 +171,19 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
         days=(completed-received).days+1 if received and completed else None
         for col,band in zip("DEF",range(3)):
             put(3,col,[finish,expertise,None if days is None else (0 if days<=30 else 1 if days<=60 else 2)==band])
+        if mode=='registry':
+            long_work=None if days is None else days>30
+            reasons=timing_columns.delay_counts(f,timing_columns.DELAY_REASON_POLICY)
+            for code,col in timing_columns.DELAY_COLUMNS.items():put(3,col,[finish,expertise,long_work,reasons[code]])
+            communication=timing_columns.communication_qualifies(f,completed)
+            put(3,'M',[finish,expertise,communication])
+            breached=f.get('deadline_breached')
+            put(3,'N',[finish,expertise],None if type(breached) is not bool else int(breached))
+            if finish is not False and expertise is not False:
+                if long_work is not False and any(value is None for value in reasons.values()):
+                    gap('delayReasons',[3],'Причины длительности, полнота списка, сопоставление или правило нескольких причин не подтверждены.','timing.reasons / reasons_complete / primary_reason / delay_reason_policy',row.source_row)
+                if communication is None:gap('timingCommunication',[3],'Нет подтверждённых фактов и дат информирования и ходатайства. Запись запроса срока не означает отправку.','timing.notification_sent / notification_on / extension_requested / request_on',row.source_row)
+                if type(breached) is not bool:gap('deadlineAssessment',[3],'Нет подтверждённой оценки нарушения установленного/согласованного срока. Календарные дни её не подменяют.','timing.deadline_breached / breach_basis / breach_document',row.source_row)
         complexity=f.get("complexity_level")
         if finish is not False and expertise is True and complexity is None:gap("complexity",[4],"Не указана допустимая категория сложности.","N",row.source_row)
         for col,band in zip("DEFG",range(1,5)):put(4,col,[finish,expertise,None if complexity is None else min(4,complexity)==band])
@@ -203,4 +217,4 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
     for section in range(1,9):
         group=[c for c in result_cells if c["sheet"]==f"Раздел {section}"]
         coverage.append({"section":section,"filled":sum(c["value"] is not None for c in group),"unavailable":sum(c["value"] is None for c in group),"status":"Частично" if section<=6 else "Пропущен"})
-    return {"version":VERSION,"rules_version":column_rules.RULES_VERSION,"column_rules":column_rules.explanations(mode),"status":"preliminary","year":year,"month":month,"from":start.isoformat(),"to":end.isoformat(),"opening_balances_complete":opening_balances_complete,"state_assignment_annual_plan":plan,"cells":result_cells,"gaps":list(gaps.values()),"section_coverage":coverage}
+    return {"version":VERSION,"rules_version":column_rules.RULES_VERSION,"column_rules":column_rules.explanations(mode),'delay_reason_policy':timing_columns.DELAY_REASON_POLICY if mode=='registry' else None,"status":"preliminary","year":year,"month":month,"from":start.isoformat(),"to":end.isoformat(),"opening_balances_complete":opening_balances_complete,"state_assignment_annual_plan":plan,"cells":result_cells,"gaps":list(gaps.values()),"section_coverage":coverage}

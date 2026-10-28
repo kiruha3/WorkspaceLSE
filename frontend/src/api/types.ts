@@ -36,6 +36,18 @@ export interface WorkClassification {
 }
 export interface ClassificationOptions { organization_groups: {code:NonNullable<PreviousConclusionPayload['organization_group']>;name:string}[] }
 export interface ClassificationPayload { expected_version:number; reason:string; appointment_nature:Expertise['appointment_nature']; previous_complete:boolean; previous_conclusions:PreviousConclusionPayload[] }
+export interface TimingReasonPayload { reason_id:string; comment:string; document_id:string|null }
+export interface TimingPayload {
+  expected_version:number;reason:string;reasons_complete:boolean;primary_reason_id:string|null;reasons:TimingReasonPayload[]
+  notification_sent:boolean|null;notification_on:string|null;notification_document_id:string|null
+  extension_requested:boolean|null;request_on:string|null;request_document_id:string|null
+  deadline_breached:boolean|null;breach_basis:string;breach_document_id:string|null
+}
+export interface TimingFacts extends Omit<TimingPayload,'expected_version'|'reason'|'reasons'> {
+  id:string|null;can_edit:boolean;edit_permission:string;notification_document:DocumentLink;request_document:DocumentLink;breach_document:DocumentLink
+  reasons:{id:string;reason:Reference;comment:string;document_id:string|null;document:DocumentLink}[];revisions:FactRevision[]
+}
+export interface TimingOptions { delay_reasons:Reference[];retained_reason_ids:string[];delay_reason_policy:'all'|'primary'|null }
 export interface OrgAssignment {
   id: string; department: Pick<Reference, 'id' | 'code' | 'name'>
   position: Pick<Reference, 'id' | 'code' | 'name'>; valid_from: string | null; valid_to: string | null
@@ -140,6 +152,7 @@ export interface HistoricalReportPayload { expected_version: number; reason: str
 export interface Expertise {
   case_details?: CaseDetails
   classification?: WorkClassification
+  timing?: TimingFacts
   id: string; registration_number: string; registration_department_code?: string | null; historical_number: string; sequence: number; year: number; category_code: string
   origin_kind: 'native' | 'historical'; historical: HistoricalWork | null
   department: Pick<Reference, 'id' | 'code' | 'name'>; specialty: Pick<Reference, 'id' | 'code' | 'name'> | null

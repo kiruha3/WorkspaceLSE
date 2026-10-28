@@ -25,12 +25,17 @@ async function create(wrapper:Awaited<ReturnType<typeof open>>['wrapper']){
  await wrapper.get('[name="reference_code"]').setValue('DEMO');await wrapper.get('[name="reference_name"]').setValue('Новый тип')
 }
 it('opens all catalogues read-only without a management grant',async()=>{
- const {wrapper}=await open(['references.view']);expect(wrapper.get('h1').text()).toBe('Справочники');expect(wrapper.get('[name="catalog"]').findAll('option')).toHaveLength(12);expect(wrapper.find('[data-reference-create]').exists()).toBe(false)
+ const {wrapper}=await open(['references.view']);expect(wrapper.get('h1').text()).toBe('Справочники');expect(wrapper.get('[name="catalog"]').findAll('option')).toHaveLength(13);expect(wrapper.find('[data-reference-create]').exists()).toBe(false)
  await wrapper.get('[data-reference-history]').trigger('click');await flushPromises();expect(wrapper.text()).toContain('Ответственный');expect(wrapper.text()).toContain('Прежнее')
 })
 it('creates an authority with an explicit unknown report group rather than other',async()=>{
  const {wrapper,writes}=await open();await create(wrapper);await wrapper.get('[data-reference-form]').trigger('submit');await flushPromises()
  expect(writes[0]!.path).toBe('/api/v1/references/authority-types/');expect(writes[0]!.body).toEqual({code:'DEMO',name:'Новый тип',report_group:null});expect(writes[0]!.key).toBeTruthy()
+})
+it('creates a delay reason with a distinct explicit reporting mapping',async()=>{
+ const {wrapper,writes}=await open();await wrapper.get('[name="catalog"]').setValue('delay-reasons');await flushPromises();await wrapper.get('[data-reference-create]').trigger('click')
+ await wrapper.get('[name="reference_code"]').setValue('custom-delay');await wrapper.get('[name="reference_name"]').setValue('Подтверждённая особая причина');await wrapper.get('[name="reference_report_group"]').setValue('expert_workload')
+ await wrapper.get('[data-reference-form]').trigger('submit');await flushPromises();expect(writes[0]!.path).toBe('/api/v1/references/delay-reasons/');expect(writes[0]!.body.report_group).toBe('expert_workload')
 })
 it('edits name, active and group without changing the stable code',async()=>{
  const {wrapper,writes}=await open();await wrapper.get('[name="catalog"]').setValue('authority-types');await flushPromises();await wrapper.get('[data-reference-edit]').trigger('click')

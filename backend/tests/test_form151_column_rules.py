@@ -10,7 +10,7 @@ def find(report,section,column):
 def test_each_calculated_column_has_one_server_explanation_without_more_queries(django_assert_num_queries):
  with django_assert_num_queries(1):report=calculate_registry(year=2026,month=10)
  assert report['rules_version']
- wanted={1:set('DEFGHIJKLMNOPQRSTUVWX'),2:set('DEFGHIJKL'),3:set('DEF'),4:set('DEFGHIJKLMNOPQRST'),5:set('DEFGHIJKLMNOPQR'),6:set('DEFGHIJKLM')}
+ wanted={1:set('DEFGHIJKLMNOPQRSTUVWX'),2:set('DEFGHIJKL'),3:set('DEFGHIJKLMN'),4:set('DEFGHIJKLMNOPQRST'),5:set('DEFGHIJKLMNOPQR'),6:set('DEFGHIJKLM')}
  actual={(r['section'],r['column']) for r in report['column_rules']}
  assert actual=={(s,c) for s,columns in wanted.items() for c in columns}
  assert len(actual)==len(report['column_rules'])

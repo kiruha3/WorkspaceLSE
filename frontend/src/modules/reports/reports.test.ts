@@ -118,3 +118,9 @@ it('does not invent explanations when the server returned an older contract',asy
  await wrapper.get('form').trigger('submit');await flushPromises();await wrapper.get('[data-column-rule="1-J"]').trigger('click')
  expect(wrapper.get('[data-report-rule]').text()).toContain('Сервер не вернул правило этой графы');expect(wrapper.get('[data-report-rule]').text()).not.toContain('WorkClosure')
 })
+it('shows timing reasons and confirmed communication/assessment with the server explanation',async()=>{
+ const live={...result,source:{type:'registry',id:null,name:'Рабочая база АИС',row_count:1,calculated_at:'2026-10-28T03:00:00Z',data_revision:'abc',excluded_demo_count:0},records:{'work-timing':{id:'work-timing',registration_number:'333/3-5-26'}},cells:[{sheet:'Раздел 3',address:'M107',value:1,rows:['work-timing']}],column_rules:[{section:3,column:'M',official_column:10,meaning:'Оба факта отправки подтверждены',unit:'работа',period:'По окончанию',sources:['notification_sent','extension_requested'],unknown:['Неизвестны даты'],limitations:['Запрос не означает отправку']}],gaps:[]}
+ const {wrapper}=await open(async()=>json(live),['expertise.view','reports.form151.run'],'/reports');await wrapper.get('form').trigger('submit');await flushPromises();await wrapper.findAll('button').find(b=>b.text()==='3. Сроки')!.trigger('click')
+ expect(wrapper.findAll('th').map(c=>c.text())).toContain('Сложность исследований');expect(wrapper.findAll('th').map(c=>c.text())).toContain('Подтверждённое нарушение срока')
+ await wrapper.get('[data-column-rule="3-M"]').trigger('click');expect(wrapper.get('[data-report-rule]').text()).toContain('Оба факта отправки подтверждены');await wrapper.get('tbody .report-number').trigger('click');expect(wrapper.get('a[href="/expertises/work-timing"]').text()).toBe('333/3-5-26')
+})

@@ -5,6 +5,7 @@ from .result_api import ResultOptionsView,ResultView,ClosureView
 from .historical_report_api import HistoricalReportView
 from .case_api import CaseDetailsView
 from .classification_api import ClassificationView
+from .timing_api import TimingView
 
 urlpatterns=[
     path("receipts/<uuid:pk>/expertises/",ExpertiseRegisterView.as_view()),
@@ -16,6 +17,7 @@ urlpatterns=[
     path("expertises/<uuid:pk>/history-report/",HistoricalReportView.as_view()),
     path("expertises/<uuid:pk>/case-details/",CaseDetailsView.as_view()),
     path("expertises/<uuid:pk>/classification/",ClassificationView.as_view()),
+    path("expertises/<uuid:pk>/timing/",TimingView.as_view()),
     path("expertises/<uuid:pk>/assignment-candidates/",AssignmentCandidatesView.as_view()),
     path("expertises/<uuid:pk>/assignments/",AssignView.as_view()),
     path("expertises/<uuid:pk>/reassign/",AssignView.as_view(reassign=True)),

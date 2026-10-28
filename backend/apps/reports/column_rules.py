@@ -3,7 +3,7 @@
 Keep the rules version in export fingerprints when these interpretations change.
 No domain reads here: the calculation and explanations share one source snapshot.
 """
-RULES_VERSION='form151-column-rules-v1'
+RULES_VERSION='form151-column-rules-v2'
 
 SOURCE_FIELDS={
  'registry':{
@@ -112,7 +112,7 @@ def explanations(mode):
     unknown.append('Отсутствуют необходимые числа либо всего вопросов не равно сумме категорических, вероятных и нерешённых.')
     limits.append('Полный СНДЗ и возврат исключены. Каждый отдельный номер комплексной работы считается по своим фактическим вопросам.')
     limits.append('Пустые R/S/T в снимке выводятся нулями только при известном Q, равном сумме известных частей. В рабочей базе пустые значения остаются неизвестными.' if mode=='journal' else 'Пустые статистические поля рабочей базы не восстанавливаются нулями.')
-   if section==3:limits.append('Приостановления не вычитаются. Это календарный показатель текущего расчёта, не расчёт законного процессуального срока. Причины срока и согласования пока не сопоставлены графам.')
+   if section==3:limits.append('Приостановления не вычитаются. Это календарный показатель текущего расчёта, не расчёт законного процессуального срока.'+(' Причины и подтверждения показаны в отдельных графах.' if mode=='registry' else ' Причины срока и согласования отсутствуют в снимке.'))
    if section==4 and col in 'DEFG':limits.append('Полный СНДЗ, исследования и возвраты не включаются в сложность заключений.')
    if section==4 and col=='O':limits.append('В рабочей базе дата выдачи не заменяет дату решения без исполнения.' if mode=='registry' else 'Это историческое правило чтения отметки возврата, не создание нового решения в АИС.')
    if section==5:limits.append('Тип органа не определяется по свободному названию или номеру дела. «Иные» — известная группа вне перечисленных, а не неизвестный тип.')
@@ -121,6 +121,13 @@ def explanations(mode):
     else:limits.append('Госзадание определяется категориями 1 и 5 по правилу владельца, не признаком 3214-р и не суммой оплаты.')
    add(section,col,meaning,fields,when,unit='вопрос' if section==2 else 'работа в год' if section==6 and col=='D' else 'работа',unknown=unknown,limitations=limits)
  if mode=='registry':
+  from .timing_columns import DELAY_COLUMNS,DELAY_REASON_POLICY
+  policy_text={'all':'Каждая работа считается один раз в каждой указанной группе причин.','primary':'Каждая работа считается только по основной причине.'}.get(DELAY_REASON_POLICY,'Правило нескольких причин ещё не подтверждено. Используется только совпадающий результат способов «все причины» и «основная»; различие остаётся неизвестным.')
+  for code,col in DELAY_COLUMNS.items():
+   meaning={'research_complexity':'сложность исследований','large_material_volume':'объём материалов','expert_workload':'загруженность экспертов','long_research_methods':'длительные методики','appointing_party_deadline':'срок назначившего органа','other':'иные причины'}[code]
+   add(3,col,'Законченные заключения свыше30календарных дней по причине: '+meaning+'.','received ended kind WorkTimingFacts.reasons_complete WorkTimingFacts.primary_reason TimingReason.reason.report_group',unknown=['Неполный список или несопоставленная причина не доказывают отсутствие других групп.'],limitations=[policy_text,'Паузы не вычитаются; неизвестная причина не становится «иной». Несколько причин одного report_group не умножают одну работу.'])
+  add(3,'M','Законченные заключения с подтверждёнными информированием и ходатайством о продлении. Оба факта должны быть не позднее окончания.','ended kind WorkTimingFacts.notification_sent WorkTimingFacts.notification_on WorkTimingFacts.notification_document WorkTimingFacts.extension_requested WorkTimingFacts.request_on WorkTimingFacts.request_document',unknown=['Для подтверждённой отправки с неизвестной датой своевременность остаётся неизвестной.'],limitations=['Нет ограничения свыше30дней: орган мог установить меньший срок.','DeadlineEvent.request, черновик и наличие файла не заменяют подтверждение фактической отправки. Запись факта сама письмо не отправляет.'])
+  add(3,'N','Законченные заключения с явно подтверждённым нарушением установленного или согласованного срока.','ended kind WorkTimingFacts.deadline_breached WorkTimingFacts.breach_basis WorkTimingFacts.breach_document',unknown=['Неизвестная оценка не считается отсутствием нарушения.'],limitations=['Нет ограничения свыше30дней. Календарный срок и отсутствие события согласования автоматически не определяют юридическую оценку.','Используется подтверждённый факт с основанием и документом, а не вручную введённое число отчёта.'])
   for col,meaning in {'G':'Вопросы за пределами специальных знаний эксперта.','H':'Объекты или материалы непригодны / недостаточны и в дополнении отказано.','I':'Современный уровень науки не позволяет ответить.'}.items():
    add(1,col,'Полные СНДЗ по причине: '+meaning,'ended kind sndz_reason',limitations=['Одна структурированная причина полного СНДЗ. Не выводится из надписи «СНДЗ» у нерешённого вопроса.'])
   add(1,'P','Законченные заключения с явно подтверждённым признаком 3214-р.','ended kind decree',unknown=['Неизвестный признак не считается «нет».'],limitations=['Категории 1 и 5 не подтверждают 3214-р. Нужны отдельный признак и основание.'])

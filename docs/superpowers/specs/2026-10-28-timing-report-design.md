@@ -1,0 +1,41 @@
+# Причины длительности и подтверждённые факты срока
+
+Продолжение полной цели после8db9647. Текущий DeadlineEvent хранит исходный/запрошенный/согласованный срок, но не доказывает отправку уведомления и ходатайства. Календарный счётчик намеренно не является юридической оценкой. Нельзя автоматически считать request отправленным письмом, отсутствие agreement — нарушением или любой срок>30 — загруженностью эксперта.
+
+## Решение исполнителя
+
+Рассмотрены: вывод причин из текста/пауз/запросов (не подтверждает факты); переделка всех событий срока и переписки (не нужна для сохранения отсутствующих отчётных фактов); отдельные типизированные сведения, связанные с существующей работой и документами (выбрано). Это не ручной ввод числа отчёта: сохраняются причины и факты, из которых сервер считает графы. Native DeadlineEvent, приостановления, отправка писем, завершение и выдача сохраняют существующее назначение. Интерфейс явно объясняет, что запись факта не отправляет письмо и не продлевает срок. Используем Django/PostgreSQL/Vue и общие FactHistory/BasisDocumentForm/useCommandAttempt, без новых сервисов/зависимостей/прав.
+
+Политика нескольких причин задана владельцу асинхронно. До ответа не выбирается за него: хранится полный набор и необязательная основная причина; неопределённость влияет адресно на расчёт, не ограничивает ввод одной причиной. Если ответ придёт, правило становится явным versioned решением.
+
+## Модель
+
+DelayReason(Reference): report_group nullableEnum research_complexity|large_material_volume|expert_workload|long_research_methods|appointing_party_deadline|other. Шесть исходных записей по REF16 предоставленного бланка, code=report_group. Новые причины расширяются через существующую страницу справочников и могут иметь явное сопоставление или оставаться несопоставленными. Неизвестное не становится «иными».
+
+WorkTimingFacts OneToOne Expertise: reasons_complete bool defaultFalse, primary_reason nullableFKDelayReason; notification_sent nullableBool, notification_on nullableDate, notification_document nullableFKDocument; extension_requested nullableBool, request_on nullableDate, request_document nullableFKDocument; deadline_breached nullableBool, breach_basis Text blank, breach_document nullableFKDocument; created_by/timestamps. TimingReason OneToMany(profile,reasonFK,comment blank,document nullableFK), unique(profile,reason). TimingRevision immutable(before,after,number,actor,reason,created_at), unique(profile,number). Все документы PROTECT.
+
+Индивидуальные даты могут оставаться неизвестными: факт отправки с известным документом, но без даты допустим и даёт неизвестность M, не выдуманную дату. Да для notification_sent/extension_requested требует документа; Нет запрещает фактическую дату и документ. Неизвестно допускает частичные сведения. Известная оценка deadline_breached требует основания и документа независимо от Да/Нет. Это явно подтверждаемая оценка установленного/письменно согласованного срока, не автоматический вывод из календарных дней. Даты при наличии >=поступлению и <=сегодня; окончание может быть раньше фактической отправки, это хранится правдиво, но поздняя отправка не удовлетворяет M. primary_reason принадлежит списку. До100уникальных причин; полный пустой список для заведомо законченного заключения длительностью>30дней отклоняется. Несопоставленная специальность/неизвестный итог не выдумываются.
+
+## API и область
+
+ExpertiseDTO.timing(optional only for old client fixtures): поля, reason/document links, revisions, can_edit/edit_permission. GET `/expertises/{id}/timing/`: причины active+retained(включая старые редакции), delay_reason_policy и пояснение. POST samepath strict full {expected_version,reason,reasons_complete,primary_reason_id,reasons:[{reason_id,comment,document_id}],notification_sent,notification_on,notification_document_id,extension_requested,request_on,request_document_id,deadline_breached,breach_basis,breach_document_id}. Все nullable поля присутствуют явно. Соблюдать active/retained refs и реальное наличие файла у uploaded_copy.
+
+Та же metadata-область, что case_details/classification: work.update на открытой, closed.correct на закрытой, с expertise.view; подтверждённый HistoricalParticipant может редактировать свои факты, без расширения native operational команд. После выдачи факты уточняются без замены события выдачи/принятого заключения. Блокировки material→receipt→work→profile→documents(sorted IDs)→references(sorted IDs). Текущие права/документы проверяются и на replay; expected_version/idempotency/audit/immutable beforeafter. Ручной профиль блокирует автоматическое обновление источником даже при совпадении старых scalar. Активация истории профиль сохраняет. Документы читаются по точной разрешённой связи, не все соседние файлы. Исходный номер, фактический отдел, люди, результаты, состояние и исходники не меняются.
+
+## Расчёт
+
+Registry-v6: тот же1SELECT, ArraySubqueryTimingReason(reasonID,report_group), поля профиля/даты/primary/source в fingerprint. Добавляются96ячеек G:N×12раздела3, всего996; старые900 и journal660 неизменны.
+
+G:L — законченные обычные заключения со сроком>30календарных дней включительно обеих границ. Исследования, полный СНДЗ, возвраты, незаконченные и будущие окончания исключены. Одна работа не умножается числом причин одного report_group. all-policy: присутствие известной группы доказывает1, отсутствие0 только при полном списке без несопоставленных причин. primary-policy: явно выбранная основная определяет группу; без неё единственная возможная группа выводится только из полного непустого списка с одинаковым известным сопоставлением. При неизвестной политике берётся только совпадающий результат обоих способов; различие даётNone и адресный gap. Так сохраняется достоверная часть даже без ответа владельца.
+
+M — законченные обычные заключения, для которых подтверждены и фактическое информирование, и ходатайство, оба не позднее окончания. Не ограничено>30: установленный органом срок может быть короче. Нет одного факта даёт0, неизвестный нужный факт/дата —None. Запись request DeadlineEvent и черновик письма не подставляются вместо отправки.
+
+N — законченные обычные заключения с явно подтверждённой оценкой deadline_breached=True. False=0, None=неизвестно. Не выводится автоматически из отсутствия файла agreement/разности дат. Подсказка сообщает источник оценки и ограничение. Закрытые/принятые результаты имеют прежний приоритет над историей. Общий placeholder deadlines заменяется адресными пробелами. Column rules83, rules_versionv2, policy входит в fingerprint, старый download409. В режиме journal новые графы не обещаются.
+
+## Интерфейс и проверка
+
+TimingPanel под «Производство и сроки»: видимые факты/документы/история, редактор набора причин с основной, трёхсостояниями, датами и основаниями. Реальные файлы или существующие ID. Подготовка полного packet/path/document plans до первогоawait, стабильное восстановление после потерянного ответа,409с явным принятием версии,403с сохранением ввода, dirty-guard/late-response. Retained неактивные причины видны, новые неактивные не выбираются. Общий Reference editor расширяется только новым каталогом и явными группами. В отчёте8новых колонок, пояснения и ссылки на карточки.
+
+TDD API/строгость/partial/refs/docs/currentpermissions/rollback/concurrency/import/activation/report/enddate/evidence/oneSELECT/fingerprint/XLSX и Vue recovery/history. Один fresh final reviewer, Important один RED→GREEN fix pass, Minor ledgered, full suites/check/drift/build/diff. Без новых per-task агентов и повторных approval-гейтов согласно ранее выбранному автономному inline режиму.
+
+Перед additive references0006/expertises0011 — backup и контроль всех прежних бизнес-таблиц/файлов. ЖивоеQA только существующая явно учебная900301: максимум2новых синтетических документа/версии и2TimingRevision, без новых работ/DeadlineEvent/закрытий/выдач/назначений. Все472реальных и прежние8учебных corefacts/access/source остаются; Google read-only/PHP untouched/no push/merge/worktree.900старых клеток равны,96новых неизвестны на реальных неуточнённых записях; native typed fixtures доказывают положительные значения. Actual browserdownload/996XLSXcells/рендер раздела3. Ранее отложенные minors не исправлять попутно. Полная цель остаётся активной.

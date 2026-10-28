@@ -56,6 +56,7 @@ def update_preview(row,work):
     if history.corrections.exists():blockers.append('Есть ручное уточнение исторических сведений. Источник его не перезаписывает.')
     if getattr(work,'case_details',None) is not None:blockers.append('Есть ручные сведения дела в рабочей карточке. Источник их не перезаписывает.')
     if getattr(work,'classification',None) is not None:blockers.append('Есть ручная классификация работы. Источник её не перезаписывает.')
+    if getattr(work,'timing',None) is not None:blockers.append('Есть ручные сведения о сроках. Источник их не перезаписывает.')
     previous=history.source_row;result['expected_source_row_id']=str(previous.pk)
     previous_choice=getattr(previous,'selection',None)
     item=getattr(previous,'application_item',None)

@@ -69,3 +69,15 @@ class AuthorityType(Reference):
         ('individual', 'Физические лица'), ('legal', 'Юридические лица'), ('other', 'Иные'),
     )]
     report_group = models.CharField(max_length=20, choices=REPORT_GROUPS, null=True, blank=True)
+
+
+class DelayReason(Reference):
+    REPORT_GROUPS=[
+        ('research_complexity','Сложность проведённых исследований'),
+        ('large_material_volume','Исследование значительного объёма материалов'),
+        ('expert_workload','Загруженность экспертов — очередность проведения экспертиз'),
+        ('long_research_methods','Нормативные затраты времени — длительные методики исследований'),
+        ('appointing_party_deadline','Срок, установленный органом или лицом, назначившим экспертизу'),
+        ('other','Иные причины'),
+    ]
+    report_group=models.CharField(max_length=40,choices=REPORT_GROUPS,null=True,blank=True)

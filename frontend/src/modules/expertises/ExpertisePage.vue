@@ -16,6 +16,7 @@ import HistoryReportEditor from './HistoryReportEditor.vue'
 import HistoryReportDetails from './HistoryReportDetails.vue'
 import CaseDetailsPanel from './CaseDetailsPanel.vue'
 import ClassificationPanel from './ClassificationPanel.vue'
+import TimingPanel from './TimingPanel.vue'
 import { useSessionStore } from '../../stores/session'
 const api = useApi(), route = useRoute(), requests = new LatestRequest()
 const session = useSessionStore()
@@ -65,6 +66,7 @@ onBeforeUnmount(() => requests.cancel())
     <HistoryReportEditor v-if="expertise.historical&&!expertise.historical.operational&&['completed','without_execution'].includes(expertise.state)" :key="`report-history-${expertise.id}`" :expertise="expertise" @updated="historyReportUpdated"/>
     <HistoryActivation v-if="expertise.historical && !expertise.historical.operational" :key="`activation-${expertise.id}`" :expertise="expertise" @updated="historyUpdated" />
     <ProductionPanel :key="expertise.id" :expertise="expertise" @updated="productionUpdated" />
+    <TimingPanel v-if="expertise.timing" :key="`timing-${expertise.id}`" :expertise="expertise" @updated="historyReportUpdated"/>
     <ResultPanel v-if="expertise.result_readiness" :key="expertise.id" :expertise="expertise" @updated="resultUpdated" />
     <ExpertiseLetters v-if="session.correspondenceEnabled && session.can('letters.view')" :key="`letters-${expertise.id}`" :expertise-id="expertise.id" />
     <ExpertiseIssueStatus v-if="session.issuanceEnabled" :key="`issue-${expertise.id}`" :expertise-id="expertise.id" :material-id="expertise.material.id" />

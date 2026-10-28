@@ -226,9 +226,11 @@ def test_corrected_reasons_survive_explicit_native_activation(employee_factory,g
     # Preserve all earlier816 cells AND provenance; separately assert the
     # intended transition in the84 new repeat cells instead of ignoring them.
     def original_cells(report):
-        return [c for c in report['cells'] if not(c['sheet']=='Раздел 4' and c['address'][0] in 'HIJKLMN')]
+        return [c for c in report['cells'] if not(c['sheet']=='Раздел 4' and c['address'][0] in 'HIJKLMN' or c['sheet']=='Раздел 3' and c['address'][0] in 'GHIJKLMN')]
     assert len(original_cells(before))==len(original_cells(after))==816
     assert original_cells(before)==original_cells(after)
+    timing_cells=lambda report:[c for c in report['cells'] if c['sheet']=='Раздел 3' and c['address'][0] in 'GHIJKLMN']
+    assert len(timing_cells(before))==96 and timing_cells(before)==timing_cells(after)
     for address in [f'{column}{row}' for column in 'HIJKLMN' for row in (64,107)]:
         old=next(c for c in before['cells'] if c['sheet']=='Раздел 4' and c['address']==address)
         new=next(c for c in after['cells'] if c['sheet']=='Раздел 4' and c['address']==address)

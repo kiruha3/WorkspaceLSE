@@ -321,3 +321,47 @@ class ClassificationRevision(models.Model):
     class Meta:
         ordering=['number','id']
         constraints=[models.UniqueConstraint(fields=['classification','number'],name='unique_classification_revision')]
+
+
+class WorkTimingFacts(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    expertise=models.OneToOneField(Expertise,related_name='timing',on_delete=models.PROTECT)
+    reasons_complete=models.BooleanField(default=False)
+    primary_reason=models.ForeignKey('references.DelayReason',null=True,blank=True,on_delete=models.PROTECT)
+    notification_sent=models.BooleanField(null=True,blank=True)
+    notification_on=models.DateField(null=True,blank=True)
+    notification_document=models.ForeignKey('documents.Document',related_name='timing_notifications',null=True,blank=True,on_delete=models.PROTECT)
+    extension_requested=models.BooleanField(null=True,blank=True)
+    request_on=models.DateField(null=True,blank=True)
+    request_document=models.ForeignKey('documents.Document',related_name='timing_requests',null=True,blank=True,on_delete=models.PROTECT)
+    deadline_breached=models.BooleanField(null=True,blank=True)
+    breach_basis=models.TextField(blank=True)
+    breach_document=models.ForeignKey('documents.Document',related_name='timing_assessments',null=True,blank=True,on_delete=models.PROTECT)
+    created_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    created_at=models.DateTimeField(auto_now_add=True)
+    updated_at=models.DateTimeField(auto_now=True)
+
+
+class TimingReason(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    timing=models.ForeignKey(WorkTimingFacts,related_name='reasons',on_delete=models.PROTECT)
+    reason=models.ForeignKey('references.DelayReason',on_delete=models.PROTECT)
+    comment=models.TextField(blank=True)
+    document=models.ForeignKey('documents.Document',related_name='timing_reasons',null=True,blank=True,on_delete=models.PROTECT)
+    class Meta:
+        ordering=['reason__code','id']
+        constraints=[models.UniqueConstraint(fields=['timing','reason'],name='unique_work_timing_reason')]
+
+
+class TimingRevision(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    timing=models.ForeignKey(WorkTimingFacts,related_name='revisions',on_delete=models.PROTECT)
+    number=models.PositiveIntegerField()
+    actor=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    created_at=models.DateTimeField(auto_now_add=True)
+    reason=models.TextField()
+    before=models.JSONField()
+    after=models.JSONField()
+    class Meta:
+        ordering=['number','id']
+        constraints=[models.UniqueConstraint(fields=['timing','number'],name='unique_timing_revision')]

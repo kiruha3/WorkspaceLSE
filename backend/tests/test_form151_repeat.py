@@ -18,7 +18,7 @@ def configure(work,grant,**changes):
 def test_repeated_work_is_not_multiplied_by_previous_conclusions_and_xlsx_is_literal(accepted_work,grant,django_assert_num_queries):
  work,_,_=accepted_work();client=configure(work,grant,previous_conclusions=[previous(),previous(reference='Другое предыдущее',confirms_previous=True)])
  with django_assert_num_queries(1):report=calculate_registry(year=2026,month=10)
- assert len(report['cells'])==900
+ assert len(report['cells'])==996
  assert [cell(report,4,f'{c}107')['value'] for c in 'HIJKLMN']==[1,1,1,0,0,0,0]
  assert cell(report,4,'J58')['value']==1
  grant(work.registered_by.employee,'reports.form151.run');grant(work.registered_by.employee,'reports.form151.download')

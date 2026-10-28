@@ -12,7 +12,7 @@ RETURN_COLUMNS={
     'no_technical_facilities':'P','no_required_specialist':'Q',
     'no_special_conditions':'R','appointing_party_request':'S','other':'T',
 }
-EXTRA_COLUMNS={1:(*SNDZ_COLUMNS.values(),'P'),2:tuple(UNRESOLVED_COLUMNS.values()),4:('H','I','J','K','L','M','N',*RETURN_COLUMNS.values())}
+EXTRA_COLUMNS={1:(*SNDZ_COLUMNS.values(),'P'),2:tuple(UNRESOLVED_COLUMNS.values()),3:tuple('GHIJKLMN'),4:('H','I','J','K','L','M','N',*RETURN_COLUMNS.values())}
 
 
 def unresolved_counts(facts,*,inconsistent=False):
