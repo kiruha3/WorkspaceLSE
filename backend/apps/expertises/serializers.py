@@ -98,7 +98,9 @@ class ExpertiseOutput(serializers.ModelSerializer):
         scopes=self.context["scopes"];context=work_context(obj,self.context["user"],scopes)
         from .history import historical_record
         history=historical_record(obj)
-        if obj.origin_kind=="historical" and (history is None or not history.operational):return []
+        if obj.origin_kind=="historical" and (history is None or not history.operational):
+            from .history_activation import can_activate_history
+            return ['imports.history.activate'] if history is not None and can_activate_history(self.context['user'],obj,scopes) else []
         if obj.state not in ("in_progress","suspended"):
             from apps.issuance.models import MaterialIssue
             if MaterialIssue.objects.filter(package__material_id=obj.material_id).exists():return []

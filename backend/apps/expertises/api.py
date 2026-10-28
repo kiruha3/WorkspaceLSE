@@ -54,6 +54,17 @@ class ExpertiseDetailView(GenericAPIView):
         return Response(ExpertiseOutput(work,context={"user":request.user,"scopes":scopes}).data)
 
 
+class HistoryActivationView(GenericAPIView):
+    def post(self,request,pk):
+        from .history_serializers import HistoryActivationInput
+        from .history_activation import activate_history
+        form=HistoryActivationInput(data=request.data);form.is_valid(raise_exception=True)
+        result=activate_history(actor=request.user,expertise_id=pk,data=form.validated_data,key=request.headers.get('Idempotency-Key'),payload=request.data)
+        work=get_object_or_404(loaded(),pk=result['expertise_id']);scopes=permission_scopes(request.user)
+        require_work(request.user,'expertise.view',work,scopes)
+        return Response({'event':{'id':result['id']},'expertise':ExpertiseOutput(work,context={'user':request.user,'scopes':scopes}).data})
+
+
 class AssignmentCandidatesView(GenericAPIView):
     def get(self,request,pk):
         from django.utils import timezone
