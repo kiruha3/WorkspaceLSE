@@ -30,4 +30,4 @@ Explicit journal parameter, duplicate/blank/unknown policy, missing primary, pol
 - [x] Fresh final review of BASE..HEAD, fix Important/Critical in one TDD pass, defer Minor.
 - [x] Run full backend and frontend suites, typecheck/build, Django check/migration drift, diff check. Expect green; existing large bundle warning documented.
 - [x] Restart existing Django only (no extra process), browser verify both options and actual Excel URL/download, capture screenshot. No live data edits.
-- [ ] task-done with targeted backend command, verification record and final handoff. Retain ignored workspace because deletion previously denied; do not retry.
+- [x] task-done with targeted backend command, verification record and final handoff. Retain ignored workspace because deletion previously denied; do not retry.
