@@ -15,9 +15,9 @@ pytestmark=pytest.mark.django_db
 
 def counts(report,*addresses):return [cell(report,6,address)['value'] for address in addresses]
 
-def plan_fixture(client,*,year=2027,second=5,unknown=None):
+def plan_fixture(client,*,year=2027,first=2,second=5,unknown=None):
  refs={code:Specialty.objects.get_or_create(code=code,defaults={'name':'ДЕМО · '+code})[0] for code in ('1.1','16.1','16.2')}
- entries=[line(refs['1.1'],2),line(refs['16.1'],3)]
+ entries=[line(refs['1.1'],first),line(refs['16.1'],3)]
  if second is not None:entries.append(line(refs['16.2'],second))
  if unknown is not None:
   spec=Specialty.objects.create(code='99.9',name='Несопоставленная');entries.append(line(spec,unknown[0]))
@@ -33,13 +33,20 @@ def test_one_select_empty_registry_keeps_selected_year_plan_and_parent_sum(emplo
  assert report['plan_summary']['known_sum']==10 and report['plan_summary']['unallocated']==0
  assert not report['records'] and all(c['rows']==[] for c in report['cells'])
 
-@pytest.mark.parametrize('second,unknown,want',[(None,None,[2,None,3,None,10]),(0,None,[2,3,3,0,10]),(None,(0,),[2,None,3,None,10]),(None,(2,),[None,None,None,None,10]),(None,(None,),[None,None,None,None,10])])
+@pytest.mark.parametrize('second,unknown,want',[(None,None,[2,None,3,None,10]),(0,None,[2,3,3,0,10]),(None,(0,),[2,None,3,None,10]),(None,(2,),[2,None,3,None,10]),(None,(None,),[2,None,3,None,10])])
 def test_partial_zero_and_unmapped_lines_do_not_invent_subtotals(employee_factory,grant,second,unknown,want):
  client,_=setup(employee_factory,grant);plan_fixture(client,second=second,unknown=unknown)
  report=calculate_registry(year=2027,month=10)
  assert counts(report,'D10','D57','D58','D59','D107')==want
  gaps=[g for g in report['gaps'] if g['code'].startswith('plan')]
  assert gaps and all(g['rows']==[] and g['plan_year']==2027 for g in gaps)
+
+@pytest.mark.parametrize('first,unknown,want',[(2,(None,),[2,None,3,5,10]),(0,(2,),[0,None,3,5,10])])
+def test_unmapped_lines_preserve_explicit_leaf_amounts_and_zero_but_not_dependent_parents(employee_factory,grant,first,unknown,want):
+ client,_=setup(employee_factory,grant);plan_fixture(client,first=first,unknown=unknown)
+ report=calculate_registry(year=2027,month=10)
+ assert counts(report,'D10','D57','D58','D59','D107')==want
+ assert any(g['code']=='planMapping' and g['rows']==[] for g in report['gaps'])
 
 def test_pure_calculation_never_reads_or_falls_back_to_2026_constant(django_assert_num_queries):
  from types import SimpleNamespace

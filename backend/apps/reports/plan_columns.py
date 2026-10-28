@@ -6,9 +6,10 @@ def plan_cells(snapshot,year,specialties):
     by_code={line['code']:line['count'] for line in lines}
     unknown_mapping=[code for code,count in by_code.items() if code not in specialties and count!=0]
     row_codes={}
+    parents={row-1 for rows in specialties.values() for row in rows[:-1]}
     for code,rows in specialties.items():
         for row in rows:row_codes.setdefault(row-1,[]).append(code)
-    values={row:sum(by_code[code] for code in codes) if not unknown_mapping and all(by_code.get(code) is not None for code in codes) else None for row,codes in row_codes.items()}
+    values={row:sum(by_code[code] for code in codes) if not(unknown_mapping and row in parents) and all(by_code.get(code) is not None for code in codes) else None for row,codes in row_codes.items()}
     total=(snapshot or {}).get('total');values[107]=total
     known=[line['count'] for line in lines if line['count'] is not None];known_sum=sum(known)
     summary={key:(snapshot or {}).get(key) for key in ('id','total','basis_text','document_id')}
