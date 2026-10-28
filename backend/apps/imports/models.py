@@ -42,3 +42,39 @@ class ImportRow(models.Model):
     class Meta:
         ordering=["source_row","id"]
         constraints=[models.UniqueConstraint(fields=["batch","source_row"],name="unique_preview_source_row")]
+
+
+class ImportSelection(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    row=models.OneToOneField(ImportRow,related_name="selection",on_delete=models.PROTECT)
+    version=models.PositiveIntegerField(default=1)
+    actor=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    reason=models.TextField()
+    department=models.ForeignKey("references.Department",on_delete=models.PROTECT)
+    specialty=models.ForeignKey("references.Specialty",null=True,blank=True,on_delete=models.PROTECT)
+    employees=models.ManyToManyField("personnel.Employee",blank=True)
+    appointment_nature=models.CharField(max_length=20,null=True,blank=True,choices=[(s,s) for s in ("primary","repeated","additional")])
+    is_commission=models.BooleanField(null=True,blank=True)
+    complex_known=models.BooleanField(default=False)
+    complex_group_key=models.CharField(max_length=100,null=True,blank=True)
+    statistics_confirmed=models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
+    updated_at=models.DateTimeField(auto_now=True)
+
+
+class ImportApplication(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    batch=models.ForeignKey(ImportBatch,related_name="applications",on_delete=models.PROTECT)
+    actor=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    reason=models.TextField()
+    created_at=models.DateTimeField(auto_now_add=True)
+    # Immutable server-generated protocol, including acknowledged earlier links.
+    links=models.JSONField(default=list)
+
+
+class ImportApplicationItem(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    application=models.ForeignKey(ImportApplication,related_name="items",on_delete=models.PROTECT)
+    row=models.OneToOneField(ImportRow,related_name="application_item",on_delete=models.PROTECT)
+    work=models.ForeignKey("expertises.Expertise",related_name="import_applications",on_delete=models.PROTECT)
+    action=models.CharField(max_length=20,default="created")

@@ -129,4 +129,8 @@ class WorkIssueStatusView(GenericAPIView):
         if package:
             link = {"id": str(package.pk)}
             if not material_queryset(request.user, "issue.view", scopes).filter(pk=work.material_id).exists(): link["restricted"] = True
-        return Response({"status": "issued" if issue else "not_issued", "issued_on": issue.issued_on if issue else None, "package": link})
+        from apps.expertises.history import historical_record
+        history=historical_record(work)
+        issued_on=issue.issued_on if issue else history.issued_on if history else None
+        return Response({"status": "issued" if issued_on else "not_issued", "issued_on": issued_on,
+            "fact_origin":"native" if issue or history is None else "historical","package":link})

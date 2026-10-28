@@ -4,7 +4,7 @@ from django.db import transaction
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from apps.accounts.models import User, Role, RolePermission
-from apps.accounts.management.commands.bootstrap_access import stable_id, TEMPLATES, CORRESPONDENCE_NEW_RIGHTS, ISSUANCE_NEW_RIGHTS, IMPORT_PREVIEW_NEW_RIGHTS
+from apps.accounts.management.commands.bootstrap_access import stable_id, TEMPLATES, CORRESPONDENCE_NEW_RIGHTS, ISSUANCE_NEW_RIGHTS, IMPORT_PREVIEW_NEW_RIGHTS, IMPORT_APPLICATION_NEW_RIGHTS
 from apps.personnel.models import Employee, EmployeeOrgAssignment, EmployeeRole, EmployeeSpecialty
 from apps.references.models import Department, Position, Specialty
 
@@ -17,13 +17,14 @@ class Command(BaseCommand):
         parser.add_argument("--enable-correspondence",action="store_true",help="Явно добавить новые права переписки только учебным ролям эксперта и делопроизводителя")
         parser.add_argument("--enable-issuance",action="store_true",help="Явно добавить новые права выдачи только учебным ролям эксперта и делопроизводителя")
         parser.add_argument("--enable-import-preview",action="store_true",help="Явно добавить права предпросмотра переноса только учебному делопроизводителю")
+        parser.add_argument("--enable-journal-application",action="store_true",help="Явно добавить новые права сверки и переноса только учебному делопроизводителю")
 
     @transaction.atomic
     def handle(self,*args,**options):
         department,_=Department.objects.get_or_create(code="3",defaults={"name":"Отдел 3"})
         specialty,_=Specialty.objects.get_or_create(code="1.1",defaults={"name":"Исследование почерка и подписей"})
         profiles=[("clerk","Делопроизводитель","clerk"),("head3","Руководитель отдела","head"),("expert","Эксперт","expert"),("expert2","Эксперт","expert"),("trainee","Эксперт","expert")]
-        if options["enable_import_preview"]:
+        if options["enable_import_preview"] or options["enable_journal_application"]:
             role=Role.objects.filter(pk=stable_id("workflow-demo:role:Делопроизводитель")).first()
             if role and role.assignments.exclude(employee_id=stable_id("workflow-demo:employee:demo.clerk")).exists():
                 raise CommandError("В учебной роли есть неучебный сотрудник: расширение переноса запрещено.")
@@ -79,5 +80,9 @@ class Command(BaseCommand):
         if options["enable_import_preview"]:
             role=Role.objects.get(pk=stable_id("workflow-demo:role:Делопроизводитель"))
             for code,scope in IMPORT_PREVIEW_NEW_RIGHTS["Делопроизводитель"].items():
+                RolePermission.objects.get_or_create(role=role,permission_code=code,defaults={"scope":scope})
+        if options["enable_journal_application"]:
+            role=Role.objects.get(pk=stable_id("workflow-demo:role:Делопроизводитель"))
+            for code,scope in IMPORT_APPLICATION_NEW_RIGHTS["Делопроизводитель"].items():
                 RolePermission.objects.get_or_create(role=role,permission_code=code,defaults={"scope":scope})
         self.stdout.write("Учебные профили готовы: "+", ".join("demo."+p[0] for p in profiles))

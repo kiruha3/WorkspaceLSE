@@ -66,5 +66,8 @@ PERMISSIONS = {item.code: item for item in [
     Permission("reports.form151.run", "Рассчитывать отчёт 15.1", "Отчётность", ("departments", "institution")),
     Permission("imports.preview", "Проверять источник журнала", "Перенос журнала", ("institution",)),
     Permission("imports.results.view", "Просматривать снимки переноса", "Перенос журнала", ("institution",)),
+    Permission("imports.reconcile", "Сопоставлять строки переноса", "Перенос журнала", ("institution",)),
+    Permission("imports.apply", "Применять подтверждённый пакет переноса", "Перенос журнала", ("institution",)),
+    Permission("imports.history.activate", "Подтверждать продолжение исторической работы", "Перенос журнала", ("institution",)),
     Permission("reports.form151.download", "Выгружать отчёт 15.1", "Отчётность", ("departments", "institution")),
 ]}

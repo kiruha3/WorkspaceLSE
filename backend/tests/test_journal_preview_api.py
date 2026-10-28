@@ -44,7 +44,9 @@ def test_preview_stores_original_rows_and_metadata_but_never_business_facts(empl
     assert rows["count"]==2 and rows["results"][0]["raw"]["B"]=="151/4-1-26"
     assert rows["results"][0]["facts"]["completed_on"]=="2026-03-06"
     assert business_counts()==before
-    assert client.post(f"/api/v1/imports/{batch['id']}/apply/",{}).status_code==404
+    # Application now exists, but preview permission must not grant it.
+    assert client.post(f"/api/v1/imports/{batch['id']}/apply/",{}).status_code==403
+    assert business_counts()==before
     assert "journal_import_preview" in client.get("/api/v1/me/").json()["supported_modules"]
 
 

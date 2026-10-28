@@ -102,3 +102,21 @@ def test_demo_import_preview_opt_in_preserves_edits_and_refuses_real_members(mon
     assert not RolePermission.objects.filter(role=role,permission_code="expertise.register").exists()
     EmployeeRole.objects.create(employee=employee_factory(),role=role,reason="Реальный сотрудник")
     with pytest.raises(CommandError):call_command("bootstrap_workflow_demo",enable_import_preview=True)
+
+
+def test_demo_application_opt_in_restores_only_new_rights_and_refuses_non_demo_role_member(monkeypatch,employee_factory):
+    from django.core.management.base import CommandError
+    from apps.accounts.models import Role
+    from apps.personnel.models import EmployeeRole
+    monkeypatch.setenv('AIS_DEMO_PASSWORD','Only-local-DemoPassword75')
+    call_command('bootstrap_workflow_demo')
+    role=Role.objects.get(name='ДЕМО · Делопроизводитель')
+    codes=['imports.reconcile','imports.apply','imports.history.activate']
+    RolePermission.objects.filter(role=role,permission_code__in=[*codes,'expertise.register']).delete()
+    call_command('bootstrap_workflow_demo')
+    assert not RolePermission.objects.filter(role=role,permission_code__in=codes).exists()
+    call_command('bootstrap_workflow_demo',enable_journal_application=True)
+    assert RolePermission.objects.filter(role=role,permission_code__in=codes,scope='institution').count()==3
+    assert not RolePermission.objects.filter(role=role,permission_code='expertise.register').exists()
+    EmployeeRole.objects.create(employee=employee_factory(),role=role,reason='Реальное назначение')
+    with pytest.raises(CommandError):call_command('bootstrap_workflow_demo',enable_journal_application=True)

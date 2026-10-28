@@ -53,6 +53,8 @@ for template, permissions in ISSUANCE_NEW_RIGHTS.items():
 IMPORT_PREVIEW_NEW_RIGHTS={"Делопроизводитель":{code:"institution" for code in ("imports.preview","imports.results.view")}}
 TEMPLATES["Делопроизводитель"].update(IMPORT_PREVIEW_NEW_RIGHTS["Делопроизводитель"])
 TEMPLATES["Руководитель учреждения"]["imports.results.view"]="institution"
+IMPORT_APPLICATION_NEW_RIGHTS={"Делопроизводитель":{code:"institution" for code in ("imports.reconcile","imports.apply","imports.history.activate")}}
+TEMPLATES["Делопроизводитель"].update(IMPORT_APPLICATION_NEW_RIGHTS["Делопроизводитель"])
 
 STAFF = [
     ("Власова Т.В.","3","head",["16.1","16.2"]),
