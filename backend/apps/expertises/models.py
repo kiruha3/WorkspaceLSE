@@ -282,3 +282,42 @@ class CaseDetailsRevision(models.Model):
     class Meta:
         ordering=['number','id']
         constraints=[models.UniqueConstraint(fields=['details','number'],name='unique_case_details_revision')]
+
+
+class WorkClassification(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    expertise=models.OneToOneField(Expertise,related_name='classification',on_delete=models.PROTECT)
+    previous_complete=models.BooleanField(default=False)
+    created_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    created_at=models.DateTimeField(auto_now_add=True)
+    updated_at=models.DateTimeField(auto_now=True)
+
+
+class PreviousConclusion(models.Model):
+    GROUPS=[('ministry','ФБУ СЭУ Минюста России'),('other_state','Иные государственные СЭУ России'),('other','Иные учреждения, организации и частные эксперты')]
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    classification=models.ForeignKey(WorkClassification,related_name='previous_conclusions',on_delete=models.PROTECT)
+    ordinal=models.PositiveIntegerField()
+    reference=models.CharField(max_length=500)
+    organization_name=models.CharField(max_length=500,blank=True)
+    organization_group=models.CharField(max_length=20,choices=GROUPS,null=True,blank=True)
+    same_input_data=models.BooleanField(null=True,blank=True)
+    confirms_previous=models.BooleanField(null=True,blank=True)
+    document=models.ForeignKey('documents.Document',related_name='previous_conclusions',null=True,blank=True,on_delete=models.PROTECT)
+    class Meta:
+        ordering=['ordinal','id']
+        constraints=[models.UniqueConstraint(fields=['classification','ordinal'],name='unique_previous_conclusion_ordinal')]
+
+
+class ClassificationRevision(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    classification=models.ForeignKey(WorkClassification,related_name='revisions',on_delete=models.PROTECT)
+    number=models.PositiveIntegerField()
+    actor=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    created_at=models.DateTimeField(auto_now_add=True)
+    reason=models.TextField()
+    before=models.JSONField()
+    after=models.JSONField()
+    class Meta:
+        ordering=['number','id']
+        constraints=[models.UniqueConstraint(fields=['classification','number'],name='unique_classification_revision')]

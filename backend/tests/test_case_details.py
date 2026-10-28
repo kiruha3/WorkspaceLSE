@@ -80,7 +80,7 @@ def test_native_authority_and_3214_feed_report_and_real_xlsx(employee_factory,gr
     response=send(client,work,body(work,authority_type_id=authority(client,work,'sk')['id'],decree3214=True,decree_document_id=str(evidence.pk),decree_basis='ДЕМО · документированное основание3214'));assert response.status_code==200,response.content
     report=calculate_registry(year=2026,month=10)
     assert value(report,5,'F108')==1 and value(report,5,'G108')==0 and value(report,1,'P108')==1 and value(report,1,'P11')==1
-    assert value(report,1,'J108')==1 and value(report,1,'K108')==1 and len(report['cells'])==816 and report['data_revision']!=before['data_revision']
+    assert value(report,1,'J108')==1 and value(report,1,'K108')==1 and len(report['cells'])==900 and report['data_revision']!=before['data_revision']
     with ZipFile(BytesIO(export_xlsx(report))) as archive:
         root=ET.fromstring(archive.read('xl/worksheets/sheet2.xml'));ns={'s':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
         assert root.find(".//s:c[@r='P108']/s:v",ns).text=='1'

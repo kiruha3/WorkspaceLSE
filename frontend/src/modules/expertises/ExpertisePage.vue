@@ -15,6 +15,7 @@ import HistoryActivation from './HistoryActivation.vue'
 import HistoryReportEditor from './HistoryReportEditor.vue'
 import HistoryReportDetails from './HistoryReportDetails.vue'
 import CaseDetailsPanel from './CaseDetailsPanel.vue'
+import ClassificationPanel from './ClassificationPanel.vue'
 import { useSessionStore } from '../../stores/session'
 const api = useApi(), route = useRoute(), requests = new LatestRequest()
 const session = useSessionStore()
@@ -59,6 +60,7 @@ onBeforeUnmount(() => requests.cancel())
     <section data-assignment-history class="card stack-card"><h2>История назначений</h2><div v-for="assignment in expertise.assignment_history" :key="assignment.id" class="assignment-line"><strong>{{ assignment.employee.full_name }}</strong><small>{{ time(assignment.started_at) }} → {{ assignment.ended_at ? time(assignment.ended_at) : 'действует' }}</small><p class="muted compact">{{ assignment.reason || 'Основание не указано' }}</p></div><p v-if="!expertise.assignment_history.length" class="muted compact">Предыдущих назначений нет.</p></section><section class="card stack-card"><BasisPreview :document="expertise.basis_document" /></section>
     <HistoricalFacts v-if="expertise.historical" :key="`history-${expertise.id}`" :history="expertise.historical" />
     <CaseDetailsPanel v-if="expertise.case_details" :key="`case-${expertise.id}`" :expertise="expertise" @updated="historyReportUpdated"/>
+    <ClassificationPanel v-if="expertise.classification" :key="`classification-${expertise.id}`" :expertise="expertise" @updated="historyReportUpdated"/>
     <section v-if="expertise.historical?.operational" class="card stack-card"><h2>Исторические отчётные сведения и уточнения</h2><p class="muted compact">Сохраняются после перехода к новому учёту. В отчёте принятый итог нового учёта имеет приоритет.</p><HistoryReportDetails :history="expertise.historical"/></section>
     <HistoryReportEditor v-if="expertise.historical&&!expertise.historical.operational&&['completed','without_execution'].includes(expertise.state)" :key="`report-history-${expertise.id}`" :expertise="expertise" @updated="historyReportUpdated"/>
     <HistoryActivation v-if="expertise.historical && !expertise.historical.operational" :key="`activation-${expertise.id}`" :expertise="expertise" @updated="historyUpdated" />

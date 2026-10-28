@@ -101,3 +101,20 @@ it('does not advertise structured reason totals for journal snapshots',async()=>
   expect(wrapper.findAll('th').map(c=>c.text())).not.toContain('СНДЗ: вне специальных знаний')
   expect(wrapper.text()).toContain('Графы причин, повторности и 3214-р ещё не рассчитываются')
 })
+
+it('shows all repeat columns and the actual server rule, keeps cell provenance and clears stale explanations',async()=>{
+ const live={...result,rules_version:'rules-test',column_rules:[{section:4,column:'H',official_column:5,meaning:'Правило сервера: одна повторная работа один раз',unit:'работа',period:'По подтверждённой дате окончания',sources:['appointment_nature','WorkClosure.ended_on'],unknown:['Характер не подтверждён'],limitations:['Правило полного СНДЗ не установлено']}],source:{type:'registry',id:null,name:'Рабочая база АИС',row_count:1,calculated_at:'2026-10-28T03:00:00Z',data_revision:'abc',excluded_demo_count:0},records:{'work-repeat':{id:'work-repeat',registration_number:'333/3-5-26'}},cells:[{sheet:'Раздел 4',address:'H107',value:1,rows:['work-repeat']}],gaps:[]}
+ const {wrapper}=await open(async()=>json(live),['expertise.view','reports.form151.run'],'/reports');await wrapper.get('form').trigger('submit');await flushPromises()
+ await wrapper.findAll('button').find(b=>b.text()==='4. Сложность и возвраты')!.trigger('click')
+ expect(wrapper.findAll('th').map(c=>c.text())).toContain('Повторных всего')
+ await wrapper.get('[data-column-rule="4-H"]').trigger('click');const rule=wrapper.get('[data-report-rule]')
+ expect(rule.text()).toContain('Правило сервера: одна повторная работа один раз');expect(rule.text()).toContain('Графа 5');expect(rule.text()).toContain('WorkClosure.ended_on');expect(rule.text()).toContain('Правило полного СНДЗ не установлено')
+ await wrapper.get('tbody .report-number').trigger('click');expect(wrapper.get('a[href="/expertises/work-repeat"]').text()).toBe('333/3-5-26')
+ await wrapper.get('[name="month"]').setValue('9');expect(wrapper.find('[data-report-rule]').exists()).toBe(false)
+})
+
+it('does not invent explanations when the server returned an older contract',async()=>{
+ const {wrapper}=await open(async input=>json(String(input).includes('/imports/')?page([batch]):result))
+ await wrapper.get('form').trigger('submit');await flushPromises();await wrapper.get('[data-column-rule="1-J"]').trigger('click')
+ expect(wrapper.get('[data-report-rule]').text()).toContain('Сервер не вернул правило этой графы');expect(wrapper.get('[data-report-rule]').text()).not.toContain('WorkClosure')
+})

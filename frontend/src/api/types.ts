@@ -26,6 +26,16 @@ export interface CaseDetailsPayload {
   case_number: string; case_description: string; basis_text: string; inventory: string; questions_text: string
   decree3214: boolean | null; decree_document_id: string | null; decree_basis: string
 }
+export interface PreviousConclusionPayload {
+  reference: string; organization_name: string; organization_group: 'ministry' | 'other_state' | 'other' | null
+  same_input_data: boolean | null; confirms_previous: boolean | null; document_id: string | null
+}
+export interface WorkClassification {
+  id: string | null; can_edit: boolean; edit_permission: string; appointment_nature: Expertise['appointment_nature']
+  previous_complete: boolean; previous_conclusions: (PreviousConclusionPayload & {id:string;document:DocumentLink})[]; revisions: FactRevision[]
+}
+export interface ClassificationOptions { organization_groups: {code:NonNullable<PreviousConclusionPayload['organization_group']>;name:string}[] }
+export interface ClassificationPayload { expected_version:number; reason:string; appointment_nature:Expertise['appointment_nature']; previous_complete:boolean; previous_conclusions:PreviousConclusionPayload[] }
 export interface OrgAssignment {
   id: string; department: Pick<Reference, 'id' | 'code' | 'name'>
   position: Pick<Reference, 'id' | 'code' | 'name'>; valid_from: string | null; valid_to: string | null
@@ -129,6 +139,7 @@ export interface HistoricalReportOptions { specialties: Reference[]; sndz_reason
 export interface HistoricalReportPayload { expected_version: number; reason: string; specialty_id: string | null; correction_kind: 'result' | 'return'; result?: Omit<ResultPayload,'document_id'>; return_data?: { decided_on: string | null; return_reason_id: string | null; comment: string } }
 export interface Expertise {
   case_details?: CaseDetails
+  classification?: WorkClassification
   id: string; registration_number: string; registration_department_code?: string | null; historical_number: string; sequence: number; year: number; category_code: string
   origin_kind: 'native' | 'historical'; historical: HistoricalWork | null
   department: Pick<Reference, 'id' | 'code' | 'name'>; specialty: Pick<Reference, 'id' | 'code' | 'name'> | null

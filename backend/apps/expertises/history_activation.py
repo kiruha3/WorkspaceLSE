@@ -85,6 +85,8 @@ def _activate_history(*,actor,expertise_id,data,key,payload):
                 group=get_object_or_404(ComplexGroup.objects.select_for_update(),pk=group.pk)
                 if group.material_id!=work.material_id:raise ValidationError({'complex_group_id':'Комплекс относится к другому материалу.'})
             intervals=validate_intervals(work,data)
+            if getattr(work,'classification',None) is not None and data['appointment_nature']!=work.appointment_nature:
+                raise ValidationError({'appointment_nature':'Сначала явно уточните характер назначения в разделе классификации; продолжение истории не заменяет ручную классификацию.'})
             if work.state=='completed':
                 if 'result' not in data or 'return_data' in data:raise ValidationError({'result':'Подтвердите результат завершённой работы, не меняя вид закрытия.'})
             elif work.state=='without_execution':

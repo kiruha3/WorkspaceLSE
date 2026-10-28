@@ -18,8 +18,8 @@ from .services import register_expertise, assign_experts, reassign_experts
 
 def loaded(queryset=None):
     return (queryset if queryset is not None else Expertise.objects.all()).select_related(
-        "receipt__basis_document","material","department","specialty","complex_group","historical__source_row__batch","historical__sndz_reason","historical__return_reason","case_details__authority_type","case_details__decree_document"
-    ).prefetch_related("case_details__decree_document__versions","case_details__revisions__actor__employee","historical__participants__employee","historical__unresolved_allocations__reason","historical__unresolved_allocations__document__versions","historical__corrections__actor__employee",
+        "receipt__basis_document","material","department","specialty","complex_group","historical__source_row__batch","historical__sndz_reason","historical__return_reason","case_details__authority_type","case_details__decree_document","classification"
+    ).prefetch_related("classification__previous_conclusions__document__versions","classification__revisions__actor__employee","case_details__decree_document__versions","case_details__revisions__actor__employee","historical__participants__employee","historical__unresolved_allocations__reason","historical__unresolved_allocations__document__versions","historical__corrections__actor__employee",
         "assignments__employee","receipt__basis_document__versions","suspensions__actor__employee","suspensions__resumed_by__employee","deadline_events__actor__employee","deadline_events__document__versions","result_revisions__actor__employee","result_revisions__document__versions","result_revisions__sndz_reason","result_revisions__unresolved_allocations__reason","result_revisions__unresolved_allocations__document__versions","result_revisions__closures","closures__actor__employee","closures__document__versions","closures__return_reason")
 
 

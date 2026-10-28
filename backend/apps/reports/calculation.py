@@ -3,6 +3,8 @@ import calendar
 from datetime import date
 from apps.imports.normalization import text, label, read_date
 from .reason_columns import SNDZ_COLUMNS,UNRESOLVED_COLUMNS,RETURN_COLUMNS,EXTRA_COLUMNS,unresolved_counts
+from .repeat_columns import repeat_summary,GROUPS
+from . import column_rules
 
 VERSION = "form151-journal-v1"
 SPECIALTIES = {"1.1": [11], "3.1": [13,14], "13.1": [49,50], "16.1": [58,59], "16.2": [58,60], "18.1": [65], "19.1": [66,67]}
@@ -69,7 +71,7 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
         ("methodical",[7],"Учебно-методическая работа отсутствует в этом журнале.","methodical_register"),
         ("lawsuits",[8],"Иски к учреждению и выплаты отсутствуют в этом журнале.","lawsuits_register"),
         ("plan",[6],"Нет разбивки годового плана по специальностям." if plan is not None else f"Не указан годовой план на {year}.","state_assignment_plan")]:
-        if mode=='journal' or args[0] not in ('reasons','decree3214'):gap(*args)
+        if mode=='journal' or args[0] not in ('reasons','decree3214','repeated'):gap(*args)
     if not opening_balances_complete:gap("openingCoverage",[1],"Не подтверждена полнота журнала: остатки на начало и конец оставлены пустыми.","opening_balances_complete")
     for row in rows:
         f,raw=row.facts,row.raw; state=f.get("state");returned=state=="without_execution"
@@ -171,6 +173,21 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
         complexity=f.get("complexity_level")
         if finish is not False and expertise is True and complexity is None:gap("complexity",[4],"Не указана допустимая категория сложности.","N",row.source_row)
         for col,band in zip("DEFG",range(1,5)):put(4,col,[finish,expertise,None if complexity is None else min(4,complexity)==band])
+        if mode=='registry':
+            repeat=repeat_summary(f)
+            # Owner policy for full СНДЗ is pending: do not silently count or exclude it.
+            countable=None if sndz is True else expertise
+            gates=[finish,countable,repeat['repeated']]
+            put(4,'H',gates)
+            for group,(present,not_confirmed) in zip(GROUPS,(('I','J'),('K','L'),('M','N'))):
+                put(4,present,[*gates,repeat['groups'][group]['present']])
+                put(4,not_confirmed,[*gates,repeat['groups'][group]['not_confirmed']])
+            if finish is not False and countable is not False and repeat['repeated'] is None:
+                gap('repeatNature',[4],'Характер назначения не подтверждён; первичность не подставляется автоматически.','appointment_nature',row.source_row)
+            if finish is not False and countable is not False and repeat['repeated'] is True and any(v is None for group in repeat['groups'].values() for v in group.values()):
+                gap('previousConclusions',[4],'Не подтверждена полнота или классификация предыдущих заключений/сопоставимость исходных данных/подтверждение выводов.','classification.previous_complete / previous_conclusions',row.source_row)
+            if finish is not False and sndz is True and repeat['repeated'] is not False:
+                gap('repeatSndzPolicy',[4],'Включение полного СНДЗ в повторные ещё не подтверждено владельцем; значение не заменено нулём.','repeat_sndz_policy',row.source_row)
         put(4,"O",[returned,finish]);put(5,"D",[finish,expertise]);put(5,"L",[finish,research])
         for col,target in zip("EFGHIJKMNOPQR",("court","sk","mvd","fsb","fts","fssp","other","sk","mvd","fsb","fts","fssp","other")):
             for_research=col>="M"
@@ -186,4 +203,4 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
     for section in range(1,9):
         group=[c for c in result_cells if c["sheet"]==f"Раздел {section}"]
         coverage.append({"section":section,"filled":sum(c["value"] is not None for c in group),"unavailable":sum(c["value"] is None for c in group),"status":"Частично" if section<=6 else "Пропущен"})
-    return {"version":VERSION,"status":"preliminary","year":year,"month":month,"from":start.isoformat(),"to":end.isoformat(),"opening_balances_complete":opening_balances_complete,"state_assignment_annual_plan":plan,"cells":result_cells,"gaps":list(gaps.values()),"section_coverage":coverage}
+    return {"version":VERSION,"rules_version":column_rules.RULES_VERSION,"column_rules":column_rules.explanations(mode),"status":"preliminary","year":year,"month":month,"from":start.isoformat(),"to":end.isoformat(),"opening_balances_complete":opening_balances_complete,"state_assignment_annual_plan":plan,"cells":result_cells,"gaps":list(gaps.values()),"section_coverage":coverage}

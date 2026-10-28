@@ -13,10 +13,10 @@ from django.db.models import OuterRef,Subquery,F
 from django.db.models.functions import JSONObject
 from django.contrib.postgres.expressions import ArraySubquery
 from django.utils import timezone
-from apps.expertises.models import Expertise,WorkClosure,UnresolvedAllocation,HistoricalUnresolvedAllocation
+from apps.expertises.models import Expertise,WorkClosure,UnresolvedAllocation,HistoricalUnresolvedAllocation,PreviousConclusion
 from .calculation import calculate
 
-VERSION='form151-registry-v4'
+VERSION='form151-registry-v5'
 RESULT_FIELDS=('result_kind','completed_on','return_decided_on','complexity_level','questions','categorical','probable','unresolved','authority_type')
 COUNT_FIELDS=('complexity_level','questions','categorical','probable','unresolved')
 
@@ -29,6 +29,9 @@ class ReportRecord:
 
 
 def calculate_registry(*,year,month,opening_balances_complete=False):
+    previous=PreviousConclusion.objects.filter(classification__expertise_id=OuterRef('pk')).order_by('ordinal').annotate(
+        payload=JSONObject(organization_group=F('organization_group'),same_input_data=F('same_input_data'),confirms_previous=F('confirms_previous'))
+    ).values('payload')
     historical_allocations=HistoricalUnresolvedAllocation.objects.filter(history__expertise_id=OuterRef('pk')).order_by('reason__code').annotate(
         payload=JSONObject(reason=F('reason__code'),count=F('count'))
     ).values('payload')
@@ -45,9 +48,10 @@ def calculate_registry(*,year,month,opening_balances_complete=False):
             'specialty__code','material__is_demo','appointment_nature','is_commission','historical__statistics_confirmed',
             'historical__sndz_reason__code','historical__return_reason__code','historical__allocations_complete',
             'case_details__id','case_details__authority_type__report_group','case_details__decree3214','case_details__updated_at',
+            'classification__id','classification__previous_complete','classification__updated_at',
             'historical__source_row_id','historical__source_row__batch_id','historical__source_row__source_row',
             *('historical__'+field for field in RESULT_FIELDS))
-    stored=list(Expertise.objects.annotate(accepted=Subquery(accepted),historical_allocations=ArraySubquery(historical_allocations)).order_by('id').values(*fields,'accepted','historical_allocations'))
+    stored=list(Expertise.objects.annotate(accepted=Subquery(accepted),historical_allocations=ArraySubquery(historical_allocations),previous=ArraySubquery(previous)).order_by('id').values(*fields,'accepted','historical_allocations','previous'))
     rows=[];records={};extra=[];excluded=0;fingerprint=[]
     for item in stored:
         if item['material__is_demo']:
@@ -56,6 +60,7 @@ def calculate_registry(*,year,month,opening_balances_complete=False):
         facts={field:item['historical__'+field] for field in RESULT_FIELDS}
         facts.update(sndz_reason=item['historical__sndz_reason__code'],return_reason=item['historical__return_reason__code'],allocations_complete=item['historical__allocations_complete'],unresolved_allocations=item['historical_allocations'])
         facts['decree3214']=item['case_details__decree3214']
+        facts.update(appointment_nature=item['appointment_nature'],previous_complete=item['classification__previous_complete'],previous_conclusions=item['previous'])
         if item['case_details__id'] is not None:facts['authority_group']=item['case_details__authority_type__report_group']
         facts.update(registration_number=item['registration_number'],received_on=item['receipt__received_at'],
             category_code=item['category_code'],state=item['state'],department_code=item['department__code'],specialty_code=item['specialty__code'])
@@ -78,13 +83,12 @@ def calculate_registry(*,year,month,opening_balances_complete=False):
     report=calculate(rows,year,month,opening_balances_complete,mode='registry')
     for gap in report['gaps']:
         if gap['code']=='deadlines':gap['message']='Причины превышения 30 дней и учёт согласований в форме 15.1 ещё не сопоставлены.'
-        if gap['code']=='repeated':gap['message']='Графы повторности и проверки прежних выводов ещё не рассчитываются; сохранённые признаки регистрации не потеряны.'
         if gap['code']=='returnDate':gap.update(message='Не указана дата решения без исполнения. Дата выдачи не заменяет её.',fields='return_decided_on / WorkClosure.ended_on')
         if gap['code']=='dates':gap.update(message='Нет достоверной даты поступления или подтверждённого окончания.',fields='received_at / completed_on / return_decided_on')
         if gap['code']=='questions':gap['fields']='questions, categorical, probable, unresolved'
         if gap['code']=='specialty':gap['fields']='specialty_id'
     if extra:report['gaps'].append({'code':'unaccepted_end','sections':list(range(1,7)),'message':'У открытой работы сохранена историческая дата окончания. Без закрытого состояния она не включена в законченные работы.','fields':'state / completed_on / return_decided_on','rows':extra})
-    revision=hashlib.sha256(json.dumps({'version':VERSION,'records':fingerprint,'excluded_demo_count':excluded},sort_keys=True,cls=DjangoJSONEncoder).encode()).hexdigest()
+    revision=hashlib.sha256(json.dumps({'version':VERSION,'rules_version':report['rules_version'],'records':fingerprint,'excluded_demo_count':excluded},sort_keys=True,cls=DjangoJSONEncoder).encode()).hexdigest()
     report.update(version=VERSION,records=records,data_revision=revision,
         source={'type':'registry','id':None,'name':'Рабочая база АИС','row_count':len(rows),'excluded_demo_count':excluded,'data_revision':revision,'calculated_at':timezone.now().isoformat()})
     return report
