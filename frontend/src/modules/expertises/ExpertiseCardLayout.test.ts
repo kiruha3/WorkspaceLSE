@@ -183,3 +183,60 @@ it('moves focus and selected panel with arrows, Home and End without business wr
   expect(wrapper.findAll('[role="tab"][tabindex="0"]')).toHaveLength(1)
   expect(writes).toEqual([])
 })
+
+it('shows work and documents together and uses quick links to open the existing stage', async () => {
+  const { wrapper, writes } = await open()
+  expect(wrapper.get('[data-work-overview]').isVisible()).toBe(true)
+  expect(wrapper.get('[data-card-documents]').isVisible()).toBe(true)
+  await wrapper.get('[data-card-jump="production"]').trigger('click')
+  expect(wrapper.get('[data-card-panel="production"]').isVisible()).toBe(true)
+  expect(document.activeElement).toBe(wrapper.get('[data-card-panel="production"]').element)
+  expect(writes).toEqual([])
+})
+
+it('keeps a case draft and its route guard when navigating from the compact work overview', async () => {
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+  const { wrapper, router, writes } = await open({ ...expertise, case_details: details, allowed_actions: [] })
+  await wrapper.get('[data-card-tab="case"]').trigger('click')
+  await wrapper.get('[data-case-edit]').trigger('click'); await flushPromises()
+  await wrapper.get('[name="case_authority_name"]').setValue('Орган из несохранённой формы')
+  await wrapper.get('[name="case_reason"]').setValue('Не потерять основание')
+  await wrapper.get('[data-card-tab="overview"]').trigger('click')
+  await wrapper.get('[data-card-jump="production"]').trigger('click')
+  await router.push('/expertises/work-2'); await flushPromises()
+  expect(router.currentRoute.value.params.id).toBe('work-1')
+  await wrapper.get('[data-card-tab="case"]').trigger('click')
+  expect(wrapper.get('[name="case_authority_name"]').element).toHaveProperty('value', 'Орган из несохранённой формы')
+  expect(wrapper.get('[name="case_reason"]').element).toHaveProperty('value', 'Не потерять основание')
+  expect(confirm).toHaveBeenCalledOnce()
+  expect(writes).toEqual([])
+})
+
+it('keeps registration and exact statistics mounted inside a foldable secondary section', async () => {
+  const { wrapper } = await open()
+  const details = wrapper.get('[data-card-secondary]')
+  expect(details.element.tagName).toBe('DETAILS')
+  expect(details.element).toHaveProperty('open', false)
+  expect(details.get('[data-overview-fact="probable"]').text()).toBe('0')
+  expect(details.get('[data-overview-fact="unresolved"]').text()).toBe('Неизвестно')
+  ;(details.element as HTMLDetailsElement).open = true
+  await wrapper.get('[data-card-jump="assignments"]').trigger('click')
+  await wrapper.get('[data-card-tab="overview"]').trigger('click')
+  expect(details.element).toHaveProperty('open', true)
+})
+
+it('keeps restricted document references explicit in the compact document column', async () => {
+  const { wrapper } = await open({ ...expertise, basis_document: { id: 'restricted', restricted: true } })
+  expect(wrapper.get('[data-card-documents]').text()).toContain('Доступ к документу ограничен')
+  expect(wrapper.get('[data-card-documents]').find('iframe').exists()).toBe(false)
+})
+
+it('returns focus to the work tab when the focused correspondence section is revoked', async () => {
+  const { wrapper, session } = await open(historical, ['correspondence'], ['expertise.view', 'letters.view'])
+  await wrapper.get('[data-card-tab="letters"]').trigger('click')
+  ;(wrapper.get('[data-card-tab="letters"]').element as HTMLButtonElement).focus()
+  session.user!.access = { 'expertise.view': session.user!.access['expertise.view']! }
+  await flushPromises()
+  expect(document.activeElement).toBe(wrapper.get('[data-card-tab="overview"]').element)
+  expect(wrapper.get('[data-card-panel="overview"]').isVisible()).toBe(true)
+})

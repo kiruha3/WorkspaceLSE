@@ -1,0 +1,26 @@
+.expertise-card { --muted:#65735f; font-size:13px; }
+.card-back { display:inline-block; margin-bottom:8px; font-size:12px; }
+.expertise-heading { display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px; }
+.expertise-heading>div { min-width:0; }.expertise-heading .eyebrow{font-size:10px;margin-bottom:3px}
+.expertise-title { display:flex;align-items:center;flex-wrap:wrap;gap:10px; }
+.expertise-title h1{font-size:26px;margin:3px 0;overflow-wrap:anywhere}.expertise-title .badge{font-size:11px;padding:4px 8px}
+.expertise-heading .muted{font-size:12px;overflow-wrap:anywhere;margin-top:3px}.expertise-tools{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px 12px;font-size:12px}
+.card-identity-meta{display:flex;gap:8px 16px;flex-wrap:wrap;margin-top:5px;font-size:12px;color:#62705d}.card-identity-meta>span{display:inline-flex;align-items:center}
+.card-tabs{display:flex;gap:3px;border-bottom:1px solid var(--border);overflow-x:auto;margin-bottom:14px;padding:2px 2px 0}
+.card-tabs button{flex:0 0 auto;border:0;border-bottom:2px solid transparent;border-radius:0;padding:8px 10px;background:transparent;color:#586851;font-size:13px;white-space:nowrap;min-height:35px}
+.card-tabs button[aria-selected=true]{color:var(--green);border-bottom-color:var(--green);font-weight:600}
+.card-tab-panel>:deep(.card){margin-top:0;margin-bottom:12px}
+.card-disclosure{margin-top:12px;border:1px solid var(--border);background:white;border-radius:6px}
+.card-disclosure>summary{display:flex;align-items:center;gap:8px;list-style:none;cursor:pointer;padding:10px 12px;font-size:12px;min-height:38px}.card-disclosure>summary::-webkit-details-marker{display:none}.card-disclosure>summary:before{content:'›';font-size:17px;color:#71836b}.card-disclosure[open]>summary:before{content:'⌄'}.card-disclosure-body{padding:2px 12px 12px}
+.expertise-card :deep(.card){padding:14px;border-radius:6px}.expertise-card :deep(h2){font-size:16px;margin-bottom:8px}.expertise-card :deep(h3){font-size:14px}.expertise-card :deep(h4){font-size:13px}
+.expertise-card :deep(.section-heading){gap:10px;margin-bottom:10px;align-items:start}.expertise-card :deep(.section-heading .eyebrow){font-size:10px;margin-bottom:3px}
+.expertise-card :deep(.form-grid){gap:11px}.expertise-card :deep(.form-columns){gap:10px 14px}.expertise-card :deep(.inset-form){margin-top:12px;padding:12px;border-radius:5px}.expertise-card :deep(.subsection){margin-top:14px;padding-top:12px}
+.expertise-card :deep(.work-facts){gap:10px 16px;margin:10px 0}.expertise-card :deep(.work-facts dt){font-size:11px}.expertise-card :deep(.work-facts dd){font-size:13px;margin-top:3px}
+.expertise-card :deep(.compact){font-size:12px;line-height:1.5}.expertise-card :deep(.muted){line-height:1.5}.expertise-card :deep(.message){font-size:12px;padding:9px 11px;margin:10px 0}
+.expertise-card :deep(button){font-size:12px;min-height:32px;padding:6px 10px}.expertise-card :deep(input:not([type=checkbox]):not([type=radio])),.expertise-card :deep(select){font-size:13px;min-height:34px;padding:6px 8px}.expertise-card :deep(textarea){font-size:13px;padding:7px 9px;line-height:1.45}.expertise-card :deep(label){font-size:12px;gap:5px}
+.expertise-card :deep(.button-row){gap:7px}.expertise-card :deep(.assignment-line){padding:9px 0;margin-top:8px;font-size:12px}.expertise-card :deep(.document-meta){font-size:12px;gap:7px 12px}.expertise-card :deep(.help-trigger){padding:0;min-height:23px;width:23px;height:23px}
+.expertise-card :deep(.overview-layout){gap:12px}.expertise-card :deep(.overview-columns){gap:14px}.expertise-card :deep(.overview-sheet){padding:12px;border-radius:5px}.expertise-card :deep(.overview-sheet h2){font-size:15px;margin-bottom:10px}.expertise-card :deep(.overview-facts>div){gap:10px;padding:7px 0}.expertise-card :deep(.overview-facts dt){font-size:11px}.expertise-card :deep(.overview-facts dd){font-size:12px}.expertise-card :deep(.overview-version){margin-top:10px}.expertise-card :deep(.overview-context){padding:9px 12px;font-size:12px}
+.expertise-card :deep(.compact-disclosure){border:1px solid var(--border);border-radius:5px;padding:0;margin-top:12px}.expertise-card :deep(.compact-disclosure>summary){cursor:pointer;padding:9px 11px;font-size:12px;line-height:1.5}.expertise-card :deep(.compact-disclosure>summary h3){display:inline;font-size:13px;margin:0}.expertise-card :deep(.compact-disclosure-body){padding:2px 11px 11px}
+@media(max-width:1100px){.expertise-heading{align-items:flex-start;flex-wrap:wrap}.expertise-tools{justify-content:flex-start}}
+@media(max-width:600px){.expertise-title h1{font-size:23px}.expertise-tools{width:100%;gap:8px}.card-tabs{margin-bottom:12px}.card-tabs button{padding:8px}.expertise-card :deep(.card){padding:12px}.expertise-card :deep(.form-columns){grid-template-columns:1fr}}
+@media(pointer:coarse){.expertise-card :deep(button){min-height:38px}.expertise-card :deep(input:not([type=checkbox]):not([type=radio])),.expertise-card :deep(select),.expertise-card :deep(textarea){font-size:16px}.expertise-card :deep(.help-trigger){min-height:28px;width:28px;height:28px}}

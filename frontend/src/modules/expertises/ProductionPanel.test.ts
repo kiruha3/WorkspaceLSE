@@ -313,6 +313,10 @@ describe('production work controls', () => {
     expect(writes[0]?.document_id).toBe('document-1')
     expect(wrapper.get('[data-deadline-history]').text()).toContain('Согласование срока')
     expect(wrapper.get('[data-deadline-history]').text()).toContain('Доступ к документу ограничен')
+    expect(wrapper.find('iframe').exists()).toBe(false)
+    await wrapper.get('[data-card-tab="production"]').trigger('click')
+    ;(wrapper.get('[data-deadline-history]').element as HTMLDetailsElement).open = true
+    await wrapper.get('[data-deadline-history] [data-document-details-toggle]').trigger('click')
     expect(wrapper.get('iframe').attributes('src')).toBe('/agreement/preview/')
     expect(wrapper.find('a[href="/agreement/download/"]').exists()).toBe(true)
     wrapper.unmount()

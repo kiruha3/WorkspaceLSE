@@ -32,6 +32,39 @@ async function open(current: unknown = work, respond?: (write: Write, count: num
 async function draft(wrapper: Awaited<ReturnType<typeof open>>['wrapper']) { await wrapper.get('[data-result-draft]').trigger('click'); await flushPromises(); await wrapper.get('[name="result_reason"]').setValue('  Достоверные сведения  ') }
 
 describe('result and closure workflow', () => {
+  it('folds reporting details and histories while keeping completion blockers visible', async () => {
+    const { wrapper } = await open()
+    await wrapper.get('[data-card-tab="result"]').trigger('click')
+    expect(wrapper.get('[data-completion-blockers]').isVisible()).toBe(true)
+    for (const selector of ['[data-report-gaps]', '[data-result-history]', '[data-closure-history]']) {
+      const details = wrapper.get(selector)
+      expect(details.element.tagName).toBe('DETAILS')
+      expect(details.element).toHaveProperty('open', false)
+    }
+    expect(wrapper.get('[data-report-gaps]').text()).toContain('Статистика неизвестна')
+    wrapper.unmount()
+  })
+  it('retains the selected new file and reason across compact navigation without uploading', async () => {
+    const { wrapper, writes } = await open()
+    await draft(wrapper)
+    await wrapper.get('[name="result_kind"]').setValue('expert_conclusion')
+    await wrapper.get('[data-document-new]').trigger('click')
+    await wrapper.get('[name="source_kind"]').setValue('uploaded_copy')
+    await wrapper.get('[name="document_title"]').setValue('Заключение из черновика')
+    const scan = new File(['draft'], 'unsaved-result.pdf', { type: 'application/pdf' })
+    const input = wrapper.get('input[type="file"]').element as HTMLInputElement
+    Object.defineProperty(input, 'files', { value: [scan] })
+    await wrapper.get('input[type="file"]').trigger('change')
+    await wrapper.get('[data-card-tab="overview"]').trigger('click')
+    await wrapper.get('[data-card-jump="production"]').trigger('click')
+    await wrapper.get('[data-card-tab="result"]').trigger('click')
+    expect(wrapper.get('input[type="file"]').element).toBe(input)
+    expect(input.files?.[0]).toBe(scan)
+    expect(wrapper.get('[name="document_title"]').element).toHaveProperty('value', 'Заключение из черновика')
+    expect(wrapper.get('[name="result_reason"]').element).toHaveProperty('value', '  Достоверные сведения  ')
+    expect(writes).toEqual([])
+    wrapper.unmount()
+  })
   it('shows missing documents as reminders without blocking completion', async () => {
     const { wrapper, writes } = await open({ ...withResult, result: { ...result, document: null }, result_readiness: { completion_blockers: [], report_gaps: [], document_gaps: [{ code: 'file_missing', field: 'document_id', message: 'Не прикреплён итоговый документ.' }] } })
     expect(wrapper.get('[data-document-gaps]').text()).toContain('Не прикреплён итоговый документ')
@@ -136,6 +169,9 @@ describe('result and closure workflow', () => {
     const { wrapper, writes } = await open({ ...withResult, state: 'completed', closure, closure_history: [closure], allowed_actions: ['expertise.closed.correct'] })
     expect(wrapper.get('[data-result-history]').text()).toContain('Эксперт Иванов')
     expect(wrapper.get('[data-closure-history]').text()).toContain('Подтверждено')
+    expect(wrapper.find('iframe').exists()).toBe(false)
+    await wrapper.get('[data-card-tab="result"]').trigger('click')
+    await wrapper.get('[data-current-result] [data-document-details-toggle]').trigger('click')
     expect(wrapper.find('iframe').exists()).toBe(true)
     expect(wrapper.find('[data-result-draft]').exists()).toBe(false)
     await wrapper.get('[data-result-correct]').trigger('click'); await flushPromises(); await wrapper.get('[name="result_reason"]').setValue('Уточнение статистики'); await wrapper.get('[name="probable"]').setValue('2')

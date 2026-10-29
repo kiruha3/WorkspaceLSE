@@ -30,11 +30,11 @@ const facts = computed(() => {
 </template>
 
 <style scoped>
-.case-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 18px; padding: 22px 8px; background: white; border: 1px solid var(--border); border-radius: 10px; }
-.case-summary > div { min-width: 0; padding: 0 22px; border-right: 1px solid #e6ece4; }
+.case-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 12px; padding: 11px 4px; background: white; border: 1px solid var(--border); border-radius: 6px; }
+.case-summary > div { min-width: 0; padding: 0 12px; border-right: 1px solid #e6ece4; }
 .case-summary > div:last-child { border-right: 0; }
-.case-summary dt { font-size: 12px; color: #58695e; line-height: 1.5; margin-bottom: 7px; }
-.case-summary dd { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
-@media (max-width: 1150px) { .case-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 0; } .case-summary > div:nth-child(2) { border-right: 0; } }
-@media (max-width: 600px) { .case-summary { grid-template-columns: 1fr; padding: 16px 0; } .case-summary > div { border-right: 0; } }
+.case-summary dt { font-size: 11px; color: #66735f; line-height: 1.4; margin-bottom: 4px; }
+.case-summary dd { margin: 0; font-size: 13px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+@media (max-width: 1150px) { .case-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 0; } .case-summary > div:nth-child(2) { border-right: 0; } }
+@media (max-width: 600px) { .case-summary { grid-template-columns: 1fr; padding: 10px 0; } .case-summary > div { border-right: 0; } }
 </style>
