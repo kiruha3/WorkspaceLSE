@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: blob: data:; frame-src blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>АИС · отдельный прототип карточки</title>
+  <link rel="stylesheet" href="prototype.css">
+  <script src="prototype-extension.js" defer></script>
+  <script src="prototype.js" defer></script>
+</head>
+<body>
+  <section class="lse-lab" aria-label="Настройки проверки макета">
+    <strong>Кликабельный макет <span>v3.1 · без связи с БД</span></strong>
+    <label>Сценарий<select id="lab-scenario" aria-label="Сценарий проверки"></select></label>
+    <label>Профиль<select id="lab-profile" aria-label="Профиль проверки"><option value="full">Полный доступ</option><option value="expert">Эксперт</option><option value="clerk">Делопроизводитель</option><option value="reader">Только просмотр</option></select></label>
+    <button type="button" id="lab-reset">Сбросить пример</button>
+    <a href="coverage.html" target="_blank" rel="noopener">Карта соответствия</a>
+    <label>Проверка сохранения<select id="lab-failure" aria-label="Проверка сохранения"><option value="none">Обычный режим</option><option value="error">Ошибка → повтор</option><option value="uncertain">Нет ответа → повтор</option><option value="conflict">Конфликт версий</option><option value="denied">Право отозвано</option></select></label>
+    <button type="button" class="lse-help" data-help="Все сведения условные. Сохранение, завершение и выдача меняют только этот макет. Запросов к API, серверу и Google-таблице нет. Обновление страницы сбрасывает пример. Профили здесь — примеры прав, а не настройка реальных ролей." aria-label="Как работает прототип">?</button>
+  </section>
+  <div class="lse-shell">
+    <aside class="lse-sidebar" id="lse-sidebar">
+      <div class="lse-brand"><span class="lse-mark">ЛСЭ</span><div>Абаканская ЛСЭ<small>ФГБУ · Минюст России</small></div></div>
+      <button type="button" id="sidebar-toggle" class="lse-sidebar-toggle" aria-expanded="true" aria-label="Свернуть меню">☰ <span>Свернуть меню</span></button>
+      <nav aria-label="Основное меню">
+        <button type="button" data-nav="work"><span aria-hidden="true">⌂</span><span>Рабочее место</span></button>
+        <button type="button" data-nav="info:Приёмка материалов"><span aria-hidden="true">▤</span><span>Приёмка материалов</span></button>
+        <button type="button" data-nav="work" class="lse-sidebar-current"><span aria-hidden="true">▱</span><span>Экспертизы</span></button>
+        <button type="button" data-nav="letters"><span aria-hidden="true">✉</span><span>Переписка</span></button>
+        <button type="button" data-nav="issuance"><span aria-hidden="true">↗</span><span>Выдача материалов</span></button>
+        <button type="button" data-nav="info:Отчёт 15.1"><span aria-hidden="true">▥</span><span>Отчёт 15.1</span></button>
+        <button type="button" data-nav="info:Источники журнала"><span aria-hidden="true">▦</span><span>Источники журнала</span></button>
+        <button type="button" data-nav="info:Годовые планы"><span aria-hidden="true">▥</span><span>Годовые планы</span></button>
+        <details class="lse-admin"><summary>Администрирование</summary><button type="button" data-nav="info:Справочники">Справочники</button><button type="button" data-nav="info:Сотрудники">Сотрудники</button><button type="button" data-nav="info:Учётные записи">Учётные записи</button><button type="button" data-nav="info:Роли и права">Роли и права</button><button type="button" data-nav="info:Настройки">Настройки</button></details>
+      </nav>
+      <p class="lse-sidebar-foot">Условные данные для проверки интерфейса</p>
+    </aside>
+    <main class="lse-main">
+      <header class="lse-topbar"><span>ФГБУ Абаканская ЛСЭ <span class="lse-muted">/ Карточка экспертизы</span></span><span id="lse-profile-caption"></span></header>
+      <div class="lse-content"><div id="lse-identity"></div><div id="lse-notice" class="lse-notice" role="status" aria-live="polite" hidden></div><nav id="lse-tabs" class="lse-tabs" aria-label="Разделы карточки" role="tablist"></nav><section id="lse-page" aria-live="off"></section></div>
+      <footer class="lse-foot">Прототип интерфейса · изменения живут только в этой вкладке · реальные файлы и записи АИС не изменяются</footer>
+    </main>
+  </div>
+  <dialog id="lse-dialog" class="lse-dialog" aria-labelledby="lse-dialog-title"></dialog>
+  <div id="lse-tooltip" role="tooltip" class="lse-tooltip" hidden></div>
+  <div id="lse-toast" class="lse-toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
