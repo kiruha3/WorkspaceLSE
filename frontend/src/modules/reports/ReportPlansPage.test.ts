@@ -88,7 +88,7 @@ it('uploads an actual file and reconciles document409 without recreating the doc
   if(w.path.endsWith('/versions/'))return ++uploads===1?json({code:'version_conflict',message:'Документ изменён'},409):json({...prior,id:'my-file',number:2,original_name:'plan.txt'})
   return json({...empty,id:'plan',version:1})
  },get:path=>path.includes('/documents/')?json({...basis,id:'new-doc',kind:'letter',source_kind:'uploaded_copy',version:2,versions:[prior]}):json(empty)})
- await edit(wrapper);await wrapper.get('[name="plan_total"]').setValue('10');await wrapper.get('[name="plan_document_mode"]').setValue('new');await wrapper.get('[name="document_title"]').setValue('План госзадания');await wrapper.get('[name="source_kind"]').setValue('uploaded_copy')
+ await edit(wrapper);await wrapper.get('[name="plan_total"]').setValue('10');await wrapper.get('[data-document-new]').trigger('click');await wrapper.get('[name="document_title"]').setValue('План госзадания');await wrapper.get('[name="source_kind"]').setValue('uploaded_copy')
  const input=wrapper.get('[name="basis_file"]');Object.defineProperty(input.element,'files',{value:[new File(['plan'],'plan.txt',{type:'text/plain'})]});await input.trigger('change')
  await wrapper.get('[data-plan-form]').trigger('submit');await flushPromises();expect(writes.filter(w=>w.path.includes('/report-plans/'))).toHaveLength(0)
  expect(wrapper.get('[data-plan-submit]').attributes('disabled')).toBeDefined();await wrapper.get('[data-refresh-document-version]').trigger('click');await flushPromises();expect(wrapper.text()).toContain('prior.txt')

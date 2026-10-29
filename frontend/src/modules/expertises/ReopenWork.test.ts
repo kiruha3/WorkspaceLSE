@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiClient, apiKey } from '../../api/client'
 import { json, sessionWith } from '../../test/fixtures'
@@ -21,7 +21,7 @@ async function open(work = closed, respond: (count: number) => Response | Promis
   }) } } })
   return { wrapper, writes, router }
 }
-async function start(wrapper: Awaited<ReturnType<typeof open>>['wrapper']) {
+async function start(wrapper: Pick<VueWrapper, 'get'>) {
   await wrapper.get('[data-reopen-start]').trigger('click')
   await wrapper.get('[name="reopen_reason"]').setValue('  Нажали завершение по ошибке  ')
 }

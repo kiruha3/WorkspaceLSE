@@ -166,7 +166,7 @@ describe('correspondence workplace', () => {
       if (init?.method === 'POST') { writes.push(JSON.parse(String(init.body))); return json({ code: 'version_conflict', message: 'Обновите письмо' }, 409) }
       return json(path.includes('/options/') ? options : value)
     }, '/letters/letter-1', ['letters.view', 'documents.upload'])
-    await wrapper.get('[data-start-attachment]').trigger('click'); await wrapper.get('[name="attachment_source"]').setValue('new'); await wrapper.get('[name="attachment_reason"]').setValue('Позднее приложение'); await wrapper.get('[name="document_title"]').setValue('Скан письма'); await wrapper.get('[name="source_kind"]').setValue('uploaded_copy')
+    await wrapper.get('[data-start-attachment]').trigger('click'); await wrapper.get('[data-document-new]').trigger('click'); await wrapper.get('[name="attachment_reason"]').setValue('Позднее приложение'); await wrapper.get('[name="document_title"]').setValue('Скан письма'); await wrapper.get('[name="source_kind"]').setValue('uploaded_copy')
     Object.defineProperty(wrapper.get('input[type="file"]').element, 'files', { value: [new File(['scan'], 'letter.pdf')] }); await wrapper.get('input[type="file"]').trigger('change')
     await wrapper.get('[data-attach-letter]').trigger('submit'); await flushPromises(); expect(writes).toEqual([])
     await wrapper.get('[data-attach-letter]').trigger('submit'); await flushPromises()
@@ -248,8 +248,16 @@ describe('correspondence workplace', () => {
   })
   it('preserves an unsaved content draft when an independent attachment command succeeds', async () => {
     const value = { ...letter, allowed_actions: ['letters.draft', 'letters.attach'] }
-    const { wrapper } = await open(value, async (input, init) => { if (String(input).endsWith('/csrf/')) return json({ csrf_token: 'token' }); if (init?.method === 'POST') return json({ event: { id: 'a1' }, letter: { ...value, version: 2, attachments: [{ id: 'a1', document: basis, actor, created_at: content.created_at, reason: 'Приложение' }] } }); if (String(input).includes('-options/')) return json(page([])); return json(String(input).includes('/options/') ? options : value) })
-    await wrapper.get('[data-edit-draft]').trigger('click'); await flushPromises(); await wrapper.get('[name="subject"]').setValue('Ещё не сохранённая тема'); await wrapper.get('[data-start-attachment]').trigger('click'); await wrapper.get('[name="attachment_document_id"]').setValue('document-1'); await wrapper.get('[name="attachment_reason"]').setValue('Приложение'); await wrapper.get('[data-attach-letter]').trigger('submit'); await flushPromises()
+    const searches: string[] = [], writes: unknown[] = []
+    const { wrapper } = await open(value, async (input, init) => { if (String(input).endsWith('/csrf/')) return json({ csrf_token: 'token' }); if (String(input).includes('/documents/?')) { searches.push(String(input)); return json(page([{ ...basis, title: 'Скан из суда' }])) } if (init?.method === 'POST') { writes.push(JSON.parse(String(init.body))); return json({ event: { id: 'a1' }, letter: { ...value, version: 2, attachments: [{ id: 'a1', document: basis, actor, created_at: content.created_at, reason: 'Приложение' }] } }) } if (String(input).includes('-options/')) return json(page([])); return json(String(input).includes('/options/') ? options : value) }, '/letters/letter-1', ['letters.view', 'letters.draft', 'documents.view'])
+    await wrapper.get('[data-edit-draft]').trigger('click'); await flushPromises(); await wrapper.get('[name="subject"]').setValue('Ещё не сохранённая тема'); await wrapper.get('[data-start-attachment]').trigger('click'); await flushPromises()
+    expect(wrapper.find('input[name="attachment_document_id"]').exists()).toBe(false)
+    await wrapper.get('[data-document-search]').setValue('Скан'); await wrapper.get('[data-document-find]').trigger('click'); await flushPromises()
+    expect(searches.some(path => path.includes('search=%D0%A1%D0%BA%D0%B0%D0%BD'))).toBe(true)
+    expect(wrapper.get('[name="attachment_document_id"]').text()).toContain('Скан из суда')
+    expect(writes).toEqual([])
+    await wrapper.get('[name="attachment_document_id"]').setValue(basis.id); await wrapper.get('[name="attachment_reason"]').setValue('Приложение'); await wrapper.get('[data-attach-letter]').trigger('submit'); await flushPromises()
+    expect(writes).toEqual([{ expected_version: 1, reason: 'Приложение', document_id: basis.id }])
     expect(wrapper.get('[name="subject"]').element).toHaveProperty('value', 'Ещё не сохранённая тема'); wrapper.unmount()
   })
 })

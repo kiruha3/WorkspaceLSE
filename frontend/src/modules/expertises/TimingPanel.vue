@@ -3,15 +3,14 @@ import { computed,onBeforeUnmount,ref,shallowReactive,watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiError,LatestRequest,useApi } from '../../api/client'
 import type { DocumentKind,Expertise,ExpertiseCommandResponse,TimingOptions,TimingPayload } from '../../api/types'
-import { useSessionStore } from '../../stores/session'
 import { useDirtyGuard } from '../../shared/ui/useDirtyGuard'
 import { useCommandAttempt,type CommandPacket } from '../../shared/ui/useCommandAttempt'
 import ApiMessage from '../../shared/ui/ApiMessage.vue'
-import BasisDocumentForm from '../../shared/BasisDocumentForm.vue'
+import DocumentPicker from '../../shared/DocumentPicker.vue'
 import BasisPreview from '../../shared/BasisPreview.vue'
 import FactHistory from '../../shared/FactHistory.vue'
 const props=defineProps<{expertise:Expertise}>(),emit=defineEmits<{updated:[Expertise]}>()
-const api=useApi(),router=useRouter(),session=useSessionStore(),requests=new LatestRequest()
+const api=useApi(),router=useRouter(),requests=new LatestRequest()
 const details=computed(()=>props.expertise.timing!),editing=ref(false),loading=ref(false),optionsError=ref<unknown>(null),options=ref<TimingOptions|null>(null)
 type Flag='notification_sent'|'extension_requested'|'deadline_breached'
 type Slot='notification'|'request'|'breach'
@@ -24,7 +23,7 @@ const flags=ref<Record<Flag,string>>({notification_sent:'',extension_requested:'
 const documents=ref<Record<Slot,{id:string;mode:string}>>({notification:{id:'',mode:'existing'},request:{id:'',mode:'existing'},breach:{id:'',mode:'existing'}})
 type Entry={key:string;reason_id:string;comment:string;document_id:string;documentMode:string}
 const entries=ref<Entry[]>([]),complete=ref(false),primary=ref(''),basis=ref(''),reason=ref(''),expectedVersion=ref(0),initial=ref('')
-const documentForms=shallowReactive(new Map<string,InstanceType<typeof BasisDocumentForm>>())
+const documentForms=shallowReactive(new Map<string,InstanceType<typeof DocumentPicker>>())
 const documentConflict=computed(()=>[...documentForms.values()].some(form=>form.uploadConflict))
 let sequence=0,preparation:{packet:CommandPacket;documents:{key:string;field?:string;index?:number}[]}|null=null
 const bool=(value:string)=>value===''?null:value==='true',show=(value:unknown)=>value==null||value===''?'Неизвестно':typeof value==='boolean'?value?'Да':'Нет':String(value)
@@ -82,14 +81,12 @@ onBeforeUnmount(()=>requests.cancel())
     <h3>Причины срока свыше 30 календарных дней</h3><p class="muted compact">{{options?.delay_reason_policy==='all'?'Одна работа учитывается в каждой выбранной группе причин.':options?.delay_reason_policy==='primary'?'Отчёт учитывает только основную причину.':'Правило нескольких причин пока не подтверждено. Сохраните фактический набор и основную причину, если она установлена; неоднозначный итог останется неизвестным.'}}</p>
     <article v-for="(entry,index) in entries" :key="entry.key" class="timing-editor form-grid"><div class="section-heading"><h4>Причина {{index+1}}</h4><button data-remove-timing-reason type="button" @click="entries.splice(index,1)">Убрать причину</button></div>
      <label>Причина длительности<select v-model="entry.reason_id" name="timing_delay_reason_id" required><option value="">Выберите известную причину</option><option v-for="r in reasonOptions" :key="r.id" :value="r.id">{{r.name}}{{r.is_active?'':' (неактивна, использовалась)'}}</option></select></label><label>Пояснение<textarea v-model="entry.comment" name="timing_delay_comment" rows="2" maxlength="100000"/></label>
-     <label>Подтверждающий документ (необязательно)<select v-model="entry.documentMode" name="timing_reason_document_mode"><option value="existing">Без файла или существующий документ по ID</option><option v-if="session.can('documents.upload')" value="new">Подкрепить новый документ</option></select></label><input v-if="entry.documentMode==='existing'" v-model="entry.document_id" name="timing_reason_document_id" aria-label="ID документа причины"/>
-     <BasisDocumentForm v-else :ref="el=>{if(el)documentForms.set(`reason-${entry.key}`,el as InstanceType<typeof BasisDocumentForm>);else documentForms.delete(`reason-${entry.key}`)}" :department-id="expertise.department.id" :busy="busy||uncertain" :kind-options="[{value:'letter',label:'Документ подтверждения причины'}]" heading="Подтверждение причины" saved-note="Сведения о сроках сохраняются отдельно." @changed="reset"/>
+     <DocumentPicker :ref="el=>{if(el)documentForms.set(`reason-${entry.key}`,el as InstanceType<typeof DocumentPicker>);else documentForms.delete(`reason-${entry.key}`)}" v-model="entry.document_id" v-model:mode="entry.documentMode" name="timing_reason_document_id" :document="details.reasons.find(item=>item.document_id===entry.document_id)?.document" :department-id="expertise.department.id" :busy="busy||uncertain" :kind-options="[{value:'letter',label:'Документ подтверждения причины'}]" heading="Подтверждение причины (необязательно)" saved-note="Сведения о сроках сохраняются отдельно." @changed="reset"/>
     </article><button data-add-timing-reason type="button" :disabled="entries.length>=100" @click="add">Добавить причину</button>
     <label>Основная причина (если установлена)<select v-model="primary" name="timing_primary_reason"><option value="">Не указана</option><option v-for="r in primaryOptions" :key="r.id" :value="r.id">{{r.name}}</option></select></label><label class="check-line"><input v-model="complete" name="timing_reasons_complete" type="checkbox"/>Подтверждаю полноту списка причин</label>
     <section v-for="slot in slots" :key="slot.key" class="timing-editor form-grid"><h3>{{slot.label}}</h3><label>Подтверждённый факт<select v-model="flags[slot.flag]" :name="`timing_${slot.flag}`"><option value="">Неизвестно</option><option value="true">Да</option><option value="false">Нет</option></select></label>
      <template v-if="slot.key==='breach'||flags[slot.flag]!=='false'"><label v-if="slot.date">Фактическая дата (может быть неизвестна)<input v-model="dates[slot.date]" :name="`timing_${slot.date}`" type="date" :min="expertise.receipt.received_at" :max="today()"/></label><label v-if="slot.key==='breach'">Основание оценки срока<textarea v-model="basis" name="timing_breach_basis" rows="2" :required="flags.deadline_breached!==''"/></label>
-      <label>Документ подтверждения<select v-model="documents[slot.key].mode" :name="`timing_${slot.key}_document_mode`"><option value="existing">Существующий документ по ID</option><option v-if="session.can('documents.upload')" value="new">Подкрепить новый документ</option></select></label><label v-if="documents[slot.key].mode==='existing'">ID документа<input v-model="documents[slot.key].id" :name="`timing_${slot.key}_document_id`"/></label>
-      <BasisDocumentForm v-else :ref="el=>{if(el)documentForms.set(slot.key,el as InstanceType<typeof BasisDocumentForm>);else documentForms.delete(slot.key)}" :department-id="expertise.department.id" :busy="busy||uncertain" :kind-options="[{value:slot.kind,label:'Документ подтверждения'}]" heading="Документ подтверждения" saved-note="Сведения о сроках сохраняются отдельно." @changed="reset"/>
+      <DocumentPicker :ref="el=>{if(el)documentForms.set(slot.key,el as InstanceType<typeof DocumentPicker>);else documentForms.delete(slot.key)}" v-model="documents[slot.key].id" v-model:mode="documents[slot.key].mode" :name="`timing_${slot.key}_document_id`" :document="details[`${slot.key}_document`]" :department-id="expertise.department.id" :busy="busy||uncertain" :kind-options="[{value:slot.kind,label:'Документ подтверждения'}]" heading="Документ подтверждения" saved-note="Сведения о сроках сохраняются отдельно." @changed="reset"/>
      </template><p class="muted compact">{{slot.key==='breach'?'Для известного «да» или «нет» нужны основание и документ. Отсутствие согласования само по себе не подставляет оценку.':'«Да» требует документа. Неизвестную дату не выдумывайте: графа информирования останется предварительной. Запись запроса или черновик письма не означает отправку.'}}</p>
     </section><label>Основание изменения<textarea v-model="reason" name="timing_reason" rows="2" required/></label>
    </fieldset><div class="button-row"><button data-timing-submit class="button-primary" :disabled="busy||!uncertain&&(invalid||conflict||documentConflict||loading||!!optionsError||!details.can_edit)" :formnovalidate="uncertain">{{busy?'Сохранение…':uncertain?'Повторить ту же попытку':'Сохранить сведения о сроках'}}</button><button type="button" :disabled="busy||uncertain" @click="cancel">Отмена</button></div>

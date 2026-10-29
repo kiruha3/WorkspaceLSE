@@ -11,6 +11,11 @@ from .services import create_document,add_file_version
 
 
 class DocumentListView(GenericAPIView):
+    def get(self,request):
+        from .search import document_options
+        page=self.paginate_queryset(document_options(request.user,request.query_params))
+        return self.get_paginated_response(DocumentOutput(page,many=True).data)
+
     def post(self,request):
         serializer=DocumentCreate(data=request.data);serializer.is_valid(raise_exception=True)
         return Response(DocumentOutput(create_document(actor=request.user,data=serializer.validated_data,idempotency_key=request.headers.get("Idempotency-Key"))).data,status=201)

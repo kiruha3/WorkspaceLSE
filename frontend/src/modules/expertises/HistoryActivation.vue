@@ -7,19 +7,19 @@ import type { BasisDocument, DocumentKind, Expertise, ExpertiseCommandResponse, 
 import { useSessionStore } from '../../stores/session'
 import { useDirtyGuard } from '../../shared/ui/useDirtyGuard'
 import ApiMessage from '../../shared/ui/ApiMessage.vue'
-import BasisDocumentForm from '../../shared/BasisDocumentForm.vue'
+import DocumentPicker from '../../shared/DocumentPicker.vue'
 import BasisPreview from '../../shared/BasisPreview.vue'
 const props = defineProps<{ expertise: Expertise }>(), emit = defineEmits<{ updated: [value: Expertise] }>()
-const api = useApi(), session = useSessionStore(), requests = new LatestRequest(), documentRequests = new LatestRequest(), resultRequests = new LatestRequest()
+const api = useApi(), session = useSessionStore(), requests = new LatestRequest()
 const available = computed(() => session.journalApplicationEnabled && props.expertise.allowed_actions.includes('imports.history.activate') && session.can('imports.history.activate') && session.can('expertise.register'))
-const canUpload = computed(() => session.can('documents.upload')), editing = ref(false), busy = ref(false), saved = ref(false), uncertain = ref(false)
-const error = ref<unknown>(null), optionsError = ref<unknown>(null), loadingOptions = ref(false), loadingBasis = ref(false)
+const editing = ref(false), busy = ref(false), saved = ref(false), uncertain = ref(false)
+const error = ref<unknown>(null), optionsError = ref<unknown>(null), loadingOptions = ref(false)
 const specialties = ref<Reference[]>([]), options = ref<ResultOptions | null>(null)
 const nature = ref<'' | NonNullable<Expertise['appointment_nature']>>(''), commission = ref(''), complexConfirmed = ref(false), specialtyId = ref('')
 const reason = ref(''), pausesComplete = ref(false), openPause = ref(''), pauses = ref<HistoryActivationPayload['past_suspensions']>([])
 const basisMode = ref('existing'), basisId = ref(''), existingBasis = ref<BasisDocument | null>(null)
-const resultMode = ref('existing'), resultId = ref(''), existingResult = ref<BasisDocument | null>(null), loadingResult = ref(false)
-const basisForm = ref<InstanceType<typeof BasisDocumentForm> | null>(null), resultForm = ref<InstanceType<typeof BasisDocumentForm> | null>(null)
+const resultMode = ref('existing'), resultId = ref(''), existingResult = ref<BasisDocument | null>(null)
+const basisForm = ref<InstanceType<typeof DocumentPicker> | null>(null), resultForm = ref<InstanceType<typeof DocumentPicker> | null>(null)
 const resultKind = ref<ResultKind | ''>(''), endDate = ref(''), complexity = ref(''), questions = ref(''), categorical = ref(''), probable = ref(''), unresolved = ref('')
 const statistics = ref(false), sndzReason = ref(''), sndzComment = ref(''), returnReason = ref(''), comment = ref('')
 const allocationsComplete=ref(false),allocations=ref<{reason_id:string;count:string;comment:string;document:BasisDocument|{id:string;restricted:true}|null}[]>([])
@@ -34,8 +34,8 @@ const original = ref('')
 const confirmLeave = useDirtyGuard(() => editing.value && !saved.value && (stamp.value !== original.value || busy.value || Boolean(attempt.value) || Boolean(basisForm.value?.dirty || resultForm.value?.dirty)), inject(routerKey, undefined))
 function invalidate() { attempt.value = null; uncertain.value = false; error.value = null }
 watch(stamp, invalidate, { flush: 'sync' })
-watch(basisId, value => { documentRequests.cancel(); loadingBasis.value = false; if (existingBasis.value?.id !== value.trim()) existingBasis.value = null }, { flush: 'sync' })
-watch([resultId, resultKind], () => { resultRequests.cancel(); loadingResult.value = false; existingResult.value = null }, { flush: 'sync' })
+watch(basisId, value => { if (existingBasis.value?.id !== value.trim()) existingBasis.value = null }, { flush: 'sync' })
+watch([resultId, resultKind], () => { existingResult.value = null }, { flush: 'sync' })
 const valid = computed(() => {
   if (!editing.value || (!available.value && !uncertain.value) || !reason.value.trim()) return false
   if (uncertain.value && attempt.value) return true
@@ -63,35 +63,23 @@ function start() {
   nature.value = props.expertise.appointment_nature ?? ''; commission.value = props.expertise.is_commission === null ? '' : props.expertise.is_commission ? 'yes' : 'no'
   complexConfirmed.value = false; specialtyId.value = props.expertise.specialty?.id ?? ''; reason.value = ''; pauses.value = []; pausesComplete.value = false; openPause.value = ''
   existingBasis.value = props.expertise.basis_document && !('restricted' in props.expertise.basis_document) ? props.expertise.basis_document : null
-  basisId.value = existingBasis.value?.id ?? ''; basisMode.value = existingBasis.value || !canUpload.value ? 'existing' : 'new'
+  basisId.value = existingBasis.value?.id ?? ''; basisMode.value = 'existing'
   resultKind.value = history.result_kind ?? ''; endDate.value = (isReturn.value ? history.return_decided_on : history.completed_on) ?? ''
   const numberText = (value: number | null) => value === null ? '' : String(value)
   complexity.value = numberText(history.complexity_level); questions.value = numberText(history.questions); categorical.value = numberText(history.categorical); probable.value = numberText(history.probable); unresolved.value = numberText(history.unresolved)
   const details=history.report_details
   statistics.value = history.statistics_confirmed; sndzReason.value = details?.sndz_reason?.id??''; sndzComment.value = details?.sndz_comment??''; returnReason.value = details?.return_reason?.id??''; comment.value = (isReturn.value?details?.return_comment:details?.note)??''
   allocationsComplete.value=details?.allocations_complete??false;allocations.value=(details?.unresolved_allocations??[]).map(item=>({reason_id:item.reason.id,count:String(item.count),comment:item.comment,document:item.document}))
-  resultMode.value = canUpload.value ? 'new' : 'existing'; resultId.value = ''; existingResult.value = null
+  resultMode.value = 'existing'; resultId.value = ''; existingResult.value = null
   saved.value = false; editing.value = true; invalidate(); original.value = stamp.value; void loadOptions()
 }
-async function loadBasis() {
-  if (busy.value || !basisId.value.trim()) return
-  loadingBasis.value = true; error.value = null
-  const requestedId = basisId.value.trim()
-  try { await documentRequests.run(signal => api.request<BasisDocument>(`/documents/${encodeURIComponent(requestedId)}/`, { signal }), value => {
-    if (basisId.value.trim() !== requestedId || value.id !== requestedId) return
-    if (!['resolution', 'decision'].includes(value.kind) || (value.source_kind === 'uploaded_copy' && !value.versions.length)) throw new ApiError(400, 'basis_invalid', 'Нужно постановление или определение: оригинал либо сохранённая копия.')
-    existingBasis.value = value; loadingBasis.value = false
-  }) } catch (cause) { error.value = cause; loadingBasis.value = false }
+function selectBasis(value:BasisDocument|null){
+ existingBasis.value=null
+ if(value&&(!['resolution','decision'].includes(value.kind)||(value.source_kind==='uploaded_copy'&&!value.versions.length))){error.value=new ApiError(400,'basis_invalid','Нужно постановление или определение: оригинал либо сохранённая копия.');return}
+ existingBasis.value=value
 }
-async function loadResult() {
-  if (busy.value || !resultId.value.trim()) return
-  loadingResult.value = true; error.value = null
-  const requestedId = resultId.value.trim(), expectedKind = isReturn.value ? 'return_decision' : resultKind.value
-  try { await resultRequests.run(signal => api.request<BasisDocument>(`/documents/${encodeURIComponent(requestedId)}/`, { signal }), value => {
-    if (resultId.value.trim() !== requestedId || value.id !== requestedId) return
-    if (value.kind !== expectedKind || !value.versions.length) throw new ApiError(400, 'result_document_invalid', 'Нужен итоговый документ выбранного вида с сохранённым файлом.')
-    existingResult.value = value; loadingResult.value = false
-  }) } catch (cause) { error.value = cause; loadingResult.value = false }
+function selectResult(value:BasisDocument|null){
+ existingResult.value=value&&value.kind===(isReturn.value?'return_decision':resultKind.value)&&value.versions.length?value:null
 }
 async function submit() {
   if (!valid.value || busy.value) return
@@ -123,7 +111,7 @@ async function submit() {
   finally { if (active) busy.value = false }
 }
 function cancel() { if (!busy.value && confirmLeave()) { editing.value = false; saved.value = true; invalidate() } }
-onBeforeUnmount(() => { active = false; requests.cancel(); documentRequests.cancel(); resultRequests.cancel() })
+onBeforeUnmount(() => { active = false; requests.cancel() })
 </script>
 <template>
   <section v-if="available || editing" data-history-confirmation class="card stack-card">
@@ -138,9 +126,7 @@ onBeforeUnmount(() => { active = false; requests.cancel(); documentRequests.canc
         <div class="form-columns"><label>Характер назначения<select v-model="nature" name="history_nature"><option value="">Не уточнён</option><option value="primary">Первичная</option><option value="repeated">Повторная</option><option value="additional">Дополнительная</option></select></label><label>Состав<select v-model="commission" name="history_commission"><option value="">Не уточнён</option><option value="no">Единоличная</option><option value="yes">Комиссионная</option></select></label><label v-if="!expertise.specialty">Подтверждённая специальность<select v-model="specialtyId" name="history_specialty"><option value="">Выберите специальность</option><option v-for="ref in specialties" :key="ref.id" :value="ref.id">{{ ref.code }} · {{ ref.name }}{{ ref.is_active ? '' : ' · историческая, неактивная' }}</option></select></label></div>
         <p v-if="expertise.specialty" class="muted compact">Специальность сохраняется: {{ expertise.specialty.code }} · {{ expertise.specialty.name }}.</p>
         <label class="check-label"><input v-model="complexConfirmed" name="history_complex_confirm" type="checkbox" />Подтверждаю: {{ expertise.complex_group ? `комплексная группа ${expertise.complex_group.title || expertise.complex_group.id}` : 'работа не входит в комплексную группу' }}</label>
-        <h3>Документ-основание</h3><label>Источник основания<select v-model="basisMode" name="history_basis_mode"><option value="existing">Использовать сохранённый документ</option><option v-if="canUpload" value="new">Подкрепить новый документ</option></select></label>
-        <template v-if="basisMode === 'existing'"><div class="button-row"><label class="grow">Код сохранённого документа<input v-model="basisId" name="history_basis_id" /></label><button data-load-history-basis type="button" :disabled="loadingBasis || !basisId.trim()" @click="loadBasis">Проверить документ</button></div><BasisPreview v-if="existingBasis" :document="existingBasis" /><p v-else class="muted compact">Укажите код ранее сохранённого постановления/определения и проверьте доступ к нему.</p></template>
-        <BasisDocumentForm v-else ref="basisForm" :department-id="expertise.department.id" :busy="busy" heading="Основание для нового учёта" saved-note="Подтверждение работы сохраняется отдельно." @changed="invalidate" />
+        <DocumentPicker ref="basisForm" v-model="basisId" v-model:mode="basisMode" name="history_basis_id" :document="existingBasis" :department-id="expertise.department.id" :kinds="['resolution','decision']" :busy="busy" :input-locked="uncertain" required heading="Документ-основание" saved-note="Подтверждение работы сохраняется отдельно." @selected="selectBasis" @changed="invalidate"/>
         <h3>История приостановок</h3><label class="check-label"><input v-model="pausesComplete" name="history_suspensions_complete" type="checkbox" />Подтверждаю полноту истории приостановок</label><p class="muted compact">Если полнота неизвестна, дни без пауз останутся неизвестными. Пустой список не означает ноль приостановок.</p>
         <div v-for="(pause, index) in pauses" :key="index" class="form-columns"><label>Приостановлена<input v-model="pause.suspended_on" type="date" :min="expertise.receipt.received_at" :max="today()" required /></label><label>Возобновлена<input v-model="pause.resumed_on" type="date" :min="pause.suspended_on || expertise.receipt.received_at" :max="today()" required /></label><label>Основание интервала<input v-model="pause.reason" required /></label><button type="button" @click="pauses.splice(index,1)">Убрать интервал</button></div><button type="button" class="align-start" @click="pauses.push({suspended_on:'',resumed_on:'',reason:''})">Добавить подтверждённый интервал</button>
         <label v-if="expertise.state === 'suspended'">Начало текущей открытой приостановки<input v-model="openPause" name="history_open_pause" type="date" :min="expertise.receipt.received_at" :max="today()" required /></label>
@@ -154,10 +140,7 @@ onBeforeUnmount(() => { active = false; requests.cancel(); documentRequests.canc
             <button type="button" @click="allocations.push({reason_id:'',count:'',comment:'',document:null})">Добавить причину вопроса</button><label class="check-label"><input v-model="allocationsComplete" type="checkbox"/>Подтверждаю полное распределение T</label>
           </section>
           <label>Примечание к подтверждаемому итогу<textarea v-model="comment" /></label>
-          <template v-if="evidenceKinds.length"><label>Источник итогового документа<select v-model="resultMode" name="history_result_mode"><option value="existing">Использовать сохранённый документ</option><option v-if="canUpload" value="new">Подкрепить новый документ</option></select></label>
-            <template v-if="resultMode === 'existing'"><div class="button-row"><label class="grow">Код сохранённого итогового документа<input v-model="resultId" name="history_result_id" /></label><button data-load-history-result type="button" :disabled="loadingResult || !resultId.trim()" @click="loadResult">Проверить итоговый документ</button></div><BasisPreview v-if="existingResult" :document="existingResult" /><p v-else class="muted compact">Нужен доступный итоговый документ выбранного вида с сохранённым файлом.</p></template>
-            <div v-else data-history-result-document><BasisDocumentForm :key="isReturn ? 'return' : resultKind" ref="resultForm" :department-id="expertise.department.id" :kind-options="evidenceKinds" :require-file="true" :busy="busy" heading="Реальный итоговый документ" saved-note="Подтверждение окончания выполняется отдельно." @changed="invalidate" /></div>
-          </template>
+          <div v-if="evidenceKinds.length" data-history-result-document><DocumentPicker :key="isReturn?'return':resultKind" ref="resultForm" v-model="resultId" v-model:mode="resultMode" name="history_result_id" :document="existingResult" :department-id="expertise.department.id" :kinds="evidenceKinds.map(item=>item.value)" :kind-options="evidenceKinds" :require-file="true" required :busy="busy" :input-locked="uncertain" heading="Итоговый документ" saved-note="Подтверждение окончания выполняется отдельно." @selected="selectResult" @changed="invalidate"/></div>
           <p class="muted compact">Нужен сохранённый файл. Исходный текст журнала и история уточнений сохраняются.</p>
         </template>
         <label>Основание подтверждения<textarea v-model="reason" name="history_reason" required rows="2" /></label>

@@ -4,8 +4,7 @@ import { routerKey } from 'vue-router'
 import { ApiError, LatestRequest, useApi } from '../../api/client'
 import { newCommandKey } from '../../api/commandKey'
 import type { BasisDocument, DocumentKind, DocumentLink, Expertise, ExpertiseCommandResponse, Reference, ResultKind, ResultOptions, ResultPayload } from '../../api/types'
-import { useSessionStore } from '../../stores/session'
-import BasisDocumentForm from '../../shared/BasisDocumentForm.vue'
+import DocumentPicker from '../../shared/DocumentPicker.vue'
 import BasisPreview from '../../shared/BasisPreview.vue'
 import ApiMessage from '../../shared/ui/ApiMessage.vue'
 import { useDirtyGuard } from '../../shared/ui/useDirtyGuard'
@@ -14,7 +13,7 @@ const props = defineProps<{ expertise: Expertise }>()
 const emit = defineEmits<{ updated: [expertise: Expertise] }>()
 type Action = 'draft' | 'complete' | 'return' | 'correct'
 type Allocation = { reason_id: string; count: string; comment: string; document_id: string }
-const api = useApi(), session = useSessionStore(), requests = new LatestRequest()
+const api = useApi(), requests = new LatestRequest()
 const action = ref<Action | null>(null), reason = ref(''), saving = ref(false), error = ref<unknown>(null), optionsError = ref<unknown>(null)
 const options = ref<ResultOptions | null>(null), loadingOptions = ref(false), uncertain = ref(false)
 const attempt = ref<{ key: string; body: Record<string, unknown>; endpoint: string } | null>(null)
@@ -22,7 +21,9 @@ const kind = ref<ResultKind | ''>(''), completedOn = ref(''), documentId = ref('
 const questions = ref(''), categorical = ref(''), probable = ref(''), unresolved = ref(''), statisticsComplete = ref(false)
 const sndzReason = ref(''), sndzComment = ref(''), allocations = ref<Allocation[]>([]), allocationsComplete = ref(false), note = ref('')
 const decidedOn = ref(''), returnReason = ref(''), comment = ref(''), initialDraft = ref('')
-const documentForm = ref<InstanceType<typeof BasisDocumentForm> | null>(null)
+const documentForm = ref<InstanceType<typeof DocumentPicker> | null>(null), chosenDocument=ref<BasisDocument|null>(null)
+const pickerId=computed({get:()=>documentId.value==='new'?'':documentId.value,set:(value:string)=>{documentId.value=value}})
+const pickerMode=computed({get:()=>documentId.value==='new'?'new':'existing',set:(value:string)=>{documentId.value=value==='new'?'new':''}})
 const labels: Record<ResultKind, string> = { expert_conclusion: 'Заключение эксперта', research_act: 'Акт исследования', sndz: 'СНДЗ' }
 const numberFields = [{ key: 'questions', label: 'Q — поставленные вопросы', value: questions }, { key: 'categorical', label: 'R — категорические ответы', value: categorical }, { key: 'probable', label: 'S — вероятные ответы', value: probable }, { key: 'unresolved', label: 'T — нерешённые вопросы', value: unresolved }]
 const isReturn = computed(() => action.value === 'return' || (action.value === 'correct' && props.expertise.closure?.kind === 'without_execution'))
@@ -46,7 +47,7 @@ const allDocuments = computed(() => {
   return links.filter((item): item is BasisDocument => Boolean(item && !('restricted' in item))).filter(item => { if (seen.has(item.id)) return false; seen.add(item.id); return true })
 })
 const documents = computed(() => allDocuments.value.filter(item => item.kind === evidenceKind.value))
-const selectedDocument = computed(() => documents.value.find(item => item.id === documentId.value))
+const selectedDocument = computed(() => chosenDocument.value?.id===documentId.value?chosenDocument.value:documents.value.find(item => item.id === documentId.value))
 const availableKinds = computed(() => (options.value?.result_kinds ?? []).filter(item => props.expertise.category_code === '6' ? item.code === 'research_act' : item.code !== 'research_act'))
 function catalog(values: Reference[] | undefined, retained: (Reference | null | undefined)[]) {
   const items = new Map((values ?? []).filter(item => item.is_active).map(item => [item.id, item]))
@@ -102,6 +103,7 @@ function start(value: Action) {
   if (!props.expertise.allowed_actions.includes(actionCodes[value])) return
   action.value = value; error.value = null; reason.value = ''; invalidateAttempt()
   const r = current.value
+  chosenDocument.value=null
   kind.value = r?.kind ?? ''; completedOn.value = r?.completed_on ?? ''; documentId.value = (isReturn.value ? props.expertise.closure?.document : r?.document)?.id ?? ''
   complexity.value = String(r?.complexity_level ?? ''); questions.value = String(r?.questions ?? ''); categorical.value = String(r?.categorical ?? ''); probable.value = String(r?.probable ?? ''); unresolved.value = String(r?.unresolved ?? '')
   statisticsComplete.value = r?.statistics_complete ?? false; sndzReason.value = r?.sndz_reason?.id ?? ''; sndzComment.value = r?.sndz_comment ?? ''; allocationsComplete.value = r?.allocations_complete ?? false; note.value = r?.note ?? ''
@@ -167,7 +169,7 @@ onBeforeUnmount(() => requests.cancel())
           <label>Примечание к результату<textarea v-model="note" name="result_note" rows="2" /></label>
         </template>
         <template v-if="isReturn"><label>Дата решения<input v-model="decidedOn" name="decided_on" type="date" :min="minimumDate" :max="today()" required /></label><label>Причина решения без исполнения<select v-model="returnReason" name="return_reason_id"><option value="">Неизвестна / не определена</option><option v-for="item in returnReasons" :key="item.id" :value="item.id">{{ item.name }}{{ item.is_active ? '' : ' (неактивна, сохранена ранее)' }}</option></select></label><label>Пояснение к решению<textarea v-model="comment" name="return_comment" rows="2" /></label></template>
-        <template v-if="action !== 'complete'"><label>{{ isReturn ? 'Документ решения' : 'Документ результата' }}<select v-model="documentId" name="result_document"><option value="">Не указан</option><option v-if="session.can('documents.upload') && evidenceKind" value="new">Подготовить новый документ</option><option v-for="item in documents" :key="item.id" :value="item.id">{{ item.title || item.id }}{{ item.versions.length ? '' : ' (файл пока не сохранён)' }}</option></select></label><BasisDocumentForm v-if="documentId === 'new'" :key="evidenceKind || 'unknown'" ref="documentForm" :department-id="expertise.department.id" :busy="saving" :kind-options="documentKindOptions" :heading="isReturn ? 'Документ решения' : 'Документ результата'" @changed="invalidateAttempt" /><p class="muted compact">Документ ожидается в составе дела, но его можно прикрепить позднее. Отсутствие файла не запрещает завершение.</p></template>
+        <template v-if="action !== 'complete'"><DocumentPicker v-if="evidenceKind" :key="evidenceKind" ref="documentForm" v-model="pickerId" v-model:mode="pickerMode" name="result_document" :document="selectedDocument" :department-id="expertise.department.id" :busy="saving" :input-locked="recovering" :kinds="[evidenceKind]" :kind-options="documentKindOptions" :heading="isReturn?'Документ решения':'Документ результата'" @selected="chosenDocument=$event" @changed="invalidateAttempt"/><p v-else class="muted compact">Выберите вид результата, чтобы подобрать или добавить документ.</p><p class="muted compact">Документ ожидается в составе дела, но его можно прикрепить позднее. Отсутствие файла не запрещает завершение.</p></template>
         <p v-else class="muted compact">Будет подтверждена текущая сохранённая редакция №{{ current?.number }} с её датой окончания. Пробелы отчёта сохранятся явно.</p>
         <label>Причина / основание<textarea v-model="reason" name="result_reason" required rows="3" /></label>
       </fieldset>

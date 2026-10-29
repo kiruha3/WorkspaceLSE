@@ -3,19 +3,18 @@ import { computed,onBeforeUnmount,ref,watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiError,LatestRequest,useApi } from '../../api/client'
 import type { ClassificationOptions,ClassificationPayload,Expertise,ExpertiseCommandResponse,PreviousConclusionPayload } from '../../api/types'
-import { useSessionStore } from '../../stores/session'
 import { useDirtyGuard } from '../../shared/ui/useDirtyGuard'
 import { useCommandAttempt,type CommandPacket } from '../../shared/ui/useCommandAttempt'
 import ApiMessage from '../../shared/ui/ApiMessage.vue'
-import BasisDocumentForm from '../../shared/BasisDocumentForm.vue'
+import DocumentPicker from '../../shared/DocumentPicker.vue'
 import BasisPreview from '../../shared/BasisPreview.vue'
 import FactHistory from '../../shared/FactHistory.vue'
 const props=defineProps<{expertise:Expertise}>(),emit=defineEmits<{updated:[Expertise]}>()
-const api=useApi(),router=useRouter(),session=useSessionStore(),requests=new LatestRequest()
+const api=useApi(),router=useRouter(),requests=new LatestRequest()
 const details=computed(()=>props.expertise.classification!),editing=ref(false),loading=ref(false),optionsError=ref<unknown>(null),options=ref<ClassificationOptions|null>(null)
 const nature=ref(''),complete=ref(false),reason=ref(''),expectedVersion=ref(0),initial=ref('')
 type Entry={key:string;reference:string;organization_name:string;organization_group:string;same_input_data:string;confirms_previous:string;document_id:string;documentMode:string}
-const entries=ref<Entry[]>([]),documentForms=new Map<string,InstanceType<typeof BasisDocumentForm>>()
+const entries=ref<Entry[]>([]),documentForms=new Map<string,InstanceType<typeof DocumentPicker>>()
 let sequence=0,preparation:{packet:CommandPacket;newDocuments:{key:string;index:number}[]}|null=null
 const natureLabels:Record<string,string>={primary:'Первичная',repeated:'Повторная',additional:'Дополнительная'}
 const groupLabels:Record<string,string>={ministry:'ФБУ СЭУ Минюста России',other_state:'Иные государственные СЭУ России',other:'Иные учреждения, организации и частные эксперты'}
@@ -68,9 +67,7 @@ onBeforeUnmount(()=>requests.cancel())
      <label>Известные реквизиты предыдущего заключения<input v-model="entry.reference" name="previous_reference" maxlength="500" required/></label>
      <div class="form-columns"><label>Название прежнего учреждения<input v-model="entry.organization_name" name="previous_organization_name" maxlength="500"/></label><label>Группа прежнего учреждения<select v-model="entry.organization_group" name="previous_organization_group"><option value="">Неизвестно</option><option v-for="group in options?.organization_groups" :key="group.code" :value="group.code">{{group.name}}</option></select></label></div>
      <div class="form-columns"><label>Исследование по тем же исходным данным<select v-model="entry.same_input_data" name="previous_same_input_data"><option value="">Неизвестно</option><option value="true">Да</option><option value="false">Нет</option></select></label><label>Прежние выводы подтверждены<select v-model="entry.confirms_previous" name="previous_confirms"><option value="">Неизвестно</option><option value="true">Да</option><option value="false">Нет</option></select></label></div>
-     <label>Файл предыдущего заключения<select v-model="entry.documentMode" name="previous_document_mode"><option value="existing">Без файла или существующий документ по ID</option><option v-if="session.can('documents.upload')" value="new">Подкрепить новый документ</option></select></label>
-     <label v-if="entry.documentMode==='existing'">ID существующего документа (необязательно)<input v-model="entry.document_id" name="previous_document_id"/></label>
-     <BasisDocumentForm v-else :ref="el=>{if(el)documentForms.set(entry.key,el as InstanceType<typeof BasisDocumentForm>);else documentForms.delete(entry.key)}" :department-id="expertise.department.id" :busy="busy||uncertain" :kind-options="[{value:'expert_conclusion',label:'Предыдущее заключение эксперта'}]" heading="Предыдущее заключение" saved-note="Связь с работой сохраняется отдельной командой." @changed="reset"/>
+     <DocumentPicker :ref="el=>{if(el)documentForms.set(entry.key,el as InstanceType<typeof DocumentPicker>);else documentForms.delete(entry.key)}" v-model="entry.document_id" v-model:mode="entry.documentMode" name="previous_document_id" :document="details.previous_conclusions.find(item=>item.document_id===entry.document_id)?.document" :department-id="expertise.department.id" :busy="busy||uncertain" :kind-options="[{value:'expert_conclusion',label:'Предыдущее заключение эксперта'}]" heading="Предыдущее заключение (необязательно)" saved-note="Связь с работой сохраняется отдельной командой." @changed="reset"/>
     </article>
     <button data-add-previous type="button" :disabled="entries.length>=100" @click="add">Добавить предыдущее заключение</button>
     <label class="check-line"><input v-model="complete" name="previous_complete" type="checkbox"/>Подтверждаю, что список предыдущих заключений полон</label>

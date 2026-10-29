@@ -2,7 +2,7 @@ import { enableAutoUnmount,flushPromises,mount } from '@vue/test-utils'
 import { afterEach,expect,it,vi } from 'vitest'
 import { ApiClient,apiKey } from '../../api/client'
 import type { Expertise } from '../../api/types'
-import { json,sessionWith } from '../../test/fixtures'
+import { json,page,sessionWith } from '../../test/fixtures'
 import { basis,expertise,testRouter } from '../../test/intakeFixtures'
 import ExpertisePage from './ExpertisePage.vue'
 
@@ -17,12 +17,13 @@ async function open(current=initial,respond?:(write:Write,n:number)=>Response|Pr
   const path=String(input);if(path.endsWith('/csrf/'))return json({csrf_token:'token'})
   if(init?.method==='POST'){const write={path,body:init.body instanceof FormData?init.body:JSON.parse(String(init.body)),key:new Headers(init.headers).get('Idempotency-Key')};writes.push(write);return respond?respond(write,writes.length):json({event:{id:'revision'},expertise:{...work,version:2}})}
   if(path.endsWith('/classification/'))return json({organization_groups:[{code:'ministry',name:'ФБУ СЭУ Минюста России'},{code:'other_state',name:'Иные государственные СЭУ'},{code:'other',name:'Иные организации и частные эксперты'}]})
+  if(path.includes('/documents/?'))return json(page([{...basis,id:'existing-document',kind:'expert_conclusion'}]))
   return json(work)
  })}}});await flushPromises()
  return {wrapper,writes,router,set:(next:Expertise)=>{work=next},refresh:async()=>{await wrapper.findAll('button').find(b=>b.text()==='Обновить серверные сведения')!.trigger('click');await flushPromises()}}
 }
-async function edit(wrapper:Awaited<ReturnType<typeof open>>['wrapper']){await wrapper.get('[data-classification-edit]').trigger('click');await flushPromises();await wrapper.get('[name="classification_reason"]').setValue('Сверено с постановлением')}
-async function add(wrapper:Awaited<ReturnType<typeof open>>['wrapper']){await wrapper.get('[data-add-previous]').trigger('click');await wrapper.get('[name="previous_reference"]').setValue('№ 12 от 2025 г.')}
+async function edit(wrapper:Awaited<ReturnType<typeof open>>['wrapper']){await wrapper.get('[data-classification-edit]').trigger('click');await flushPromises();await wrapper.get('[name="classification_reason"]').setValue('Сверено с постановлением');await flushPromises()}
+async function add(wrapper:Awaited<ReturnType<typeof open>>['wrapper']){await wrapper.get('[data-add-previous]').trigger('click');await wrapper.get('[name="previous_reference"]').setValue('№ 12 от 2025 г.');await flushPromises()}
 it('does not invent primary nature and obeys server readonly even with a client grant',async()=>{
  const {wrapper}=await open({...initial,classification:{...classification,can_edit:false}} as unknown as Expertise)
  expect(wrapper.get('[data-classification-panel]').text()).toContain('Не уточнён');expect(wrapper.find('[data-classification-edit]').exists()).toBe(false)
@@ -55,7 +56,7 @@ it('keeps exact previous document references and renders document-only history c
 it('uploads a previous conclusion once and freezes the complete request after a lost reply',async()=>{
  let calls=0
  const {wrapper,writes}=await open(initial,async w=>{if(w.path==='/api/v1/documents/')return json({...basis,id:'new-document',kind:'expert_conclusion',source_kind:'uploaded_copy',versions:[]});if(w.path.endsWith('/versions/'))return json({id:'file-v1',number:1,file_name:'prior.txt',size:5,content_type:'text/plain',uploaded_at:'2026-10-28T01:00:00Z'});calls++;if(calls===1)throw new TypeError('Lost');return json({event:{id:'same'},expertise:{...initial,version:2}})})
- await edit(wrapper);await wrapper.get('[name="classification_nature"]').setValue('repeated');await add(wrapper);await wrapper.get('[name="previous_document_mode"]').setValue('new')
+ await edit(wrapper);await wrapper.get('[name="classification_nature"]').setValue('repeated');await add(wrapper);await wrapper.get('[data-document-new]').trigger('click')
  await wrapper.get('[name="document_title"]').setValue('Прежнее заключение');await wrapper.get('[name="source_kind"]').setValue('uploaded_copy')
  const input=wrapper.get('[name="basis_file"]');Object.defineProperty(input.element,'files',{value:[new File(['prior'],'prior.txt',{type:'text/plain'})]});await input.trigger('change')
  await wrapper.get('[data-classification-form]').trigger('submit');await flushPromises();expect(wrapper.get('[data-classification-fields]').attributes('disabled')).toBeDefined()

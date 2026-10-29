@@ -3,21 +3,20 @@ import { computed,onBeforeUnmount,ref,watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiError,LatestRequest,useApi } from '../../api/client'
 import type { CaseDetailsOptions,CaseDetailsPayload,Expertise,ExpertiseCommandResponse } from '../../api/types'
-import { useSessionStore } from '../../stores/session'
 import { useDirtyGuard } from '../../shared/ui/useDirtyGuard'
 import { useCommandAttempt,type CommandPacket } from '../../shared/ui/useCommandAttempt'
 import ApiMessage from '../../shared/ui/ApiMessage.vue'
-import BasisDocumentForm from '../../shared/BasisDocumentForm.vue'
+import DocumentPicker from '../../shared/DocumentPicker.vue'
 import BasisPreview from '../../shared/BasisPreview.vue'
 import FactHistory from '../../shared/FactHistory.vue'
 import { caseFields,caseLabels } from '../references/catalogs'
 const props=defineProps<{expertise:Expertise}>(),emit=defineEmits<{updated:[Expertise]}>()
-const api=useApi(),router=useRouter(),session=useSessionStore(),requests=new LatestRequest()
+const api=useApi(),router=useRouter(),requests=new LatestRequest()
 const details=computed(()=>props.expertise.case_details!),editing=ref(false),loading=ref(false),optionsError=ref<unknown>(null),options=ref<CaseDetailsOptions|null>(null)
 const constructionEligible=computed(()=>['16.1','16.2'].includes(props.expertise.specialty?.code??''))
 const text=ref(Object.fromEntries(caseFields.map(([key])=>[key,''])) as Record<typeof caseFields[number][0],string>)
 const authority=ref(''),decree=ref(''),basis=ref(''),documentId=ref(''),documentMode=ref('existing'),reason=ref(''),expectedVersion=ref(0),initial=ref('')
-const documentForm=ref<InstanceType<typeof BasisDocumentForm>|null>(null)
+const documentForm=ref<InstanceType<typeof DocumentPicker>|null>(null)
 let preparation:{packet:CommandPacket;newDocument:boolean}|null=null
 const payload=computed<CaseDetailsPayload>(()=>({...text.value,expected_version:expectedVersion.value,reason:reason.value.trim(),authority_type_id:authority.value||null,decree3214:decree.value===''?null:decree.value==='true',decree_document_id:decree.value==='true'?documentId.value||null:null,decree_basis:decree.value==='true'?basis.value.trim():''}))
 const stamp=computed(()=>JSON.stringify([payload.value,documentMode.value]))
@@ -57,7 +56,7 @@ onBeforeUnmount(()=>requests.cancel())
     <div class="form-columns"><label v-for="[field,label] in caseFields" :key="field">{{label}}<textarea v-if="['case_description','inventory','questions_text','basis_text'].includes(field)" v-model="text[field]" :name="`case_${field}`" rows="3" maxlength="100000"/><input v-else v-model="text[field]" :name="`case_${field}`" :maxlength="field==='case_number'?500:100000"/></label></div>
     <p class="muted compact">Текст вопросов не заменяет числа Q/R/S/T. Реквизиты не заменяют документ-основание поступления. Пустые сведения остаются неизвестными.</p>
     <label v-if="constructionEligible" class="check-label"><input type="checkbox" name="case_decree3214" :checked="decree==='true'" @change="toggleConstruction"/>Самовольное строение <small>Учитывать в графе3214-р. Дополнительный документ и пояснение необязательны.</small></label>
-    <template v-if="constructionEligible&&decree==='true'"><label>Пояснение и реквизиты основания 3214-р (необязательно)<textarea v-model="basis" name="case_decree_basis" rows="2"/></label><label>Подтверждающий документ (необязательно)<select v-model="documentMode" name="case_document_mode"><option value="existing">Существующий документ по ID</option><option v-if="session.can('documents.upload')" value="new">Подкрепить новый документ</option></select></label><label v-if="documentMode==='existing'">ID существующего документа<input v-model="documentId" name="case_document_id"/></label><BasisDocumentForm v-else ref="documentForm" :department-id="expertise.department.id" :busy="busy||uncertain" heading="Основание 3214-р" saved-note="Сведения дела сохраняются отдельно." @changed="reset"/></template>
+    <template v-if="constructionEligible&&decree==='true'"><label>Пояснение и реквизиты основания 3214-р (необязательно)<textarea v-model="basis" name="case_decree_basis" rows="2"/></label><DocumentPicker ref="documentForm" v-model="documentId" v-model:mode="documentMode" name="case_document_id" :document="details.decree_document" :department-id="expertise.department.id" :busy="busy||uncertain" heading="Основание 3214-р (необязательно)" saved-note="Сведения дела сохраняются отдельно." @changed="reset"/></template>
     <label>Основание изменения<textarea v-model="reason" name="case_reason" required rows="2"/></label>
    </fieldset>
    <div class="button-row"><button data-case-submit class="button-primary" :disabled="busy||!uncertain&&(invalid||conflict||loading||!!optionsError||!details.can_edit)" :formnovalidate="uncertain">{{busy?'Сохранение…':uncertain?'Повторить ту же попытку':'Сохранить сведения'}}</button><button type="button" :disabled="busy||uncertain" @click="cancel">Отмена</button></div>

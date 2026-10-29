@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiClient, apiKey } from '../../api/client'
-import { json, sessionWith } from '../../test/fixtures'
+import { json, page, sessionWith } from '../../test/fixtures'
 import { basis, expertise, testRouter } from '../../test/intakeFixtures'
 import ExpertisePage from './ExpertisePage.vue'
 
@@ -17,10 +17,11 @@ type Write = { path: string; body: Record<string, unknown>; raw: string; key: st
 async function open(current: unknown = work, respond?: (write: Write, count: number) => Response | Promise<Response>, evidence?: (path: string, init?: RequestInit) => Response | Promise<Response>) {
   const writes: Write[] = []; let value = current
   const router = await testRouter('/expertises/work-1')
-  const wrapper = mount(ExpertisePage, { global: { plugins: [sessionWith('expertise.view', 'documents.upload', 'expertise.closed.correct'), router], provide: { [apiKey as symbol]: new ApiClient(async (input, init) => {
+  const wrapper = mount(ExpertisePage, { global: { plugins: [sessionWith('expertise.view', 'documents.view', 'documents.upload', 'expertise.closed.correct'), router], provide: { [apiKey as symbol]: new ApiClient(async (input, init) => {
     const path = String(input)
     if (path.endsWith('/csrf/')) return json({ csrf_token: 'csrf' })
     if (path.endsWith('/result-options/')) return json(options)
+    if(path.includes('/documents/?'))return json(page([document,{...document,id:'return-doc',kind:'return_decision'}]))
     if (path.includes('/documents/') && evidence) return evidence(path, init)
     if (init?.method === 'POST') { const write = { path, body: JSON.parse(String(init.body)), raw: String(init.body), key: new Headers(init.headers).get('Idempotency-Key') }; writes.push(write); return respond ? respond(write, writes.length) : json({ event: { id: 'event' }, expertise: { ...withResult, version: 2 } }) }
     return json(value)
@@ -201,7 +202,7 @@ describe('result and closure workflow', () => {
       if (uploads.length === 1) throw new TypeError('Upload lost')
       return json(file, 201)
     })
-    await draft(wrapper); await wrapper.get('[name="result_kind"]').setValue('expert_conclusion'); await wrapper.get('[name="questions"]').setValue('0'); await wrapper.get('[name="result_document"]').setValue('new')
+    await draft(wrapper); await wrapper.get('[name="result_kind"]').setValue('expert_conclusion'); await wrapper.get('[name="questions"]').setValue('0'); await wrapper.get('[data-document-new]').trigger('click')
     await wrapper.get('[name="document_title"]').setValue('Итоговый файл'); await wrapper.get('[name="source_kind"]').setValue('uploaded_copy')
     const scan = new File(['evidence'], 'result.pdf')
     Object.defineProperty(wrapper.get('input[type="file"]').element, 'files', { value: [scan] }); await wrapper.get('input[type="file"]').trigger('change')

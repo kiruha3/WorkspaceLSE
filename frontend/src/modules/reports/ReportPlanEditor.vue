@@ -8,7 +8,7 @@ import {useSessionStore} from '../../stores/session'
 import {useCommandAttempt,type CommandPacket} from '../../shared/ui/useCommandAttempt'
 import {useDirtyGuard} from '../../shared/ui/useDirtyGuard'
 import ApiMessage from '../../shared/ui/ApiMessage.vue'
-import BasisDocumentForm from '../../shared/BasisDocumentForm.vue'
+import DocumentPicker from '../../shared/DocumentPicker.vue'
 import BasisPreview from '../../shared/BasisPreview.vue'
 import FactHistory from '../../shared/FactHistory.vue'
 const props=defineProps<{year:number}>(),api=useApi(),session=useSessionStore(),router=useRouter(),requests=new LatestRequest()
@@ -17,7 +17,7 @@ const canEdit=computed(()=>Boolean(current.value?.can_edit&&canManageReportPlans
 const currentKnownSum=computed(()=>current.value?.lines.reduce((sum,line)=>sum+(line.count??0),0)??0)
 const total=ref<string|number>(''),basis=ref(''),documentId=ref(''),documentMode=ref('existing'),reason=ref(''),expectedVersion=ref(0),initial=ref('')
 type Line={key:number;specialty_id:string;count:string|number}
-const lines=ref<Line[]>([]),documentForm=ref<InstanceType<typeof BasisDocumentForm>|null>(null);let sequence=0
+const lines=ref<Line[]>([]),documentForm=ref<InstanceType<typeof DocumentPicker>|null>(null);let sequence=0
 let preparation:{packet:CommandPacket;newDocument:boolean}|null=null
 // Vue also coerces type=number v-model without an explicit .number modifier.
 const number=(value:string|number)=>String(value).trim()===''?null:Number(value)
@@ -72,8 +72,7 @@ onMounted(()=>void refresh());onBeforeUnmount(()=>requests.cancel())
     <label>Общий годовой план (пусто — неизвестно)<input v-model="total" name="plan_total" type="number" min="0" max="2147483647" step="1"/></label>
     <article v-for="(line,index) in lines" :key="line.key" class="plan-line form-grid"><div class="section-heading"><h3>Специальность {{index+1}}</h3><button data-plan-remove-line type="button" @click="lines.splice(index,1)">Убрать строку</button></div><label>Специальность<select v-model="line.specialty_id" name="plan_specialty_id" required><option value="">Выберите специальность</option><option v-for="specialty in choices" :key="specialty.id" :value="specialty.id">{{specialty.code}} · {{specialty.name}}{{specialty.is_active?'':' (неактивна, использовалась)'}}</option></select></label><label>Годовой объём (пусто — неизвестно)<input v-model="line.count" name="plan_count" type="number" min="0" max="2147483647" step="1"/></label></article>
     <button data-plan-add-line type="button" :disabled="lines.length>=1000" @click="lines.push({key:++sequence,specialty_id:'',count:''})">Добавить специальность</button><p data-plan-balance class="message">Сумма известных строк: {{knownSum}} · Не распределено в известных строках: {{balance===null?'Неизвестно':balance}}. Остальные значения не подставляются автоматически.</p>
-    <label>Основание и реквизиты плана<textarea v-model="basis" name="plan_basis_text" maxlength="100000" rows="3"/></label><label>Документ (необязательно при текстовом основании)<select v-model="documentMode" name="plan_document_mode"><option value="existing">Без файла или существующий документ по ID</option><option v-if="session.can('documents.upload')" value="new">Подкрепить новый документ</option></select></label><label v-if="documentMode==='existing'">ID существующего документа<input v-model="documentId" name="plan_document_id"/></label>
-    <BasisDocumentForm v-else ref="documentForm" department-id="" :busy="busy||uncertain" :kind-options="[{value:'letter',label:'Документ утверждения плана'}]" heading="Документ годового плана" saved-note="План сохраняется отдельно." @changed="reset"/>
+    <label>Основание и реквизиты плана<textarea v-model="basis" name="plan_basis_text" maxlength="100000" rows="3"/></label><DocumentPicker ref="documentForm" v-model="documentId" v-model:mode="documentMode" name="plan_document_id" :document="current.document" department-id="" :busy="busy||uncertain" :kind-options="[{value:'letter',label:'Документ утверждения плана'}]" heading="Документ годового плана (необязательно при текстовом основании)" saved-note="План сохраняется отдельно." @changed="reset"/>
     <label>Основание изменения<textarea v-model="reason" name="plan_reason" maxlength="100000" rows="2" required/></label>
    </fieldset><div class="button-row"><button data-plan-submit class="button-primary" :disabled="busy||!uncertain&&(invalid||conflict||documentForm?.uploadConflict||loading||!!loadError||!canEdit)" :formnovalidate="uncertain">{{busy?'Сохранение…':uncertain?'Повторить ту же попытку':'Сохранить годовой план'}}</button><button type="button" :disabled="busy||uncertain" @click="cancel">Отмена</button></div>
   </form><FactHistory :revisions="current.revisions" :labels="labels" :format-value="historyValue"/>

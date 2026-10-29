@@ -2,7 +2,7 @@ import { enableAutoUnmount,flushPromises,mount } from '@vue/test-utils'
 import { afterEach,expect,it,vi } from 'vitest'
 import { ApiClient,apiKey } from '../../api/client'
 import type { Expertise } from '../../api/types'
-import { json,sessionWith } from '../../test/fixtures'
+import { json,page,sessionWith } from '../../test/fixtures'
 import { basis,expertise,testRouter } from '../../test/intakeFixtures'
 import ExpertisePage from './ExpertisePage.vue'
 enableAutoUnmount(afterEach);afterEach(()=>vi.restoreAllMocks())
@@ -16,11 +16,12 @@ async function open(current=initial,respond?:(write:Write,n:number)=>Response|Pr
   const path=String(input);if(path.endsWith('/csrf/'))return json({csrf_token:'token'})
   if(init?.method==='POST'){const write={path,body:init.body instanceof FormData?init.body:JSON.parse(String(init.body)),key:new Headers(init.headers).get('Idempotency-Key')};writes.push(write);return respond?respond(write,writes.length):json({event:{id:'revision'},expertise:{...work,version:2}})}
   if(path.endsWith('/timing/'))return json({delay_reasons:[reasonRef,{...reasonRef,id:'retained',name:'Ранее использовалась',is_active:false},{...reasonRef,id:'forbidden',name:'Не выбиралась',is_active:false}],retained_reason_ids:['retained'],delay_reason_policy:null})
+  if(path.includes('/documents/?'))return json(page([{...basis,id:'notice-doc',kind:'notification'},{...basis,id:'basis-doc',kind:'deadline_agreement'}]))
   if(path.startsWith('/api/v1/documents/')&&readDocument)return readDocument()
   return json(work)
  })}}});await flushPromises();return {wrapper,writes,router,set:(next:Expertise)=>{work=next},refresh:async()=>{await wrapper.findAll('button').find(b=>b.text()==='Обновить серверные сведения')!.trigger('click');await flushPromises()}}
 }
-async function edit(wrapper:Awaited<ReturnType<typeof open>>['wrapper']){await wrapper.get('[data-timing-edit]').trigger('click');await flushPromises();await wrapper.get('[name="timing_reason"]').setValue('Сверено с документами')}
+async function edit(wrapper:Awaited<ReturnType<typeof open>>['wrapper']){await wrapper.get('[data-timing-edit]').trigger('click');await flushPromises();await wrapper.get('[name="timing_reason"]').setValue('Сверено с документами');await flushPromises()}
 it('shows unknown facts distinctly from no and obeys server readonly',async()=>{
  const {wrapper}=await open({...initial,timing:{...timing,can_edit:false,notification_sent:false}} as unknown as Expertise)
  expect(wrapper.get('[data-timing-panel]').text()).toContain('Неизвестно');expect(wrapper.get('[data-timing-panel]').text()).toContain('Нет');expect(wrapper.find('[data-timing-edit]').exists()).toBe(false)
@@ -45,7 +46,7 @@ it('removes a reason and its primary selection explicitly',async()=>{
 it('uploads evidence once, freezes nested preparation and recovers a lost response then a fresh version',async()=>{
  let commands=0
  const state=await open(initial,async w=>{if(w.path==='/api/v1/documents/')return json({...basis,id:'new-doc',kind:'notification',source_kind:'uploaded_copy',versions:[]});if(w.path.endsWith('/versions/'))return json({id:'file-v1',number:1,file_name:'notice.txt',size:6,content_type:'text/plain',uploaded_at:'2026-10-28T01:00:00Z'});commands++;if(commands===1)throw new TypeError('Lost');return commands===2?json({code:'version_conflict',message:'Изменилась версия'},409):json({event:{id:'saved'},expertise:{...initial,version:3}})})
- const {wrapper,writes}=state;await edit(wrapper);await wrapper.get('[name="timing_notification_sent"]').setValue('true');await wrapper.get('[name="timing_notification_document_mode"]').setValue('new');await wrapper.get('[name="document_title"]').setValue('Подтверждение информирования')
+ const {wrapper,writes}=state;await edit(wrapper);await wrapper.get('[name="timing_notification_sent"]').setValue('true');await wrapper.findAll('[data-document-picker]').find(p=>p.find('[name="timing_notification_document_id"]').exists())!.get('[data-document-new]').trigger('click');await wrapper.get('[name="document_title"]').setValue('Подтверждение информирования')
  await wrapper.get('[name="source_kind"]').setValue('uploaded_copy');const file=new File(['notice'],'notice.txt',{type:'text/plain'}),input=wrapper.get('[name="basis_file"]');Object.defineProperty(input.element,'files',{value:[file]});await input.trigger('change')
  await wrapper.get('[data-timing-form]').trigger('submit');await flushPromises();expect(wrapper.get('[data-timing-fields]').attributes('disabled')).toBeDefined()
  await wrapper.get('[name="timing_reason"]').setValue('Поздний ввод не меняет повтор');await wrapper.get('[data-timing-form]').trigger('submit');await flushPromises();expect(writes[3]).toEqual(writes[2])
@@ -65,7 +66,7 @@ it('reconciles a nested upload conflict without refreshing or changing the work 
   if(w.path.endsWith('/versions/')){uploads++;return uploads===1?json({code:'version_conflict',message:'Документ изменён другим пользователем'},409):json({...prior,id:'my-file',number:2,original_name:'notice.txt',size:6})}
   return json({event:{id:'saved'},expertise:{...initial,version:2}})
  },()=>json({...basis,id:'new-doc',kind:'notification',source_kind:'uploaded_copy',version:2,versions:[prior]}))
- await edit(wrapper);await wrapper.get('[name="timing_notification_sent"]').setValue('true');await wrapper.get('[name="timing_notification_document_mode"]').setValue('new');await wrapper.get('[name="document_title"]').setValue('Подтверждение отправки');await wrapper.get('[name="source_kind"]').setValue('uploaded_copy')
+ await edit(wrapper);await wrapper.get('[name="timing_notification_sent"]').setValue('true');await wrapper.findAll('[data-document-picker]').find(p=>p.find('[name="timing_notification_document_id"]').exists())!.get('[data-document-new]').trigger('click');await wrapper.get('[name="document_title"]').setValue('Подтверждение отправки');await wrapper.get('[name="source_kind"]').setValue('uploaded_copy')
  const input=wrapper.get('[name="basis_file"]');Object.defineProperty(input.element,'files',{value:[new File(['notice'],'notice.txt',{type:'text/plain'})]});await input.trigger('change')
  await wrapper.get('[data-timing-form]').trigger('submit');await flushPromises()
  expect(writes.filter(w=>w.path.endsWith('/timing/'))).toHaveLength(0)

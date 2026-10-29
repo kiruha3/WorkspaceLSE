@@ -56,7 +56,7 @@ it('creates a real document once and freezes the case packet after a lost respon
  let metadataCalls=0
  const {wrapper,writes}=await open(initial,async w=>{if(w.path==='/api/v1/documents/')return json({...basis,id:'new-document'});metadataCalls++;if(metadataCalls===1)throw new TypeError('Lost');return json({event:{id:'same'},expertise:{...initial,version:2}})})
  await edit(wrapper);await wrapper.get('[name="case_decree3214"]').setValue(true);await wrapper.get('[name="case_decree_basis"]').setValue('Явное основание')
- await wrapper.get('[name="case_document_mode"]').setValue('new');await wrapper.get('[name="document_title"]').setValue('Основание 3214')
+ await wrapper.get('[data-document-new]').trigger('click');await wrapper.get('[name="document_title"]').setValue('Основание 3214')
  await wrapper.get('[data-case-form]').trigger('submit');await flushPromises();expect(wrapper.get('[data-case-fields]').attributes('disabled')).toBeDefined()
  await wrapper.get('[name="case_authority_name"]').setValue('Не должно попасть в повтор')
  await wrapper.get('[data-case-form]').trigger('submit');await flushPromises()
