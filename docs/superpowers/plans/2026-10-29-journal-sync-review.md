@@ -32,12 +32,12 @@
 
 **Interfaces:** GET `/imports/<batch>/review/` returns summary plus changed/new/invalid rows with proposals, hashes, version anchors and labelled differences; POST `/imports/<batch>/review/` consumes explicitly selected rows and accepted_fields and returns created_count/updated_count plus applications. Existing full updates omit accepted_fields and retain all old guards.
 
-- [ ] Write tests for nonmutating preview, null-to-known specialty, exact executor matching and ambiguous names.
-- [ ] Observe RED against missing review endpoint.
-- [ ] Implement proposal generation and optional selective updates behind the new review command.
-- [ ] Add tests for manual conflict selection, preservation of unrelated edits, stale/mixed atomicity, no-selection validation, permissions and idempotent replay; observe RED before each new behavior.
-- [ ] Run `backend/.venv/Scripts/python.exe infra/local.py backend -m pytest tests/test_journal_review.py tests/test_journal_updates.py tests/test_journal_application.py -q` on a fresh test DB; expected all pass.
-- [ ] Commit only task files and its spec/plan; preserve unrelated outputs.
+- [x] Write tests for nonmutating preview, null-to-known specialty, exact executor matching and ambiguous names.
+- [x] Observe RED against missing review endpoint.
+- [x] Implement proposal generation and optional selective updates behind the new review command.
+- [x] Add tests for manual conflict selection, preservation of unrelated edits, stale/mixed atomicity, no-selection validation, permissions and idempotent replay; observe RED before each new behavior.
+- [x] Run `backend/.venv/Scripts/python.exe infra/local.py backend -m pytest tests/test_journal_review.py tests/test_journal_updates.py tests/test_journal_application.py -q` on a fresh test DB; expected all pass.
+- [x] Commit only task files and its spec/plan; preserve unrelated outputs.
 
 ### Task 2: Source buttons and owner-operated review page
 
@@ -45,17 +45,17 @@
 
 **Interfaces:** source creation uses existing Google/file preview APIs with action-derived audit reason; created batch opens `/imports/<id>/review`. Page consumes Task 1 schema; confirmed POST contains only selected row anchors and fields, no arbitrary values.
 
-- [ ] Write real-component tests: direct Google/file actions, permissions, review before write, no default selection, explicit conflicts, choosing only nonconflicting fields, frozen retry and stale responses.
-- [ ] Observe RED for missing controls/page; implement minimal components and route.
-- [ ] Run frontend `npm test`, `npm run typecheck`, `npm run build`; expected all exit 0 (existing chunk-size warning may remain).
-- [ ] Run full backend suite once after backend completion, independently of frontend tests; no concurrent DB pytest.
-- [ ] Commit task files, record checks and perform one fresh final review.
+- [x] Write real-component tests: direct Google/file actions, permissions, review before write, no default selection, explicit conflicts, choosing only nonconflicting fields, frozen retry and stale responses.
+- [x] Observe RED for missing controls/page; implement minimal components and route.
+- [x] Run frontend `npm test`, `npm run typecheck`, `npm run build`; expected all exit 0 (existing chunk-size warning may remain).
+- [x] Run full backend suite once after backend completion, independently of frontend tests; no concurrent DB pytest.
+- [x] Commit task files, record checks and perform one fresh final review.
 
 ### Task 3: Runtime handoff
 
 **Files:** update this plan checkboxes and `docs/verification/journal-sync-review-2026-10-29.md`.
 
-- [ ] Reuse Vite; restart only existing Django process if needed to load changed code. No migrations are planned.
-- [ ] Check live preview read-only; verify actual count remains 478 and specialty fields for 470–472 remain unchanged until the owner applies them.
-- [ ] Provide direct review link and explain source/file buttons, acceptance and conflict handling. Do not click application on real data.
-- [ ] Preserve owner-denied .superpowers cleanup; no push or merge.
+- [x] Reuse Vite; restart only existing Django process if needed to load changed code. No migrations are planned.
+- [x] Check live preview read-only; verify actual count remains 478 and specialty fields for 470–472 remain unchanged until the owner applies them. Owner subsequently applied them; confirmed and preserved.
+- [x] Provide direct review link and explain source/file buttons, acceptance and conflict handling. Do not click application on real data.
+- [x] Preserve owner-denied .superpowers cleanup; no push or merge.
