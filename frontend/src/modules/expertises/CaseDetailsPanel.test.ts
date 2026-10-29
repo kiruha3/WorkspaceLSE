@@ -8,7 +8,7 @@ import ExpertisePage from './ExpertisePage.vue'
 enableAutoUnmount(afterEach);afterEach(()=>vi.restoreAllMocks())
 const authority={id:'sk',code:'sk',name:'Следственные органы СК РФ',is_active:true,version:1,report_group:'sk'}
 const details={id:null,source:'history',can_edit:true,edit_permission:'expertise.work.update',authority_type:null,authority_type_raw:'Следственные органы СК РФ',authority_name:'Исходное управление',official:'Следователь',contact:'',case_number:'',case_description:'Описание дела',basis_text:'Постановление',inventory:'Опись',questions_text:'',decree3214:null,decree_document_id:null,decree_document:null,decree_basis:'',revisions:[]}
-const initial={...expertise,allowed_actions:[],case_details:details} as unknown as Expertise
+const initial={...expertise,specialty:{...expertise.specialty,code:'16.1'},allowed_actions:[],case_details:details} as unknown as Expertise
 type Write={path:string;body:any;key:string|null}
 async function open(current=initial,respond?:(write:Write,n:number)=>Response|Promise<Response>){
  let work=current;const writes:Write[]=[],router=await testRouter('/expertises/work-1')
@@ -39,11 +39,18 @@ it('keeps a typed unknown authority unknown instead of restoring source suggesti
  expect((wrapper.get('[name="case_authority_type_id"]').element as HTMLSelectElement).value).toBe('')
  await wrapper.get('[data-case-form]').trigger('submit');await flushPromises();expect(writes[0]!.body.decree3214).toBeNull()
 })
-it('requires actual evidence and explanation for 3214, then sends the selected document',async()=>{
- const {wrapper,writes}=await open();await edit(wrapper);await wrapper.get('[name="case_decree3214"]').setValue('true')
- expect(wrapper.get('[data-case-submit]').attributes('disabled')).toBeDefined()
- await wrapper.get('[name="case_decree_basis"]').setValue('Подтверждено постановлением');await wrapper.get('[name="case_document_id"]').setValue('document-1')
- await wrapper.get('[data-case-form]').trigger('submit');await flushPromises();expect(writes[0]!.body).toMatchObject({decree3214:true,decree_document_id:'document-1',decree_basis:'Подтверждено постановлением'})
+it('marks construction without a mandatory extra file or explanation',async()=>{
+ const {wrapper,writes}=await open();await edit(wrapper)
+ expect(wrapper.get('[name="case_decree3214"]').attributes('type')).toBe('checkbox')
+ await wrapper.get('[name="case_decree3214"]').setValue(true)
+ expect(wrapper.get('[data-case-submit]').attributes('disabled')).toBeUndefined()
+ await wrapper.get('[data-case-form]').trigger('submit');await flushPromises()
+ expect(writes[0]!.body).toMatchObject({decree3214:true,decree_document_id:null,decree_basis:''})
+ expect(wrapper.text()).toContain('Самовольное строение')
+})
+it('does not offer the construction flag for another specialty',async()=>{
+ const {wrapper}=await open({...initial,specialty:{...initial.specialty!,code:'18.1'}})
+ await edit(wrapper);expect(wrapper.find('[name="case_decree3214"]').exists()).toBe(false)
 })
 it('creates a real document once and freezes the case packet after a lost response',async()=>{
  let metadataCalls=0
