@@ -43,7 +43,13 @@ class ExpertiseListView(GenericAPIView):
     def get(self,request):
         scopes=permission_scopes(request.user)
         queryset=expertise_scope_queryset(request.user,"expertise.view",scopes)
-        page=self.paginate_queryset(loaded(filter_registry(queryset,request.query_params)))
+        from .ordering import ordered_registry
+        ordered=ordered_registry(filter_registry(queryset,request.query_params),request.query_params)
+        if isinstance(ordered,list):
+            selected=self.paginate_queryset(ordered)
+            keyed={item.pk:item for item in loaded(Expertise.objects.filter(pk__in=[item.pk for item in selected]))}
+            page=[keyed[item.pk] for item in selected]
+        else:page=self.paginate_queryset(loaded(ordered))
         return self.get_paginated_response(ExpertiseOutput(page,many=True,context={"user":request.user,"scopes":scopes}).data)
 
 

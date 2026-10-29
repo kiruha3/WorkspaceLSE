@@ -38,6 +38,15 @@ class ReconciliationView(GenericAPIView):
         if filters.get("search"):
             term=filters["search"].casefold()
             classified=[item for item in classified if term in " ".join(str(item["row"]["facts"].get(field) or "") for field in ("registration_number","executor_raw","case_description","authority_name")).casefold()]
+        from apps.common.ordering import ordered_rows,ordering_key
+        fields={
+            'number':lambda r:r['row']['facts'].get('registration_number') or r['row']['raw'].get('B'),
+            'classification':lambda r:{'new':'Новая','unchanged':'Совпадает','changed':'Изменена','invalid':'Нужна проверка'}[r['classification']],
+            'department':lambda r:(r['row']['facts'].get('department_code'),(r.get('suggested_specialty') or {}).get('code')),
+            'executor':lambda r:r['row']['facts'].get('executor_raw'),
+            'selection':lambda r:(bool(r.get('selection')),(r.get('selection') or {}).get('version')),
+        }
+        classified=ordered_rows(classified,ordering_key(request.query_params,fields),fields)
         response=self.get_paginated_response(self.paginate_queryset(classified))
         response.data.update(batch_id=str(batch.pk),summary={key:counts[key] for key in ("new","unchanged","changed","invalid")})
         return response

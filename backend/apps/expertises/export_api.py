@@ -20,6 +20,11 @@ class ExpertiseExportView(GenericAPIView):
         issue_material_ids = material_queryset(request.user, 'issue.view', scopes).filter(
             pk__in=queryset.values('material_id')
         ).values_list('pk', flat=True)
+        from django.db.models import Case,When,IntegerField
+        from .ordering import ordered_registry
+        ordered=ordered_registry(queryset,request.query_params)
+        if isinstance(ordered,list) and ordered:
+            queryset=queryset.order_by(Case(*[When(pk=item.pk,then=index) for index,item in enumerate(ordered)],output_field=IntegerField()))
         content = build_journal(queryset, issue_material_ids=issue_material_ids)
         response = HttpResponse(content, content_type=MIME)
         response['Content-Disposition'] = f'attachment; filename="expertises-{timezone.localdate():%Y-%m-%d}.xlsx"'

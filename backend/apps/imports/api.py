@@ -30,8 +30,11 @@ class ImportListView(GenericAPIView):
     def get(self,request):
         require_preview_read(request.user)
         form=BatchFilters(data=request.query_params);form.is_valid(raise_exception=True)
-        page=self.paginate_queryset(ImportBatch.objects.select_related("uploaded_by__employee"))
-        return self.get_paginated_response([batch_data(batch,request.user) for batch in page])
+        from apps.common.ordering import paginated_data
+        return paginated_data(self,request,ImportBatch.objects.select_related("uploaded_by__employee"),lambda rows:[batch_data(batch,request.user) for batch in rows],{
+            'source_name':lambda r:r['source_name'],'row_count':lambda r:r['row_count'],
+            'errors':lambda r:r['summary'].get('error_rows',0),'warnings':lambda r:r['summary'].get('warning_rows',0),'created_at':lambda r:r['created_at'],
+        })
 
 
 class GoogleSourceView(GenericAPIView):
@@ -67,7 +70,12 @@ class ImportRowsView(GenericAPIView):
             rows=rows.filter(Q(raw__B__icontains=search)|Q(facts__registration_number__icontains=search)|Q(facts__executor_raw__icontains=search)|Q(facts__case_description__icontains=search)|Q(facts__authority_name__icontains=search))
         if data.get("severity"):rows=rows.filter(diagnostics__contains=[{"severity":data["severity"]}])
         if data.get("state"):rows=rows.filter(facts__state=None if data["state"]=="unknown" else data["state"])
-        return self.get_paginated_response([row_data(row) for row in self.paginate_queryset(rows)])
+        from apps.common.ordering import paginated_data
+        return paginated_data(self,request,rows,lambda items:[row_data(row) for row in items],{
+            'source_row':lambda r:r['source_row'],'state':lambda r:{'completed':'Завершена','in_progress':'В работе','suspended':'Приостановлена','without_execution':'Без исполнения'}.get(r['facts'].get('state')),
+            'specialty':lambda r:r['facts'].get('specialty_code'),'executor':lambda r:r['facts'].get('executor_raw'),
+            'diagnostics':lambda r:(r['normalization_complete'],len(r['diagnostics'])),
+        })
 
 
 class ImportSourceView(GenericAPIView):

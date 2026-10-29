@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SortableTable from '../../shared/ui/SortableTable.vue'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ApiError, LatestRequest, useApi } from '../../api/client'
@@ -310,7 +311,7 @@ onBeforeUnmount(() => { details.cancel(); hints.cancel() })
             <section v-if="sequenceWarning" ref="sequenceWarningPanel" data-sequence-warning class="message sequence-warning" role="alert" tabindex="-1">
               <h3>{{ isComplex ? 'Номера не по порядку' : 'Номер не по порядку' }}</h3>
               <p>Проверьте очередность за {{ sequenceWarning.year }} год. Вы уверены, что хотите зарегистрировать {{ isComplex ? 'указанные номера' : 'указанный номер' }}?</p>
-              <div class="table-scroll"><table><thead><tr><th>Указано</th><th>По порядку</th></tr></thead><tbody><tr v-for="row in sequenceWarning.rows" :key="row.index"><td>{{ row.entered }}</td><td>{{ row.expected }}</td></tr></tbody></table></div>
+              <div class="table-scroll"><SortableTable :rows="sequenceWarning.rows" :columns="[{key:'entered',label:'Указано'},{key:'expected',label:'По порядку'}]" v-slot="{rows:tableRows}"><tr v-for="row in tableRows" :key="row.index"><td>{{ row.entered }}</td><td>{{ row.expected }}</td></tr></SortableTable></div>
               <div class="button-row"><button type="button" data-edit-sequence :disabled="busy" @click="editSequence">{{ isComplex ? 'Исправить номера' : 'Исправить номер' }}</button><button type="button" data-confirm-sequence class="button-primary" :disabled="busy" @click="register(true)">Да, зарегистрировать</button></div>
             </section>
             <div v-else class="registration-footer"><button class="button-primary" :disabled="busy || fillingNumbers || !registrationReady">{{ busy ? 'Сохранение…' : isComplex ? 'Зарегистрировать все номера' : 'Закрепить номер' }}</button></div>

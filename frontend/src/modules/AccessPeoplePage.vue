@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import SortableTable from '../shared/ui/SortableTable.vue'
+import {orderingParams} from '../shared/ui/tableSorting'
+
 import {computed,inject,onBeforeUnmount,onMounted,ref} from 'vue'
 import {routerKey} from 'vue-router'
 import {LatestRequest,useApi} from '../api/client'
@@ -11,6 +14,8 @@ import EmployeeAccount from './people/EmployeeAccount.vue'
 import EmployeeAccess from './people/EmployeeAccess.vue'
 
 interface Person {id:string;full_name:string;is_active:boolean}
+const ordering=ref('')
+function sortTable(value:string){ordering.value=value;void load(1)}
 const api=useApi(),session=useSessionStore(),requests=new LatestRequest()
 const list=ref<Page<Person>>({count:0,next:null,previous:null,results:[]})
 const selected=ref<Person|null>(null),search=ref(''),page=ref(1),loading=ref(false),error=ref<unknown>(null)
@@ -20,7 +25,7 @@ const busy=computed(()=>saving.value||Boolean(account.value?.busy||access.value?
 const confirmLeave=useDirtyGuard(()=>Boolean((creating.value&&fullName.value)||account.value?.dirty||access.value?.dirty),inject(routerKey,undefined),()=>busy.value)
 async function load(nextPage=page.value){
   page.value=nextPage;loading.value=true;error.value=null
-  try{await requests.run(signal=>api.request<Page<Person>>(`/access/employees/?${new URLSearchParams({search:search.value,page:String(page.value)})}`,{signal}),result=>{list.value=result;loading.value=false})}
+  try{await requests.run(signal=>api.request<Page<Person>>(`/access/employees/?${new URLSearchParams({...orderingParams(ordering.value),search:search.value,page:String(page.value)})}`,{signal}),result=>{list.value=result;loading.value=false})}
   catch(cause){error.value=cause;loading.value=false}
 }
 function back(){
@@ -55,7 +60,7 @@ onBeforeUnmount(()=>requests.cancel())
   <section v-else-if="!selected" class="card">
     <form class="toolbar" @submit.prevent="load(1)"><label class="search-field">Поиск сотрудника<input v-model="search" type="search" /></label><button :disabled="loading">Найти</button></form>
     <ApiMessage :error="error"/><p v-if="loading" class="state">Загрузка каталога…</p>
-    <div v-else class="table-scroll"><table><thead><tr><th>Сотрудник</th><th>Активность</th></tr></thead><tbody><tr v-for="person in list.results" :key="person.id"><td><button class="text-button" :data-open-access="person.id" @click="selected=person">{{person.full_name}}</button></td><td>{{person.is_active?'Активен':'Неактивен'}}</td></tr><tr v-if="!list.results.length"><td colspan="2" class="state">Нет сотрудников по этой выборке.</td></tr></tbody></table></div>
+    <div v-else class="table-scroll"><SortableTable :rows="list.results" :columns='[{"key": "full_name", "label": "Сотрудник"}, {"key": "is_active", "label": "Активность"}]' :ordering="ordering" @update:ordering="sortTable" v-slot="{rows:tableRows}"><tr v-for="person in tableRows" :key="person.id"><td><button class="text-button" :data-open-access="person.id" @click="selected=person">{{person.full_name}}</button></td><td>{{person.is_active?'Активен':'Неактивен'}}</td></tr><tr v-if="!list.results.length"><td colspan="2" class="state">Нет сотрудников по этой выборке.</td></tr></SortableTable></div>
     <PaginationBar :page="page" :count="list.count" :next="Boolean(list.next)" :previous="Boolean(list.previous)" :busy="loading" @change="load"/>
   </section>
   <section v-else :key="selected.id" class="card">

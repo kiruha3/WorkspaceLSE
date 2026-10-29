@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SortableTable from '../../shared/ui/SortableTable.vue'
 import {computed,onBeforeUnmount,onMounted,ref,watch} from 'vue'
 import {useRouter} from 'vue-router'
 import {ApiError,LatestRequest,useApi} from '../../api/client'
@@ -63,7 +64,7 @@ onMounted(()=>void refresh());onBeforeUnmount(()=>requests.cancel())
   <p class="muted">Пустое значение — неизвестно, а не ноль. Общий итог не восстанавливается из неполной разбивки. Изменение плана требует пересчитать15.1 перед скачиванием.</p>
   <div class="plan-totals"><div><small>Общий годовой план</small><strong>{{show(current.total)}}</strong></div><div><small>Известная сумма специальностей</small><strong>{{currentKnownSum}}</strong></div><div><small>Не распределено в известных строках</small><strong>{{current.total===null?'Неизвестно':current.total-currentKnownSum}}</strong></div></div><p class="muted">Строк с неизвестным значением: {{current.lines.filter(line=>line.count===null).length}}. Отсутствующая строка также не подтверждает нулевой план.</p>
   <p>{{current.basis_text||'Основание не указано'}}</p><BasisPreview v-if="current.document" :document="current.document" heading="Документ плана"/>
-  <div data-plan-lines class="table-scroll"><table><thead><tr><th>Специальность</th><th>Годовой объём</th></tr></thead><tbody><tr v-for="line in current.lines" :key="line.id"><td>{{line.specialty.code}} · {{line.specialty.name}}</td><td>{{show(line.count)}}</td></tr></tbody></table><p v-if="!current.lines.length" class="muted">Разбивка по специальностям не задана. Отсутствующие строки не считаются нулевыми.</p></div>
+  <div data-plan-lines class="table-scroll"><SortableTable :rows="current.lines" :columns="[{key:'specialty',label:'Специальность',value:r=>r.specialty.code},{key:'count',label:'Годовой объём'}]" v-slot="{rows:tableRows}"><tr v-for="line in tableRows" :key="line.id"><td>{{line.specialty.code}} · {{line.specialty.name}}</td><td>{{show(line.count)}}</td></tr></SortableTable><p v-if="!current.lines.length" class="muted">Разбивка по специальностям не задана. Отсутствующие строки не считаются нулевыми.</p></div>
   <p v-if="!canEdit" class="muted">Только просмотр. Изменение требует отдельного права «Вести годовые планы госзадания» по учреждению.</p>
   <form v-if="editing" data-plan-form class="inset-form form-grid" @submit.prevent="submit"><ApiMessage :error="error"/>
    <p v-if="uncertain" class="message">Ответ не получен. Повтор отправит ту же попытку с тем же годом, вводом и документом.</p><p v-if="!canEdit" class="message message-error">Право изменения недоступно. Ввод сохранён.</p>

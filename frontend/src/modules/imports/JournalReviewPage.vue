@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SortableTable from '../../shared/ui/SortableTable.vue'
 import { computed,onBeforeUnmount,ref,watch } from 'vue'
 import { RouterLink,useRoute,useRouter } from 'vue-router'
 import { ApiError,LatestRequest,useApi } from '../../api/client'
@@ -106,10 +107,10 @@ onBeforeUnmount(()=>{generation++;requests.cancel()})
    <template v-if="!result"><article v-for="item in data.results" :key="item.row_id" class="review-item" :class="{'review-blocked':!item.eligible}">
     <div class="section-heading"><div><h2>{{item.number}}</h2><p class="muted compact">Строка {{item.source_row}} · {{item.action==='create'?'Новая экспертиза':'Изменения существующей экспертизы'}}</p></div><label v-if="canApply&&item.action==='create'&&item.eligible" class="check-label"><input :data-review-create="item.row_id" type="checkbox" :checked="Object.hasOwn(selected,item.row_id)" :disabled="locked" @change="choose(item,null,($event.target as HTMLInputElement).checked)"/>Добавить экспертизу целиком</label></div>
     <p v-for="blocker in item.blockers" :key="blocker" class="message message-error">{{blocker}}</p>
-    <div class="table-scroll" v-if="item.changes.length"><table><thead><tr><th v-if="canApply&&item.action==='update'">Принять</th><th>Поле</th><th>Сейчас в БД</th><th>Из таблицы</th></tr></thead><tbody><tr v-for="change in item.changes" :key="change.field" :class="{'review-conflict':change.conflict}">
+    <div class="table-scroll" v-if="item.changes.length"><SortableTable :rows="item.changes" :columns="[...(canApply&&item.action==='update'?[{key:'actions',label:'Принять',sortable:false}]:[]),{key:'field',label:'Поле',value:r=>journalFieldLabels[r.field]??r.field},{key:'before',label:'Сейчас в БД',value:r=>r.before_label??journalValue(r.before)},{key:'after',label:'Из таблицы',value:r=>r.after_label??journalValue(r.after)}]" v-slot="{rows:tableRows}"><tr v-for="change in tableRows" :key="change.field" :class="{'review-conflict':change.conflict}">
      <td v-if="canApply&&item.action==='update'"><input v-if="item.eligible" :data-review-field="`${item.row_id}:${change.field}`" type="checkbox" :aria-label="`Принять ${journalFieldLabels[change.field]??change.field} для ${item.number}`" :checked="selected[item.row_id]?.includes(change.field)??false" :disabled="locked" @change="choose(item,change.field,($event.target as HTMLInputElement).checked)"/></td>
      <th>{{journalFieldLabels[change.field]??change.field}}<small v-if="change.conflict" class="conflict-label">Ручное расхождение</small></th><td>{{change.before_label??journalValue(change.before)}}</td><td>{{change.after_label??journalValue(change.after)}}</td>
-    </tr></tbody></table></div>
+    </tr></SortableTable></div>
     <p v-else class="muted">Нет отдельных изменённых полей для принятия.</p>
     <details v-if="item.diagnostics.length"><summary>Замечания к исходной строке · {{item.diagnostics.length}}</summary><p v-for="(diagnostic,index) in item.diagnostics" :key="index" class="muted">{{diagnostic.columns.join(', ')}}: {{diagnostic.message}}</p></details>
     <div class="button-row"><RouterLink v-if="item.work_id&&session.can('expertise.view')" :to="`/expertises/${item.work_id}`">Открыть карточку</RouterLink><RouterLink :to="`/imports/${route.params.id}/reconciliation?search=${encodeURIComponent(item.number)}`">Подробная сверка и сопоставление</RouterLink></div>

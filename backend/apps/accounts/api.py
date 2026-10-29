@@ -26,8 +26,11 @@ class RoleListView(GenericAPIView):
             queryset = queryset.filter(is_active=True)
         if search := request.query_params.get("search","").strip():
             queryset = queryset.filter(Q(name__icontains=search)|Q(description__icontains=search))
-        page = self.paginate_queryset(queryset)
-        return self.get_paginated_response(RoleOutput(page,many=True).data)
+        from apps.common.ordering import paginated_data
+        return paginated_data(self,request,queryset,lambda rows:RoleOutput(rows,many=True).data,{
+            'name':lambda r:r['name'],'assignment_count':lambda r:r['assignment_count'],
+            'is_active':lambda r:('Активна' if r['is_active'] else 'Неактивна',r['version']),
+        })
 
     @transaction.atomic
     def post(self,request):

@@ -15,6 +15,7 @@ class GooglePreviewInput(StrictSerializer):
 
 class BatchFilters(StrictSerializer):
     page=serializers.IntegerField(min_value=1,required=False)
+    ordering=serializers.CharField(max_length=80,allow_blank=True,required=False)
 
 
 class RowFilters(BatchFilters):

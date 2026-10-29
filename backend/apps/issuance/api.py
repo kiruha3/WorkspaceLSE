@@ -20,6 +20,14 @@ from .drafts import create_package, save_package
 from .command_serializers import CheckInput, IssueInput
 from .commands import check_package, issue_material
 
+PACKAGE_SORT={
+    'material':lambda r:r['material']['title'],
+    'works':lambda r:[work['registration_number'] for work in r['works']],
+    'state':lambda r:{'draft':'Черновик','checked':'Проверен','needs_recheck':'Требуется повторная проверка','issued':'Выдано'}.get(r['state']),
+    'readiness':lambda r:'Действует' if r['readiness']['check_current'] else 'Не выполнена или устарела',
+    'issued_on':lambda r:(r.get('issuance') or {}).get('issued_on'),
+}
+
 
 def loaded(queryset=None):
     return (queryset if queryset is not None else IssuePackage.objects.all()).select_related("material", "current_revision", "issuance__method", "issuance__actor__employee", "issuance__evidence_document").prefetch_related(
@@ -65,9 +73,11 @@ class PackageListView(GenericAPIView):
             # These states depend on live file and closure facts, not a stale flag.
             rows = [package_data(package, request.user, scopes) for package in loaded(queryset)]
             rows = [row for row in rows if row["state"] == data["state"]]
+            from apps.common.ordering import ordered_rows,ordering_key
+            rows=ordered_rows(rows,ordering_key(request.query_params,PACKAGE_SORT),PACKAGE_SORT)
             return self.get_paginated_response(self.paginate_queryset(rows))
-        page = self.paginate_queryset(loaded(queryset))
-        return self.get_paginated_response([package_data(package, request.user, scopes) for package in page])
+        from apps.common.ordering import paginated_data
+        return paginated_data(self,request,loaded(queryset),lambda rows:[package_data(package,request.user,scopes) for package in rows],PACKAGE_SORT)
 
 
 class PackageDetailView(GenericAPIView):

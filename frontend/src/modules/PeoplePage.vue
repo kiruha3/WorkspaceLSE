@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import SortableTable from '../shared/ui/SortableTable.vue'
+import {orderingParams} from '../shared/ui/tableSorting'
+
 import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
 import { routerKey } from 'vue-router'
 import { LatestRequest, useApi } from '../api/client'
@@ -9,6 +12,8 @@ import PaginationBar from '../shared/ui/PaginationBar.vue'
 import { useDirtyGuard } from '../shared/ui/useDirtyGuard'
 import EmployeePanel from './people/EmployeePanel.vue'
 
+const ordering=ref('')
+function sortTable(value:string){ordering.value=value;void load(1)}
 const api = useApi(), session = useSessionStore()
 const list = ref<Page<Employee>>({ count: 0, next: null, previous: null, results: [] })
 const search = ref(''), page = ref(1), loading = ref(false), loadingDetail = ref(false)
@@ -21,7 +26,7 @@ const requests = new LatestRequest(), details = new LatestRequest()
 const confirmLeave = useDirtyGuard(() => creating.value && Boolean(fullName.value), inject(routerKey, undefined))
 async function load(nextPage = page.value) {
   page.value = nextPage; loading.value = true; error.value = null
-  try { await requests.run(signal => api.request<Page<Employee>>(`/employees/?${new URLSearchParams({ search: search.value, page: String(page.value) })}`, { signal }), result => { list.value = result; loading.value = false }) }
+  try { await requests.run(signal => api.request<Page<Employee>>(`/employees/?${new URLSearchParams({...orderingParams(ordering.value), search: search.value, page: String(page.value) })}`, { signal }), result => { list.value = result; loading.value = false }) }
   catch (cause) { error.value = cause; loading.value = false }
 }
 async function open(employee: Employee) {
@@ -62,10 +67,10 @@ onBeforeUnmount(() => { requests.cancel(); details.cancel() })
   <section v-if="mode === 'list'" class="card">
     <form class="toolbar" @submit.prevent="load(1)"><label class="search-field">Поиск сотрудников<input v-model="search" type="search" placeholder="Фамилия, имя или отчество" /></label><button :disabled="loading">Найти</button><span class="toolbar-note">Данные в разрешённой области</span></form>
     <ApiMessage :error="error" /><p v-if="loading" class="state" aria-live="polite">Загрузка сотрудников…</p>
-    <div v-else class="table-scroll"><table><thead><tr><th>Сотрудник</th><th>Должности и подразделения</th><th>Полученные специальности</th><th>Обучение</th><th>Состояние</th></tr></thead><tbody>
-      <tr v-for="employee in list.results" :key="employee.id" data-employee-row :class="{ 'row-selected': employee.id === selected?.id }"><td><button class="text-button" :data-open-employee="employee.id" @click="open(employee)">{{ employee.full_name }}</button></td><td><p v-for="assignment in employee.org_assignments" :key="assignment.id" class="cell-line">{{ assignment.position.name }}<small>{{ assignment.department.name }}{{ assignment.valid_to ? ` · до ${assignment.valid_to}` : '' }}</small></p><span v-if="!employee.org_assignments.length" class="muted">Не указаны</span></td><td data-qualified><span v-for="specialty in employee.specialties.filter(s => s.status === 'qualified')" :key="specialty.id" class="badge badge-green" :title="specialty.specialty.name">{{ specialty.specialty.code }}</span><span v-if="!employee.specialties.some(s => s.status === 'qualified')" class="muted">Нет подтверждённых</span><small v-if="employee.specialties.some(s => s.status === 'unknown_legacy')">Есть неподтверждённые сведения</small></td><td data-training><span v-for="specialty in employee.specialties.filter(s => s.status === 'training')" :key="specialty.id" class="badge badge-amber" :title="specialty.specialty.name">{{ specialty.specialty.code }}</span><span v-if="!employee.specialties.some(s => s.status === 'training')" class="muted">Не ведётся</span></td><td><span class="badge" :class="employee.is_active ? 'badge-green' : ''">{{ employee.is_active ? 'Активен' : 'Неактивен' }}</span></td></tr>
+    <div v-else class="table-scroll"><SortableTable :rows="list.results" :columns='[{"key": "full_name", "label": "Сотрудник"}, {"key": "organization", "label": "Должности и подразделения"}, {"key": "specialties", "label": "Полученные специальности"}, {"key": "training", "label": "Обучение"}, {"key": "is_active", "label": "Состояние"}]' :ordering="ordering" @update:ordering="sortTable" v-slot="{rows:tableRows}">
+      <tr v-for="employee in tableRows" :key="employee.id" data-employee-row :class="{ 'row-selected': employee.id === selected?.id }"><td><button class="text-button" :data-open-employee="employee.id" @click="open(employee)">{{ employee.full_name }}</button></td><td><p v-for="assignment in employee.org_assignments" :key="assignment.id" class="cell-line">{{ assignment.position.name }}<small>{{ assignment.department.name }}{{ assignment.valid_to ? ` · до ${assignment.valid_to}` : '' }}</small></p><span v-if="!employee.org_assignments.length" class="muted">Не указаны</span></td><td data-qualified><span v-for="specialty in employee.specialties.filter(s => s.status === 'qualified')" :key="specialty.id" class="badge badge-green" :title="specialty.specialty.name">{{ specialty.specialty.code }}</span><span v-if="!employee.specialties.some(s => s.status === 'qualified')" class="muted">Нет подтверждённых</span><small v-if="employee.specialties.some(s => s.status === 'unknown_legacy')">Есть неподтверждённые сведения</small></td><td data-training><span v-for="specialty in employee.specialties.filter(s => s.status === 'training')" :key="specialty.id" class="badge badge-amber" :title="specialty.specialty.name">{{ specialty.specialty.code }}</span><span v-if="!employee.specialties.some(s => s.status === 'training')" class="muted">Не ведётся</span></td><td><span class="badge" :class="employee.is_active ? 'badge-green' : ''">{{ employee.is_active ? 'Активен' : 'Неактивен' }}</span></td></tr>
       <tr v-if="!list.results.length"><td colspan="5" class="state">Сотрудников по этой выборке нет.</td></tr>
-    </tbody></table></div>
+    </SortableTable></div>
     <PaginationBar :page="page" :count="list.count" :next="Boolean(list.next)" :previous="Boolean(list.previous)" :busy="loading" @change="load" />
   </section>
   <ApiMessage :error="detailError" /><p v-if="loadingDetail" class="state" aria-live="polite">Загрузка карточки…</p>

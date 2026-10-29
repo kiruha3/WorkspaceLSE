@@ -61,8 +61,15 @@ class LetterListView(GenericAPIView):
         if request.query_params.get("control_status"): queryset = filter_control(queryset, request.user, request.query_params["control_status"], scopes)
         if search := request.query_params.get("search", "").strip():
             queryset = queryset.filter(Q(current_revision__subject__icontains=search) | Q(current_revision__sender_name__icontains=search) | Q(current_revision__external_number__icontains=search) | Q(registration__registration_number__icontains=search))
-        page = self.paginate_queryset(loaded(queryset))
-        return self.get_paginated_response([letter_data(item, request.user, scopes) for item in page])
+        from apps.common.ordering import paginated_data
+        return paginated_data(self,request,loaded(queryset),lambda rows:[letter_data(item,request.user,scopes) for item in rows],{
+            'number':lambda r:((r.get('registration') or {}).get('registration_number'),r['content'].get('subject')),
+            'direction':lambda r:('Входящее' if r['direction']=='incoming' else 'Исходящее',(r['content'].get('kind') or {}).get('name')),
+            'registered_on':lambda r:((r.get('registration') or {}).get('registered_on'),r.get('received_on')),
+            'responsible':lambda r:(r.get('responsible') or {}).get('full_name'),
+            'state':lambda r:{'draft':'Черновик','registered':'Зарегистрировано','partially_sent':'Отправлено части адресатов','sent':'Отправлено всем адресатам'}.get(r['state']),
+            'control':lambda r:('Открыт' if (r.get('control') or {}).get('status')=='open' else 'Закрыт',(r.get('control') or {}).get('due_on')) if r.get('control') else None,
+        })
 
     def post(self, request):
         form = LetterCreate(data=request.data); form.is_valid(raise_exception=True)

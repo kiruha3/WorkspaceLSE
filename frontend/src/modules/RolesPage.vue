@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import SortableTable from '../shared/ui/SortableTable.vue'
+import {orderingParams} from '../shared/ui/tableSorting'
+
 import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
 import { routerKey } from 'vue-router'
 import { LatestRequest, useApi } from '../api/client'
@@ -8,6 +11,8 @@ import ApiMessage from '../shared/ui/ApiMessage.vue'
 import PaginationBar from '../shared/ui/PaginationBar.vue'
 import { useDirtyGuard } from '../shared/ui/useDirtyGuard'
 
+const ordering=ref('')
+function sortTable(value:string){ordering.value=value;void load(1)}
 const api = useApi()
 const session = useSessionStore()
 const canManage = computed(() => session.can('access.roles.manage'))
@@ -41,7 +46,7 @@ const differences = computed(() => {
 })
 async function load(nextPage = page.value) {
   page.value = nextPage; loading.value = true; listError.value = null
-  try { await listRequest.run(signal => api.request<Page<Role>>(`/roles/?${new URLSearchParams({ page: String(page.value), search: search.value })}`, { signal }), result => { list.value = result; loading.value = false }) }
+  try { await listRequest.run(signal => api.request<Page<Role>>(`/roles/?${new URLSearchParams({...orderingParams(ordering.value), page: String(page.value), search: search.value })}`, { signal }), result => { list.value = result; loading.value = false }) }
   catch (cause) { listError.value = cause; loading.value = false }
 }
 function edit(role: Role | null) {
@@ -99,10 +104,10 @@ onBeforeUnmount(() => listRequest.cancel())
       <form class="toolbar" @submit.prevent="load(1)"><label class="grow">Поиск ролей<input v-model="search" placeholder="Название или назначение" type="search" /></label><button :disabled="loading">Найти</button></form>
       <ApiMessage :error="listError" />
       <p v-if="loading" class="state" aria-live="polite">Загрузка ролей…</p>
-      <div v-else class="table-scroll"><table><thead><tr><th>Роль</th><th>Назначения</th><th>Состояние</th></tr></thead><tbody>
-        <tr v-for="role in list.results" :key="role.id" class="role-select-row" :class="{ 'row-selected': selected?.id === role.id }" @click="edit(role)"><td><button type="button" class="text-button" :data-role="role.id" @click.stop="edit(role)">{{ role.name }}</button><small>{{ role.description || 'Описание не указано' }}</small></td><td>{{ role.assignment_count }}</td><td><span class="badge" :class="role.is_active ? 'badge-green' : ''">{{ role.is_active ? 'Активна' : 'Неактивна' }}</span><small>Версия {{ role.version }}</small></td></tr>
+      <div v-else class="table-scroll"><SortableTable :rows="list.results" :columns='[{"key": "name", "label": "Роль"}, {"key": "assignment_count", "label": "Назначения"}, {"key": "is_active", "label": "Состояние"}]' :ordering="ordering" @update:ordering="sortTable" v-slot="{rows:tableRows}">
+        <tr v-for="role in tableRows" :key="role.id" class="role-select-row" :class="{ 'row-selected': selected?.id === role.id }" @click="edit(role)"><td><button type="button" class="text-button" :data-role="role.id" @click.stop="edit(role)">{{ role.name }}</button><small>{{ role.description || 'Описание не указано' }}</small></td><td>{{ role.assignment_count }}</td><td><span class="badge" :class="role.is_active ? 'badge-green' : ''">{{ role.is_active ? 'Активна' : 'Неактивна' }}</span><small>Версия {{ role.version }}</small></td></tr>
         <tr v-if="!list.results.length"><td colspan="3" class="state">Ролей по этой выборке нет.</td></tr>
-      </tbody></table></div>
+      </SortableTable></div>
       <PaginationBar :page="page" :count="list.count" :next="Boolean(list.next)" :previous="Boolean(list.previous)" :busy="loading" @change="load" />
     </section>
     <section v-if="editing" class="card editor-pane" aria-label="Редактор роли">

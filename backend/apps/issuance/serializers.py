@@ -35,6 +35,7 @@ class DraftInput(ContentInput):
 
 
 class PackageFilters(StrictSerializer):
+    ordering=serializers.CharField(max_length=80,allow_blank=True,required=False)
     search = serializers.CharField(allow_blank=True, required=False)
     state = serializers.ChoiceField(choices=["draft", "checked", "needs_recheck", "issued"], required=False)
     issued_from = serializers.DateField(required=False)

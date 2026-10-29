@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SortableTable from '../../shared/ui/SortableTable.vue'
 import { computed,onBeforeUnmount,ref,watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiError,useApi } from '../../api/client'
@@ -61,7 +62,7 @@ onBeforeUnmount(()=>{active=false})
    <div class="section-heading"><h3>{{item.row.facts.registration_number}}</h3><label v-if="canApply" class="check-label"><input data-update-row type="checkbox" :aria-label="`Обновить ${item.row.facts.registration_number}`" :checked="Boolean(selected[item.row.id])" :disabled="busy||uncertain||!item.selection||!item.update_preview?.eligible" @change="choose(item,($event.target as HTMLInputElement).checked)"/>В пакет обновления</label></div>
    <p v-if="!item.selection" class="message">Сначала подтвердите новое сопоставление в таблице выше. Прежний выбор — только заготовка.</p>
    <p v-for="blocker in item.update_preview!.blockers" :key="blocker" class="message message-error">{{blocker}}</p>
-   <div class="table-scroll"><table><thead><tr><th>Сведение</th><th>В рабочей базе</th><th>После подтверждения</th></tr></thead><tbody><tr v-for="change in item.update_preview!.changes" :key="change.field"><th>{{labels[change.field]??change.field}}</th><td>{{change.before_label??show(change.field,change.before)}}</td><td>{{change.after_label??show(change.field,change.after)}}</td></tr></tbody></table></div>
+   <div class="table-scroll"><SortableTable :rows="item.update_preview!.changes" :columns="[{key:'field',label:'Сведение',value:r=>labels[r.field]??r.field},{key:'before',label:'В рабочей базе',value:r=>r.before_label??show(r.field,r.before)},{key:'after',label:'После подтверждения',value:r=>r.after_label??show(r.field,r.after)}]" v-slot="{rows:tableRows}"><tr v-for="change in tableRows" :key="change.field"><th>{{labels[change.field]??change.field}}</th><td>{{change.before_label??show(change.field,change.before)}}</td><td>{{change.after_label??show(change.field,change.after)}}</td></tr></SortableTable></div>
    <p v-if="!item.update_preview!.changes.length" class="muted">Изменились сведения источника; типизированные рабочие поля совпадают.</p>
   </article>
   <form v-if="Object.keys(selected).length" data-update-form class="form-grid" @submit.prevent="submit">

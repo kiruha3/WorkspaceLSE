@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import SortableTable from '../../shared/ui/SortableTable.vue'
+import {orderingParams} from '../../shared/ui/tableSorting'
+import {useRouteTableSort} from '../../shared/ui/useRouteTableSort'
+
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LatestRequest, useApi } from '../../api/client'
@@ -7,6 +11,7 @@ import ApiMessage from '../../shared/ui/ApiMessage.vue'
 import PaginationBar from '../../shared/ui/PaginationBar.vue'
 import JournalSyncActions from '../imports/JournalSyncActions.vue'
 import { useSessionStore } from '../../stores/session'
+const {ordering,sortTable}=useRouteTableSort()
 const api = useApi(), route = useRoute(), router = useRouter(), session = useSessionStore(), requests = new LatestRequest(), optionsRequests = new LatestRequest(), downloads = new LatestRequest()
 const filterKeys = ['search', 'department_id', 'specialty_id', 'employee_id', 'received_from', 'received_to', 'state', 'calendar_days_min', 'calendar_days_max'] as const
 const filters = reactive(Object.fromEntries(filterKeys.map(key => [key, String(route.query[key] ?? '')])) as Record<typeof filterKeys[number], string>)
@@ -18,15 +23,16 @@ const page = computed(() => Math.max(1, Number(route.query.page) || 1))
 const stateLabels = { in_progress: 'В производстве', suspended: 'Приостановлена', completed: 'Завершена', without_execution: 'Без исполнения' }
 async function load() {
   loading.value = true; error.value = null
-  const query = new URLSearchParams({ ...Object.fromEntries(filterKeys.filter(key => route.query[key]).map(key => [key, String(route.query[key])])), page: String(page.value) })
+  const query = new URLSearchParams({...orderingParams(ordering.value), ...Object.fromEntries(filterKeys.filter(key => route.query[key]).map(key => [key, String(route.query[key])])), page: String(page.value) })
   try { await requests.run(signal => api.request<Page<Expertise>>(`/expertises/?${query}`, { signal }), result => { list.value = result; loading.value = false }) }
   catch (cause) { error.value = cause; loading.value = false }
 }
-async function filter(nextPage = 1) { await router.replace({ path: '/expertises', query: { ...Object.fromEntries(filterKeys.filter(key => filters[key]).map(key => [key, filters[key]])), page: String(nextPage) } }) }
+async function filter(nextPage = 1) { await router.replace({ path: '/expertises', query: {...orderingParams(ordering.value), ...Object.fromEntries(filterKeys.filter(key => filters[key]).map(key => [key, filters[key]])), page: String(nextPage) } }) }
 async function download() {
   if (downloading.value || !canExport.value) return
   downloading.value = true; downloadError.value = null
   const query = new URLSearchParams(Object.fromEntries(filterKeys.filter(key => route.query[key]).map(key => [key, String(route.query[key])])))
+  if(ordering.value)query.set('ordering',ordering.value)
   try {
     await downloads.run(signal => api.download(`/expertises/export.xlsx?${query}`, signal, 'expertises.xlsx'), file => {
       const url = URL.createObjectURL(file.blob), link = document.createElement('a')
@@ -65,8 +71,8 @@ onBeforeUnmount(() => { requests.cancel(); optionsRequests.cancel(); downloads.c
       <button :disabled="loading">Применить</button>
     </form>
     <ApiMessage :error="refsError" /><ApiMessage :error="error" /><p v-if="loading" class="state">Загрузка экспертиз…</p>
-    <div v-else class="table-scroll"><table><thead><tr><th>Номер / материал</th><th>Поступление</th><th>Отдел / специальность</th><th>Текущие исполнители</th><th>Характер / состав</th><th>Состояние</th></tr></thead><tbody>
-      <tr v-for="item in list.results" :key="item.id">
+    <div v-else class="table-scroll"><SortableTable :rows="list.results" :columns='[{"key": "registration_number", "label": "Номер / материал"}, {"key": "received_at", "label": "Поступление"}, {"key": "department", "label": "Отдел / специальность"}, {"key": "executors", "label": "Текущие исполнители"}, {"key": "composition", "label": "Характер / состав"}, {"key": "state", "label": "Состояние"}]' :ordering="ordering" @update:ordering="sortTable" v-slot="{rows:tableRows}">
+      <tr v-for="item in tableRows" :key="item.id">
         <td><RouterLink data-open-expertise :to="{ path: `/expertises/${item.id}`, query: { return: route.fullPath } }"><strong>{{ item.registration_number }}</strong></RouterLink><small v-if="item.material.is_demo" class="badge badge-amber">Учебная запись</small><small>{{ item.material.title || 'Без названия' }}</small><small v-if="item.historical_number">Исторический: {{ item.historical_number }}</small><small v-if="item.origin_kind === 'historical'">Перенос журнала</small></td>
         <td>{{ item.receipt.received_at }}</td>
         <td>{{ item.department.code }} · {{ item.department.name }}<small>{{ item.specialty ? `${item.specialty.code} · ${item.specialty.name}` : 'Специальность не уточнена' }}</small></td>
@@ -75,7 +81,7 @@ onBeforeUnmount(() => { requests.cancel(); optionsRequests.cancel(); downloads.c
         <td><span class="badge" :class="item.state === 'in_progress' ? 'badge-green' : ''">{{ stateLabels[item.state] }}</span></td>
       </tr>
       <tr v-if="!list.results.length"><td colspan="6" class="state">Экспертиз по этой выборке нет.</td></tr>
-    </tbody></table></div>
+    </SortableTable></div>
     <PaginationBar :page="page" :count="list.count" :next="Boolean(list.next)" :previous="Boolean(list.previous)" :busy="loading" @change="filter" />
   </section>
 </template>

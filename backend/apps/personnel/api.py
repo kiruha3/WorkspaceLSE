@@ -37,8 +37,14 @@ class EmployeeListView(GenericAPIView):
         queryset = employee_queryset().annotate(current_org=FilteredRelation("org_assignments",condition=current)).filter(scope.query(department_field="current_org__department_id")).distinct()
         if search := request.query_params.get("search","").strip():
             queryset = queryset.filter(full_name__icontains=search)
-        page = self.paginate_queryset(queryset)
-        return self.get_paginated_response(EmployeeOutput(page,many=True).data)
+        from apps.common.ordering import paginated_data
+        return paginated_data(self,request,queryset,lambda rows:EmployeeOutput(rows,many=True).data,{
+            'full_name':lambda r:r['full_name'],
+            'organization':lambda r:sorted((item['position']['name'],item['department']['name']) for item in r['org_assignments']),
+            'specialties':lambda r:sorted(item['specialty']['code'] for item in r['specialties'] if item['status']=='qualified'),
+            'training':lambda r:sorted(item['specialty']['code'] for item in r['specialties'] if item['status']=='training'),
+            'is_active':lambda r:'Активен' if r['is_active'] else 'Неактивен',
+        })
 
     @transaction.atomic
     def post(self,request):
@@ -328,5 +334,7 @@ class AccessEmployeeDirectoryView(GenericAPIView):
         queryset = Employee.objects.all()
         if search := request.query_params.get("search","").strip():
             queryset = queryset.filter(full_name__icontains=search)
-        page = self.paginate_queryset(queryset)
-        return self.get_paginated_response([{"id":str(item.id),"full_name":item.full_name,"is_active":item.is_active} for item in page])
+        from apps.common.ordering import paginated_data
+        return paginated_data(self,request,queryset,lambda rows:[{"id":str(item.id),"full_name":item.full_name,"is_active":item.is_active} for item in rows],{
+            'full_name':lambda r:r['full_name'],'is_active':lambda r:'Активен' if r['is_active'] else 'Неактивен',
+        })

@@ -89,8 +89,10 @@ class ReferenceListView(GenericAPIView):
             if value not in ("true","false"):
                 raise ValidationError({"is_active":"Ожидается true или false."})
             queryset = queryset.filter(is_active=value=="true")
-        page = self.paginate_queryset(queryset)
-        return self.get_paginated_response([reference_data(obj) for obj in page])
+        from apps.common.ordering import paginated_data
+        return paginated_data(self,request,queryset,lambda rows:[reference_data(obj) for obj in rows],{
+            'code':lambda r:r['code'],'name':lambda r:r['name'],'is_active':lambda r:'Активна' if r['is_active'] else 'Неактивна',
+        })
 
     @transaction.atomic
     def post(self,request,catalog):

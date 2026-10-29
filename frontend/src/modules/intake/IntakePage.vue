@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import SortableTable from '../../shared/ui/SortableTable.vue'
+import {orderingParams} from '../../shared/ui/tableSorting'
+import {useRouteTableSort} from '../../shared/ui/useRouteTableSort'
+
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LatestRequest, useApi } from '../../api/client'
@@ -9,6 +13,7 @@ import PaginationBar from '../../shared/ui/PaginationBar.vue'
 import BasisDocumentForm from '../../shared/BasisDocumentForm.vue'
 import HelpTip from '../../shared/ui/HelpTip.vue'
 import { useDirtyGuard } from '../../shared/ui/useDirtyGuard'
+const {ordering,sortTable}=useRouteTableSort()
 const api = useApi(), session = useSessionStore(), route = useRoute(), router = useRouter()
 const list = ref<Page<Receipt>>({ count: 0, next: null, previous: null, results: [] }), loading = ref(false), error = ref<unknown>(null)
 const search = ref(String(route.query.search ?? '')), page = computed(() => Math.max(1, Number(route.query.page) || 1))
@@ -20,10 +25,10 @@ const dirty = computed(() => creating.value && !saved.value && Boolean(receivedA
 const confirmLeave = useDirtyGuard(() => dirty.value || saving.value, router)
 async function load() {
   loading.value = true; error.value = null
-  try { await requests.run(signal => api.request<Page<Receipt>>(`/receipts/?${new URLSearchParams({ search: String(route.query.search ?? ''), page: String(page.value) })}`, { signal }), result => { list.value = result; loading.value = false }) }
+  try { await requests.run(signal => api.request<Page<Receipt>>(`/receipts/?${new URLSearchParams({...orderingParams(ordering.value), search: String(route.query.search ?? ''), page: String(page.value) })}`, { signal }), result => { list.value = result; loading.value = false }) }
   catch (cause) { error.value = cause; loading.value = false }
 }
-async function filter(nextPage = 1) { await router.replace({ path: '/intake', query: { ...(search.value ? { search: search.value } : {}), page: String(nextPage) } }) }
+async function filter(nextPage = 1) { await router.replace({ path: '/intake', query: {...orderingParams(ordering.value), ...(search.value ? { search: search.value } : {}), page: String(nextPage) } }) }
 async function startCreate() {
   creating.value = true; saved.value = false; createError.value = null
   if (!departments.value.length) try { departments.value = await api.allPages<Reference>('/references/departments/') } catch (cause) { referencesError.value = cause }
@@ -66,10 +71,8 @@ onBeforeUnmount(() => requests.cancel())
       <ApiMessage :error="error" />
       <p v-if="loading" class="state">Загрузка поступлений…</p>
       <div v-else class="table-scroll">
-        <table>
-          <thead><tr><th>Поступление</th><th>Отправитель</th><th>Материал</th><th>Основание</th><th>Приёмка</th></tr></thead>
-          <tbody>
-            <tr v-for="item in list.results" :key="item.id">
+        <SortableTable :rows="list.results" :columns='[{"key": "received_at", "label": "Поступление"}, {"key": "sender_name", "label": "Отправитель"}, {"key": "material", "label": "Материал"}, {"key": "basis", "label": "Основание"}, {"key": "status", "label": "Приёмка"}]' :ordering="ordering" @update:ordering="sortTable" v-slot="{rows:tableRows}">
+            <tr v-for="item in tableRows" :key="item.id">
               <td><RouterLink :to="{ path: `/receipts/${item.id}`, query: { return: route.fullPath } }">{{ item.received_at }}</RouterLink><small>№ поступления {{ item.id.slice(0, 8) }}</small></td>
               <td>{{ item.sender_name || 'Не указан' }}</td>
               <td>{{ item.material.title || 'Без названия' }}</td>
@@ -77,8 +80,7 @@ onBeforeUnmount(() => requests.cancel())
               <td><span class="badge" :class="item.status === 'accepted' ? 'badge-green' : 'badge-amber'">{{ item.status === 'historical' ? 'Историческое поступление' : item.status === 'accepted' ? 'Принято' : 'Черновик' }}</span></td>
             </tr>
             <tr v-if="!list.results.length"><td colspan="5" class="state">Поступлений по этой выборке нет.</td></tr>
-          </tbody>
-        </table>
+          </SortableTable>
       </div>
       <PaginationBar :page="page" :count="list.count" :next="Boolean(list.next)" :previous="Boolean(list.previous)" :busy="loading" @change="filter" />
     </section>

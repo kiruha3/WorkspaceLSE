@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SortableTable from './ui/SortableTable.vue'
 import type { FactRevision } from '../api/types'
 defineProps<{revisions:FactRevision[];labels?:Record<string,string>;formatValue?:(key:string,value:unknown)=>string}>()
 function show(value:unknown):string {
@@ -14,5 +15,5 @@ function changed(item:FactRevision){
 }
 const time=(value:string)=>new Intl.DateTimeFormat('ru-RU',{timeZone:'Asia/Krasnoyarsk',dateStyle:'short',timeStyle:'short'}).format(new Date(value))
 </script>
-<template><section class="subsection"><h3>История изменений</h3><details v-for="item in revisions" :key="item.id"><summary>{{item.number?`№${item.number} · `:''}}{{item.actor?.full_name??'Система'}} · {{time(item.created_at)}}</summary><p>{{item.reason||'Основание не указано'}}</p><div class="table-scroll"><table><thead><tr><th>Сведение</th><th>Было</th><th>Стало</th></tr></thead><tbody><tr v-for="change in changed(item)" :key="change.key"><th>{{labels?.[change.key]??change.key}}</th><td>{{formatValue?formatValue(change.key,change.before):show(change.before)}}</td><td>{{formatValue?formatValue(change.key,change.after):show(change.after)}}</td></tr></tbody></table></div></details><p v-if="!revisions.length" class="muted compact">Изменений пока нет.</p></section></template>
+<template><section class="subsection"><h3>История изменений</h3><details v-for="item in revisions" :key="item.id"><summary>{{item.number?`№${item.number} · `:''}}{{item.actor?.full_name??'Система'}} · {{time(item.created_at)}}</summary><p>{{item.reason||'Основание не указано'}}</p><div class="table-scroll"><SortableTable :rows="changed(item)" :columns="[{key:'field',label:'Сведение',value:r=>labels?.[r.key]??r.key},{key:'before',label:'Было',value:r=>formatValue?formatValue(r.key,r.before):show(r.before)},{key:'after',label:'Стало',value:r=>formatValue?formatValue(r.key,r.after):show(r.after)}]" v-slot="{rows:tableRows}"><tr v-for="change in tableRows" :key="change.key"><th>{{labels?.[change.key]??change.key}}</th><td>{{formatValue?formatValue(change.key,change.before):show(change.before)}}</td><td>{{formatValue?formatValue(change.key,change.after):show(change.after)}}</td></tr></SortableTable></div></details><p v-if="!revisions.length" class="muted compact">Изменений пока нет.</p></section></template>
 <style scoped>details{padding:14px 0;border-top:1px solid var(--border)}summary{cursor:pointer;line-height:1.6}td{white-space:pre-wrap;overflow-wrap:anywhere;max-width:420px;vertical-align:top}</style>

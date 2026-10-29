@@ -16,8 +16,12 @@ class ReceiptListView(GenericAPIView):
         if not scope.rules:raise PermissionDenied("Нет права просматривать поступления.")
         queryset=Receipt.objects.filter(scope.query(employee_field="created_by_id",department_field="department_id")).select_related("material","basis_document")
         if search:=request.query_params.get("search","").strip():queryset=queryset.filter(Q(sender_name__icontains=search)|Q(material__title__icontains=search))
-        page=self.paginate_queryset(queryset)
-        return self.get_paginated_response(ReceiptOutput(page,many=True,context={"user":request.user}).data)
+        from apps.common.ordering import paginated_data
+        return paginated_data(self,request,queryset,lambda rows:ReceiptOutput(rows,many=True,context={"user":request.user}).data,{
+            'received_at':lambda r:r['received_at'],'sender_name':lambda r:r['sender_name'],'material':lambda r:r['material']['title'],
+            'basis':lambda r:(r.get('basis_document') or {}).get('title'),
+            'status':lambda r:{'accepted':'Принято','draft':'Черновик','historical':'Историческое поступление'}.get(r['status']),
+        })
 
     def post(self,request):
         serializer=ReceiptCreate(data=request.data);serializer.is_valid(raise_exception=True)

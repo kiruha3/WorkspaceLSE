@@ -7,6 +7,22 @@ import ExpertisesPage from './ExpertisesPage.vue'
 import { useSessionStore } from '../../stores/session'
 
 describe('expertise registry', () => {
+  it('cycles server sorting, resets page and preserves applied filters and return links',async()=>{
+    const paths:string[]=[]
+    const client=new ApiClient(async input=>{const path=String(input);paths.push(path);if(path.includes('filter-options'))return json({employees:[]});return json(page(path.includes('/references/')?[]:[expertise]))})
+    const router=await testRouter('/expertises?page=2&state=in_progress')
+    const wrapper=mount(ExpertisesPage,{global:{plugins:[sessionWith('expertise.view'),router],provide:{[apiKey as symbol]:client}}})
+    await flushPromises()
+    for(const expected of ['registration_number','-registration_number','']){
+      await wrapper.get('[data-sort-column="registration_number"]').trigger('click');await flushPromises()
+      expect(router.currentRoute.value.query.page).toBe('1')
+      expect(router.currentRoute.value.query.ordering??'').toBe(expected)
+      const query=new URL(paths.filter(path=>path.startsWith('/api/v1/expertises/?')).at(-1)!,'http://localhost').searchParams
+      expect(query.get('state')).toBe('in_progress');expect(query.get('ordering')??'').toBe(expected)
+      expect(new URL(wrapper.get('[data-open-expertise]').attributes('href')!,'http://localhost').searchParams.get('return')).toBe(router.currentRoute.value.fullPath)
+    }
+    wrapper.unmount()
+  })
   it('downloads all applied URL filters without pagination only after a click', async () => {
     const downloads: string[] = [], saved: string[] = []
     const createUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:expertises')
@@ -23,7 +39,7 @@ describe('expertise registry', () => {
       if (path.includes('filter-options')) return json({ employees: [] })
       return json(page([]))
     })
-    const router = await testRouter('/expertises?search=151&state=suspended&calendar_days_min=0&calendar_days_max=12&department_id=d-4&specialty_id=s-1&employee_id=e-1&received_from=2026-01-01&received_to=2026-12-31&page=2&page_size=1')
+    const router = await testRouter('/expertises?search=151&state=suspended&calendar_days_min=0&calendar_days_max=12&department_id=d-4&specialty_id=s-1&employee_id=e-1&received_from=2026-01-01&received_to=2026-12-31&ordering=-registration_number&page=2&page_size=1')
     const wrapper = mount(ExpertisesPage, { global: { plugins: [sessionWith('expertise.view','expertise.export'),router], provide: { [apiKey as symbol]:client } } })
     try {
       await flushPromises(); expect(downloads).toEqual([])
@@ -31,7 +47,7 @@ describe('expertise registry', () => {
       await wrapper.get('[data-export-expertises]').trigger('click'); await flushPromises()
       expect(downloads).toHaveLength(1)
       const query = new URL(downloads[0]!, 'http://localhost').searchParams
-      expect(Object.fromEntries(query)).toEqual({ search:'151', state:'suspended', calendar_days_min:'0', calendar_days_max:'12', department_id:'d-4', specialty_id:'s-1', employee_id:'e-1', received_from:'2026-01-01', received_to:'2026-12-31' })
+      expect(Object.fromEntries(query)).toEqual({ search:'151', state:'suspended', calendar_days_min:'0', calendar_days_max:'12', department_id:'d-4', specialty_id:'s-1', employee_id:'e-1', received_from:'2026-01-01', received_to:'2026-12-31',ordering:'-registration_number' })
       expect(saved).toEqual(['expertises-2026-10-29.xlsx'])
       expect(createUrl).toHaveBeenCalledOnce()
     } finally { wrapper.unmount(); vi.restoreAllMocks() }
