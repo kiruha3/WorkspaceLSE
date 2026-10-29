@@ -147,23 +147,42 @@ describe('manual expertise registration', () => {
     wrapper.unmount()
   })
 
-  it('keeps a late number hint from replacing the selected department hint', async () => {
+  it('keeps a late number hint from replacing the selected year hint', async () => {
     let resolveOld!: (value: Response) => void
     const oldHint = new Promise<Response>(resolve => { resolveOld = resolve })
     const client = new ApiClient(async input => {
       const path = String(input)
       if (path.includes('/references/')) return json(page(path.includes('departments') ? [department, { ...department, id: 'd-3', code: '3', name: 'Отдел 3' }] : [specialty]))
-      if (path.includes('number-hint')) return path.includes('d-4') ? oldHint : json({ last_number: '40/3-2-26' })
+      if (path.includes('number-hint')) return path.includes('year=2026') ? oldHint : json({ last_number: '40/3-2-27', next_sequence: 41 })
       if (path.includes('/complex-groups/')) return json(page([]))
       return json(receipt)
     })
     const router = await testRouter('/receipts/receipt-1')
     const wrapper = mount(ReceiptPage, { global: { plugins: [sessionWith('receipts.view', 'expertise.register'), router], provide: { [apiKey as symbol]: client } } })
     await flushPromises()
-    await wrapper.get('[name="department_id"]').setValue('d-3'); await flushPromises()
-    resolveOld(json({ last_number: '150/4-1-26' })); await flushPromises()
-    expect(wrapper.text()).toContain('40/3-2-26')
+    await wrapper.get('[name="hint_year"]').setValue('2027'); await flushPromises()
+    resolveOld(json({ last_number: '150/4-1-26', next_sequence: 151 })); await flushPromises()
+    expect(wrapper.text()).toContain('40/3-2-27')
     expect(wrapper.text()).not.toContain('150/4-1-26')
+    expect((wrapper.get('[name="registration_number"]').element as HTMLInputElement).value).toBe('')
+    wrapper.unmount()
+  })
+
+  it('shows the institution-wide next sequence without filling the manual number', async () => {
+    const client = new ApiClient(async input => {
+      const path = String(input)
+      if (path.includes('/references/')) return json(page(path.includes('departments') ? [department, { ...department, id: 'd-3', code: '3', name: 'Отдел 3' }] : [specialty]))
+      if (path.includes('number-hint')) return json({ last_number: '482/4-1-26', next_sequence: 483 })
+      if (path.includes('/complex-groups/')) return json(page([]))
+      return json(receipt)
+    })
+    const router = await testRouter('/receipts/receipt-1')
+    const wrapper = mount(ReceiptPage, { global: { plugins: [sessionWith('receipts.view', 'expertise.register'), router], provide: { [apiKey as symbol]: client } } })
+    await flushPromises()
+    expect(wrapper.get('[data-next-sequence]').text()).toContain('483')
+    await wrapper.get('[name="department_id"]').setValue('d-3'); await flushPromises()
+    expect(wrapper.get('[data-next-sequence]').text()).toContain('483')
+    expect(wrapper.text()).toContain('482/4-1-26')
     expect((wrapper.get('[name="registration_number"]').element as HTMLInputElement).value).toBe('')
     wrapper.unmount()
   })

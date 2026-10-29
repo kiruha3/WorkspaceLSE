@@ -90,8 +90,10 @@ class NumberHintView(GenericAPIView):
         form=Input(data=request.query_params);form.is_valid(raise_exception=True);data=form.validated_data
         require(request.user,"expertise.register",department_ids=[data["department_id"]])
         get_object_or_404(Department,pk=data["department_id"],is_active=True)
-        last=Expertise.objects.filter(department_id=data["department_id"],year=data["year"]).order_by("-sequence","id").first()
-        return Response({"last_number":last.registration_number if last else None})
+        # One yearly sequence for the institution; the selected department only
+        # determines registration authority, not a separate numbering series.
+        last=Expertise.objects.filter(year=data["year"],material__is_demo=False).order_by("-sequence","id").first()
+        return Response({"last_number":last.registration_number if last else None,"next_sequence":last.sequence+1 if last else 1})
 
 
 class FilterOptionsView(GenericAPIView):

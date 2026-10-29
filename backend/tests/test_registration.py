@@ -117,9 +117,40 @@ def test_hint_is_only_last_number_and_does_not_reserve(employee_factory, grant):
     client, _, receipt, department, _, data = registration_setup(employee_factory, grant)
     assert register(client, receipt, data).status_code == 201
     url = f"/api/v1/expertises/number-hint/?department_id={department.id}&year=2026"
-    assert client.get(url).json() == {"last_number":"151/3-1-26"}
-    assert client.get(url).json() == {"last_number":"151/3-1-26"}
+    assert client.get(url).json() == {"last_number":"151/3-1-26","next_sequence":152}
+    assert client.get(url).json() == {"last_number":"151/3-1-26","next_sequence":152}
     assert client.get("/api/v1/expertises/").json()["count"] == 1
+
+
+def test_hint_uses_institution_year_maximum_across_departments_and_categories(employee_factory, grant):
+    from apps.expertises.models import Expertise
+    from apps.intake.models import Material
+    client, employee, receipt, department, _, data = registration_setup(employee_factory, grant)
+    assert register(client, receipt, data).status_code == 201
+    other = Department.objects.create(code="4", name="Отдел 4")
+    for number in ("482/4-6-26", "999/4-1-25", "900001/4-1-26"):
+        response = register(client, receipt, {**data, "department_id":str(other.id), "registration_number":number})
+        assert response.status_code == 201
+        if number.startswith("900001/"):
+            demo_material=Material.objects.create(title="Учебный материал",is_demo=True,created_by=employee)
+            Expertise.objects.filter(pk=response.json()["id"]).update(material=demo_material)
+    # Insertion order must not override the greatest sequence for this year.
+    assert register(client, receipt, {**data,"registration_number":"2/3-2-26"}).status_code == 201
+    for selected in (department, other):
+        response=client.get(f"/api/v1/expertises/number-hint/?department_id={selected.id}&year=2026")
+        assert response.status_code == 200
+        assert response.json() == {"last_number":"482/4-6-26","next_sequence":483}
+
+
+def test_empty_year_hint_starts_at_one_and_preserves_department_permission(employee_factory, grant):
+    client, _, _, department, _, _ = registration_setup(employee_factory, grant)
+    reader=employee_factory()
+    grant(reader,"expertise.register","departments",departments=[department])
+    scoped=Client();scoped.force_login(reader.user)
+    url=f"/api/v1/expertises/number-hint/?department_id={department.id}&year=2027"
+    assert scoped.get(url).json() == {"last_number":None,"next_sequence":1}
+    other=Department.objects.create(code="4",name="Отдел 4")
+    assert scoped.get(f"/api/v1/expertises/number-hint/?department_id={other.id}&year=2027").status_code == 403
 
 
 def test_scopes_filter_before_pagination_and_do_not_broaden_registration(employee_factory, grant):
