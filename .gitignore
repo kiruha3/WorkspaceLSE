@@ -13,5 +13,7 @@ dist/
 media/
 backups/
 .runtime/
+/.superpowers/
+/outputs/
 *.sqlite3
 *.sqlite3-journal
