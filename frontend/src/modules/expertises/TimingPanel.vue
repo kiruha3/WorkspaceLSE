@@ -70,7 +70,7 @@ function submit(){if(uncertain.value||details.value.can_edit&&!invalid.value&&!c
 onBeforeUnmount(()=>requests.cancel())
 </script>
 <template>
- <section data-timing-panel class="card stack-card"><div class="section-heading"><div><p class="eyebrow">Раздел 3 формы 15.1 · подтверждённые факты</p><h2>Причины длительности и подтверждения срока</h2></div><button v-if="details.can_edit&&!editing" data-timing-edit @click="start">Уточнить сведения о сроках</button></div>
+ <section data-timing-panel class="card stack-card"><div class="section-heading"><div><p class="eyebrow">Раздел 3 формы 15.1 · подтверждённые факты</p><h2>Причины длительности и подтверждения срока</h2></div><button v-if="details.can_edit&&!editing" data-timing-edit @click="start">Редактировать</button></div>
   <p class="muted compact">Запись факта не отправляет письмо, не продлевает срок и не меняет окончание работы. Исходный, запрошенный и согласованный сроки остаются в событиях производства. Календарные дни не подменяют юридическую оценку.</p>
   <dl class="work-facts"><div><dt>Полнота списка причин</dt><dd>{{details.reasons_complete?'Подтверждена':'Не подтверждена'}}</dd></div><div><dt>Основная причина</dt><dd>{{details.reasons.find(e=>e.reason.id===details.primary_reason_id)?.reason.name||'Не указана'}}</dd></div></dl>
   <article v-for="entry in details.reasons" :key="entry.id" class="timing-item"><h3>{{entry.reason.name}}</h3><p>{{entry.comment||'Пояснение не указано'}}</p><BasisPreview v-if="entry.document" :document="entry.document" heading="Подтверждение причины"/></article><p v-if="!details.reasons.length" class="muted">Причины не уточнены. Загруженность и «иные» автоматически не выбираются.</p>

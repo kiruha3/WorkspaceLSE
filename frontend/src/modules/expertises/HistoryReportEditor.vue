@@ -85,7 +85,7 @@ onBeforeUnmount(()=>{active=false;requests.cancel()})
 </script>
 <template>
  <section class="card stack-card" data-history-report-panel>
-  <div class="section-heading"><div><p class="eyebrow">Отчётные сведения старой работы</p><h2>Уточнение без повторного завершения</h2><p class="muted compact">Номер, состояние, фактический отдел и исполнители сохраняются. Это не создание нового заключения или выдачи.</p></div><button v-if="authorized&&!editing" data-history-report-edit @click="start">Уточнить отчётные сведения</button></div>
+  <div class="section-heading"><div><p class="eyebrow">Отчётные сведения старой работы</p><h2>Уточнение без повторного завершения</h2><p class="muted compact">Номер, состояние, фактический отдел и исполнители сохраняются. Это не создание нового заключения или выдачи.</p></div><button v-if="authorized&&!editing" data-history-report-edit @click="start">Редактировать отчётные сведения</button></div>
   <HistoryReportDetails :history="history"/>
   <p v-if="!editing&&!authorized" class="muted compact">Уточнение доступно ответственному пользователю с правом корректировки закрытой работы и подходящей областью доступа.</p>
   <form v-if="editing" data-history-report-form class="inset-form form-grid" @submit.prevent="submit">

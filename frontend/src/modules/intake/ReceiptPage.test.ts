@@ -18,7 +18,7 @@ describe('manual expertise registration', () => {
     const router = await testRouter('/receipts/receipt-1')
     const wrapper = mount(ReceiptPage, { global: { plugins: [sessionWith('receipts.view', 'receipts.amend'), router], provide: { [apiKey as symbol]: client } } })
     await flushPromises()
-    await wrapper.findAll('button').find(b => b.text() === 'Уточнить поступление')!.trigger('click')
+    await wrapper.findAll('button').find(b => b.text() === 'Редактировать поступление')!.trigger('click')
     expect((wrapper.get('form select').element as HTMLSelectElement).value).toBe('d-4')
     await wrapper.get('[name="amend_reason"]').setValue('Уточнение отправителя')
     await wrapper.get('form').trigger('submit'); await flushPromises()
@@ -120,7 +120,7 @@ describe('manual expertise registration', () => {
     const router = await testRouter('/receipts/receipt-1')
     const wrapper = mount(ReceiptPage, { global: { plugins: [sessionWith('receipts.view', 'receipts.amend', 'documents.upload'), router], provide: { [apiKey as symbol]: client } } })
     await flushPromises()
-    const toggle = wrapper.findAll('button').find(button => button.text() === 'Уточнить поступление')!
+    const toggle = wrapper.findAll('button').find(button => button.text() === 'Редактировать поступление')!
     await toggle.trigger('click')
     await wrapper.get('input[type="checkbox"]').setValue(true)
     await wrapper.get('[name="document_title"]').setValue('Несохранённый документ')
@@ -203,7 +203,7 @@ describe('manual expertise registration', () => {
     const router = await testRouter('/receipts/receipt-1')
     const wrapper = mount(ReceiptPage, { global: { plugins: [sessionWith('receipts.view', 'receipts.amend', 'documents.upload'), router], provide: { [apiKey as symbol]: client } } })
     await flushPromises()
-    await wrapper.findAll('button').find(button => button.text() === 'Уточнить поступление')!.trigger('click')
+    await wrapper.findAll('button').find(button => button.text() === 'Редактировать поступление')!.trigger('click')
     await wrapper.get('input[type="checkbox"]').setValue(true)
     await wrapper.get('[name="document_title"]').setValue('Новое основание')
     await wrapper.get('[name="amend_reason"]').setValue('Уточнено основание')
