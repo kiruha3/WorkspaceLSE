@@ -171,11 +171,11 @@ describe('manual expertise registration', () => {
     wrapper.unmount()
   })
 
-  it('shows the institution-wide next sequence without filling the manual number', async () => {
+  it('suggests the next institution number for the selected department and year without replacing manual input', async () => {
     const client = new ApiClient(async input => {
       const path = String(input)
       if (path.includes('/references/')) return json(page(path.includes('departments') ? [department, { ...department, id: 'd-3', code: '3', name: 'Отдел 3' }] : [specialty]))
-      if (path.includes('number-hint')) return json({ last_number: '482/4-1-26', next_sequence: 483 })
+      if (path.includes('number-hint')) return json(path.includes('year=2027') ? { last_number: null, next_sequence: 1 } : { last_number: '482/4-1-26', next_sequence: 483 })
       if (path.includes('/complex-groups/')) return json(page([]))
       return json(receipt)
     })
@@ -183,10 +183,19 @@ describe('manual expertise registration', () => {
     const wrapper = mount(ReceiptPage, { global: { plugins: [sessionWith('receipts.view', 'expertise.register'), router], provide: { [apiKey as symbol]: client } } })
     await flushPromises()
     expect(wrapper.get('[data-next-sequence]').text()).toContain('483')
+    expect(wrapper.get('[name="registration_number"]').attributes('placeholder')).toBe('483/4-…-26')
     await wrapper.get('[name="department_id"]').setValue('d-3'); await flushPromises()
     expect(wrapper.get('[data-next-sequence]').text()).toContain('483')
+    expect(wrapper.get('[name="registration_number"]').attributes('placeholder')).toBe('483/3-…-26')
     expect(wrapper.text()).toContain('482/4-1-26')
     expect((wrapper.get('[name="registration_number"]').element as HTMLInputElement).value).toBe('')
+    await wrapper.get('[name="hint_year"]').setValue('2027'); await flushPromises()
+    expect(wrapper.get('[name="registration_number"]').attributes('placeholder')).toBe('1/3-…-27')
+    await wrapper.get('[name="is_complex"]').setValue(true)
+    expect(wrapper.get('[name="registration_number"]').attributes('placeholder')).toBe('1/3-…-27')
+    await wrapper.get('[name="registration_number"]').setValue('900/3-6-27')
+    await wrapper.get('[name="hint_year"]').setValue('2026'); await flushPromises()
+    expect((wrapper.get('[name="registration_number"]').element as HTMLInputElement).value).toBe('900/3-6-27')
     wrapper.unmount()
   })
 
