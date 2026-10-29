@@ -5,6 +5,7 @@ import { LatestRequest, useApi } from '../../api/client'
 import type { Expertise, Page, Reference } from '../../api/types'
 import ApiMessage from '../../shared/ui/ApiMessage.vue'
 import PaginationBar from '../../shared/ui/PaginationBar.vue'
+import JournalSyncActions from '../imports/JournalSyncActions.vue'
 const api = useApi(), route = useRoute(), router = useRouter(), requests = new LatestRequest(), optionsRequests = new LatestRequest()
 const filterKeys = ['search', 'department_id', 'specialty_id', 'employee_id', 'received_from', 'received_to', 'state', 'calendar_days_min', 'calendar_days_max'] as const
 const filters = reactive(Object.fromEntries(filterKeys.map(key => [key, String(route.query[key] ?? '')])) as Record<typeof filterKeys[number], string>)
@@ -33,6 +34,7 @@ onBeforeUnmount(() => { requests.cancel(); optionsRequests.cancel() })
 </script>
 <template>
   <div class="page-heading"><div><p class="eyebrow">Разрешённая область работ</p><h1>Реестр экспертиз</h1><p class="muted">Номер, специальность и текущий состав исполнителей. Перепоручение сохраняет историю.</p></div></div>
+  <JournalSyncActions/>
   <section class="card">
     <form class="toolbar work-filters" @submit.prevent="filter()">
       <label class="search-field">Поиск<input v-model="filters.search" name="search" type="search" placeholder="Номер или материал" /></label>

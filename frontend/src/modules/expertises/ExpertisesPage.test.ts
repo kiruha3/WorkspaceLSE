@@ -4,8 +4,34 @@ import { ApiClient, apiKey } from '../../api/client'
 import { json, page, sessionWith } from '../../test/fixtures'
 import { department, expertise, specialty, testRouter } from '../../test/intakeFixtures'
 import ExpertisesPage from './ExpertisesPage.vue'
+import { useSessionStore } from '../../stores/session'
 
 describe('expertise registry', () => {
+  it('offers Google and file sync directly and opens review without applying expertise changes', async () => {
+    const writes: { path:string; body:unknown }[] = []
+    const client = new ApiClient(async (input, init) => {
+      const path=String(input)
+      if(path.includes('/csrf/'))return json({csrf_token:'t'})
+      if(path.includes('/google-source/'))return json({configured:true,spreadsheet_id:'source-123456789',gid:'0',sheet_name:'Лист1',label:'Журнал',url:'https://docs.google.com/spreadsheets/d/source-123456789/edit'})
+      if(init?.method==='POST'){writes.push({path,body:JSON.parse(String(init.body))});return json({batch:{id:'fresh-batch'}},201)}
+      return path.includes('filter-options')?json({employees:[]}):json(page([]))
+    })
+    const router=await testRouter('/expertises?state=in_progress&page=2')
+    router.addRoute({path:'/imports/:id/review',component:{template:'<p>Перечень изменений</p>'}})
+    router.addRoute({path:'/imports',component:{template:'<p>Источники</p>'}})
+    const pinia=sessionWith('expertise.view','imports.results.view','imports.preview','imports.reconcile','imports.apply')
+    useSessionStore(pinia).user!.supported_modules=['journal_import_preview','journal_application','journal_google_preview']
+    const wrapper=mount(ExpertisesPage,{global:{plugins:[pinia,router],provide:{[apiKey as symbol]:client}}})
+    await flushPromises()
+    expect(wrapper.find('[data-read-journal-source]').exists()).toBe(true)
+    expect(wrapper.find('[data-upload-journal-file]').exists()).toBe(true)
+    await wrapper.get('[data-read-journal-source]').trigger('click');await flushPromises()
+    expect(writes).toHaveLength(1)
+    expect(writes[0]!.path).toBe('/api/v1/imports/google-preview/')
+    expect(router.currentRoute.value.path).toBe('/imports/fresh-batch/review')
+    expect(router.currentRoute.value.query.return).toBe('/expertises?state=in_progress&page=2')
+    wrapper.unmount()
+  })
   it('labels an explicitly training material without inferring from the title',async()=>{
     const client=new ApiClient(async input=>String(input).includes('/references/')?json(page([])):String(input).includes('filter-options')?json({employees:[]}):json(page([{...expertise,material:{...expertise.material,is_demo:true}}])))
     const router=await testRouter('/expertises')

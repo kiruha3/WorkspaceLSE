@@ -17,6 +17,7 @@ import IssuePackagePage from './modules/issuance/IssuePackagePage.vue'
 import ImportPreviewsPage from './modules/imports/ImportPreviewsPage.vue'
 import ImportPreviewPage from './modules/imports/ImportPreviewPage.vue'
 import ReconciliationPage from './modules/imports/ReconciliationPage.vue'
+import JournalReviewPage from './modules/imports/JournalReviewPage.vue'
 import ReportsPage from './modules/reports/ReportsPage.vue'
 import ReportPlansPage from './modules/reports/ReportPlansPage.vue'
 import {reportPlanReadActions,institutionPermission} from './api/reportPlans'
@@ -45,6 +46,7 @@ export const router = createRouter({
     { path: '/imports', component: ImportPreviewsPage, meta: { permission: 'imports.results.view', supportedModule: 'journal_import_preview', title: 'Источники журнала' } },
     { path: '/imports/:id', component: ImportPreviewPage, meta: { permission: 'imports.results.view', supportedModule: 'journal_import_preview', title: 'Предпросмотр переноса' } },
     { path: '/imports/:id/reconciliation', component: ReconciliationPage, meta: { permission: 'imports.results.view', supportedModule: 'journal_application', title: 'Сверка журнала' } },
+    { path: '/imports/:id/review', component: JournalReviewPage, meta: { permission: 'imports.results.view', supportedModule: 'journal_application', title: 'Принять изменения журнала' } },
     { path: '/access', component: AccessPeoplePage, meta: { permissionsAny: accessDirectoryActions, title: 'Учётные записи' } },
     { path: '/people', component: PeoplePage, meta: { permission: 'employees.view', title: 'Сотрудники' } },
     { path: '/:pathMatch(.*)*', redirect: '/workspace' },
