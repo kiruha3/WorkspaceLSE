@@ -20,6 +20,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='workcasedetails',
-            constraint=models.CheckConstraint(condition=models.Q(('decree3214', True), models.Q(models.Q(('decree3214', False), ('decree3214__isnull', True), _connector='OR'), ('decree_basis', ''), ('decree_document__isnull', True)), _connector='OR'), name='case_decree_has_typed_basis'),
+            constraint=models.CheckConstraint(condition=models.Q(models.Q(('decree3214', True), ('decree3214__isnull', False)), models.Q(models.Q(('decree3214', False), ('decree3214__isnull', True), _connector='OR'), ('decree_basis', ''), ('decree_document__isnull', True)), _connector='OR'), name='case_decree_has_typed_basis'),
         ),
     ]

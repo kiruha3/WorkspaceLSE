@@ -264,7 +264,7 @@ class WorkCaseDetails(models.Model):
 
     class Meta:
         constraints=[models.CheckConstraint(condition=
-            Q(decree3214=True) |
+            Q(decree3214=True,decree3214__isnull=False) |
             (Q(decree3214=False)|Q(decree3214__isnull=True))&Q(decree_document__isnull=True,decree_basis=''),
             name='case_decree_has_typed_basis')]
 

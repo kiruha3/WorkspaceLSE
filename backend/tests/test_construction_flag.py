@@ -90,6 +90,22 @@ def test_unresolved_historical_specialty_rejects_new_mark_without_server_error(e
     assert not WorkCaseDetails.objects.exists() and not CaseDetailsRevision.objects.exists()
 
 
+@pytest.mark.parametrize('marked', [False, None])
+@pytest.mark.parametrize('metadata', ['basis', 'document', 'both'])
+def test_database_rejects_evidence_without_an_explicit_mark(employee_factory, grant, marked, metadata):
+    from django.db import IntegrityError, transaction
+    from apps.documents.models import Document
+    client, actor, receipt, _, _, values = registration_setup(employee_factory, grant)
+    work = Expertise.objects.get(pk=register(client, receipt, values).json()['id'])
+    extra = {}
+    if metadata in ('basis', 'both'):
+        extra['decree_basis'] = 'Без отметки не допускается'
+    if metadata in ('document', 'both'):
+        extra['decree_document'] = Document.objects.create(kind='resolution', source_kind='paper_original', created_by=actor)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        WorkCaseDetails.objects.create(expertise=work, created_by=actor.user, decree3214=marked, **extra)
+
+
 @pytest.mark.parametrize('code,marked,want', [
     ('16.1', True, 1), ('16.2', True, 1), ('16.1', False, 0), ('16.2', None, 0),
     ('18.1', True, 0), ('1.1', None, 0),
