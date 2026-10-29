@@ -4,9 +4,9 @@ from django.utils import timezone
 from rest_framework.exceptions import APIException, ValidationError
 from apps.accounts.commands import execute_once
 from apps.accounts.policies import require, permission_scopes
-from apps.accounts.services import audit, check_version
+from apps.accounts.services import audit, check_version, require_any_scope
 from apps.intake.models import Receipt
-from apps.intake.services import validate_basis
+from apps.intake.services import validate_basis, receipt_context
 from apps.intake.locking import locked_receipt, require_not_issued
 from apps.references.models import Department, Specialty
 from .models import Expertise, ComplexGroup, ExpertAssignment, WorkCaseDetails, CaseDetailsRevision
@@ -18,6 +18,29 @@ class RegistrationConflict(APIException):
     status_code=409
     default_code="registration_conflict"
     default_detail="Этот номер или специальность комплекса уже зарегистрированы. Обновите журнал."
+
+
+@transaction.atomic
+def create_complex_group(*,actor,receipt_id,title,idempotency_key,payload):
+    receipt=get_object_or_404(Receipt,pk=receipt_id)
+    # Recheck authority even when recovering the result of an earlier request.
+    require(actor,"receipts.view",**receipt_context(receipt))
+    require_any_scope(actor,"expertise.register")
+
+    def operation():
+        receipt=locked_receipt(receipt_id)
+        if receipt.status!="accepted":raise ValidationError("Сначала примите поступление.")
+        # The shared material lock also covers requests with different retry
+        # keys and keeps simultaneous clicks from creating duplicate groups.
+        group=ComplexGroup.objects.filter(material=receipt.material,title__iexact=title).order_by("created_at","id").first()
+        if group is None:
+            group=ComplexGroup.objects.create(material=receipt.material,title=title)
+            audit(actor,"complex_group.create",group,{"receipt_id":str(receipt.id)})
+        return {"id":str(group.id),"material_id":str(group.material_id),"title":group.title}
+
+    if idempotency_key is not None:
+        return execute_once(actor=actor,action="complex_group.create",key=idempotency_key,payload=payload,operation=operation)
+    return operation()
 
 
 def register_expertise(*,actor,receipt_id,data,idempotency_key,payload):

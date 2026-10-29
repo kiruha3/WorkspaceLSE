@@ -130,6 +130,7 @@ describe('manual expertise registration', () => {
     wrapper.unmount()
   })
   it('changes receipt cards without carrying the previous department or complex groups', async () => {
+    vi.stubGlobal('confirm', vi.fn(() => true))
     const client = new ApiClient(async input => {
       const path = String(input)
       if (path.includes('/references/')) return json(page(path.includes('departments') ? [department, { ...department, id: 'd-3', code: '3', name: 'Отдел 3' }] : [specialty]))
@@ -140,9 +141,11 @@ describe('manual expertise registration', () => {
     const router = await testRouter('/receipts/receipt-1')
     const wrapper = mount(ReceiptPage, { global: { plugins: [sessionWith('receipts.view', 'expertise.register'), router], provide: { [apiKey as symbol]: client } } })
     await flushPromises()
+    await wrapper.get('[name="is_complex"]').setValue(true)
     expect(wrapper.text()).toContain('Чужая прежняя группа')
     await router.push('/receipts/receipt-2'); await flushPromises()
     expect((wrapper.get('[name="department_id"]').element as HTMLSelectElement).value).toBe('d-3')
+    expect((wrapper.get('[name="is_complex"]').element as HTMLInputElement).checked).toBe(false)
     expect(wrapper.text()).not.toContain('Чужая прежняя группа')
     wrapper.unmount()
   })

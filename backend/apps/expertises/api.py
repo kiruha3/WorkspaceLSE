@@ -13,7 +13,7 @@ from apps.references.models import Department
 from .models import Expertise, ComplexGroup
 from .policies import expertise_scope_queryset, require_work
 from .serializers import RegistrationInput, GroupInput, ExpertiseOutput, AssignmentInput
-from .services import register_expertise, assign_experts, reassign_experts
+from .services import register_expertise, assign_experts, reassign_experts, create_complex_group
 from .query import filter_registry
 
 
@@ -117,10 +117,5 @@ class ComplexGroupView(GenericAPIView):
     @transaction.atomic
     def post(self,request):
         form=GroupInput(data=request.data);form.is_valid(raise_exception=True);data=form.validated_data
-        receipt=data["receipt"]
-        require(request.user,"receipts.view",**receipt_context(receipt))
-        require_any_scope(request.user,"expertise.register")
-        if receipt.status!="accepted":raise ValidationError("Сначала примите поступление.")
-        group=ComplexGroup.objects.create(material=receipt.material,title=data["title"])
-        audit(request.user,"complex_group.create",group,{"receipt_id":str(receipt.id)})
-        return Response({"id":str(group.id),"material_id":str(group.material_id),"title":group.title},status=201)
+        result=create_complex_group(actor=request.user,receipt_id=data["receipt"].id,title=data["title"],idempotency_key=request.headers.get("Idempotency-Key"),payload=request.data)
+        return Response(result,status=201)

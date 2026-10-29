@@ -24,7 +24,7 @@ class RegistrationInput(VersionedSerializer):
 
 class GroupInput(StrictSerializer):
     receipt_id = serializers.PrimaryKeyRelatedField(source="receipt",queryset=Receipt.objects.all())
-    title = serializers.CharField(max_length=300,allow_blank=True,required=False,default="")
+    title = serializers.CharField(max_length=300,error_messages={"required":"Укажите название комплексной экспертизы.","blank":"Укажите название комплексной экспертизы."})
 
 
 class AssignmentInput(VersionedSerializer):

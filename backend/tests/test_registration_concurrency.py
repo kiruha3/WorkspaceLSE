@@ -34,3 +34,27 @@ def test_same_number_concurrent_one_success_one_conflict(employee_factory, grant
     assert Expertise.objects.count() == 1
     assert AuditEvent.objects.filter(action="expertise.register").count() == 1
     if same_key: assert responses[0][1] == responses[1][1]
+
+
+def test_concurrent_creation_of_same_named_complex_group_creates_one_record(employee_factory, grant):
+    from apps.expertises.models import ComplexGroup
+    from apps.audit.models import AuditEvent
+    _, employee, receipt, _, _, _ = registration_setup(employee_factory, grant)
+    barrier=Barrier(2)
+
+    def run(_):
+        close_old_connections()
+        try:
+            client=Client();client.force_login(employee.user)
+            barrier.wait(timeout=10)
+            response=client.post("/api/v1/complex-groups/",{"receipt_id":receipt["id"],"title":"Комплексное исследование"},content_type="application/json",HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()))
+            return response.status_code,response.json()
+        finally:
+            connection.close()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses=list(pool.map(run,range(2)))
+    assert all(status in (200,201) for status,_ in responses)
+    assert responses[0][1]["id"] == responses[1][1]["id"]
+    assert ComplexGroup.objects.count() == 1
+    assert AuditEvent.objects.filter(action="complex_group.create").count() == 1

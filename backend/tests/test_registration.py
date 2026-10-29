@@ -113,6 +113,36 @@ def test_complex_two_specialties_two_numbers_not_per_person(employee_factory, gr
     assert client.get(f"/api/v1/complex-groups/?receipt_id={receipt['id']}").json()["count"] == 1
 
 
+@pytest.mark.parametrize("title", [None, "", "   "])
+def test_complex_group_requires_a_name(employee_factory, grant, title):
+    from apps.expertises.models import ComplexGroup
+    client, _, receipt, _, _, _ = registration_setup(employee_factory, grant)
+    payload={"receipt_id":receipt["id"]}
+    if title is not None:payload["title"]=title
+    response=client.post("/api/v1/complex-groups/",payload,content_type="application/json")
+    assert response.status_code == 400
+    assert ComplexGroup.objects.count() == 0
+
+
+def test_complex_group_retries_and_repeated_clicks_return_one_named_group(employee_factory, grant):
+    from apps.expertises.models import ComplexGroup
+    client, _, receipt, _, _, _ = registration_setup(employee_factory, grant)
+    payload={"receipt_id":receipt["id"],"title":"Исследование по делу № 12"}
+    key=str(uuid.uuid4())
+    first=client.post("/api/v1/complex-groups/",payload,content_type="application/json",HTTP_IDEMPOTENCY_KEY=key)
+    assert first.status_code == 201
+    for request_key in (key,str(uuid.uuid4()),None):
+        headers={"HTTP_IDEMPOTENCY_KEY":request_key} if request_key else {}
+        response=client.post("/api/v1/complex-groups/",payload,content_type="application/json",**headers)
+        assert response.status_code in (200,201)
+        assert response.json()["id"] == first.json()["id"]
+    assert ComplexGroup.objects.count() == 1
+    assert AuditEvent.objects.filter(action="complex_group.create").count() == 1
+    changed=client.post("/api/v1/complex-groups/",{**payload,"title":"Другое исследование"},content_type="application/json",HTTP_IDEMPOTENCY_KEY=key)
+    assert changed.status_code == 409
+    assert ComplexGroup.objects.count() == 1
+
+
 def test_hint_is_only_last_number_and_does_not_reserve(employee_factory, grant):
     client, _, receipt, department, _, data = registration_setup(employee_factory, grant)
     assert register(client, receipt, data).status_code == 201
