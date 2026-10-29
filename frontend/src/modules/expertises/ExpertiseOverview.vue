@@ -13,7 +13,8 @@ const statistics = computed(() => legacy.value ? props.expertise.historical : pr
 const resultLabel = computed(() => {
   const work = props.expertise, kind = legacy.value ? work.historical?.result_kind : work.result?.kind
   if (!kind) return 'Неизвестно'
-  return `${!legacy.value && !work.closure ? 'Черновик · ' : ''}${kinds[kind]}`
+  const accepted = work.closure?.kind === 'completed' && work.closure.result_id === work.result?.id
+  return `${!legacy.value && !accepted ? 'Черновик · ' : ''}${kinds[kind]}`
 })
 const registration = computed(() => {
   const work = props.expertise

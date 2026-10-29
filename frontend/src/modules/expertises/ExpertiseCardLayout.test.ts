@@ -91,6 +91,24 @@ it('does not present a native result draft date as a confirmed ending or issue',
   expect(wrapper.get('[data-overview-result]').text()).toContain('Черновик')
 })
 
+it.each([
+  { kind: 'without_execution' as const, resultId: null, draft: true },
+  { kind: 'completed' as const, resultId: 'older-result', draft: true },
+  { kind: 'completed' as const, resultId: 'latest-result', draft: false },
+])('marks the current result accepted only when a completed closure references it: $kind/$resultId', async ({ kind, resultId, draft }) => {
+  const actor = { id: 'author', full_name: 'Автор результата' }
+  const { wrapper } = await open({ ...expertise, allowed_actions: [], state: kind, closure: {
+    id: 'closure', number: 1, kind, ended_on: '2026-10-28', document: null, result_id: resultId,
+    return_reason: null, comment: '', actor, created_at: '2026-10-28T00:00:00Z', reason: '',
+  }, result: {
+    id: 'latest-result', number: 1, kind: 'expert_conclusion', completed_on: '2026-10-28', document: null,
+    complexity_level: 1, questions: 1, categorical: 1, probable: 0, unresolved: 0, statistics_complete: true,
+    sndz_reason: null, sndz_comment: '', unresolved_allocations: [], allocations_complete: false, note: '', actor,
+    created_at: '2026-10-28T00:00:00Z', reason: '',
+  } })
+  expect(wrapper.get('[data-overview-result]').text().includes('Черновик')).toBe(draft)
+})
+
 it('keeps an edited real form mounted and unsaved when switching tabs', async () => {
   const confirm = vi.spyOn(window, 'confirm')
   const { wrapper, writes } = await open({ ...expertise, case_details: details, allowed_actions: [] })
