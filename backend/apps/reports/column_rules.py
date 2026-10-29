@@ -3,7 +3,7 @@
 Keep the rules version in export fingerprints when these interpretations change.
 No domain reads here: the calculation and explanations share one source snapshot.
 """
-RULES_VERSION='form151-column-rules-v4'
+RULES_VERSION='form151-column-rules-v5'
 
 SOURCE_FIELDS={
  'registry':{
@@ -16,7 +16,7 @@ SOURCE_FIELDS={
   'questions':'Принятый ResultRevision.questions / categorical / probable / unresolved; иначе текущие HistoricalWork.questions / categorical / probable / unresolved',
   'complexity':'Принятый ResultRevision.complexity_level; иначе HistoricalWork.complexity_level',
   'sndz_reason':'Принятый ResultRevision.sndz_reason; иначе HistoricalWork.sndz_reason',
-  'decree':'WorkCaseDetails.decree3214, decree_document и decree_basis — явный признак и основание',
+  'decree':'WorkCaseDetails.decree3214 — отметка «Самовольное строение» для16.1/16.2; документ и пояснение необязательны',
   'allocations':'ResultRevision.unresolved_allocations / HistoricalUnresolvedAllocation, allocations_complete — полное распределение по причинам',
   'nature':'Expertise.appointment_nature — явно подтверждённый характер назначения',
   'previous':'WorkClassification.previous_complete — полнота списка прежних заключений',
@@ -133,7 +133,7 @@ def explanations(mode,*,delay_reason_policy=None):
   add(3,'N','Законченные заключения с явно подтверждённым нарушением установленного или согласованного срока.','ended kind WorkTimingFacts.deadline_breached WorkTimingFacts.breach_basis WorkTimingFacts.breach_document',unknown=['Неизвестная оценка не считается отсутствием нарушения.'],limitations=['Нет ограничения свыше30дней. Календарный срок и отсутствие события согласования автоматически не определяют юридическую оценку.','Используется подтверждённый факт с основанием и документом, а не вручную введённое число отчёта.'])
   for col,meaning in {'G':'Вопросы за пределами специальных знаний эксперта.','H':'Объекты или материалы непригодны / недостаточны и в дополнении отказано.','I':'Современный уровень науки не позволяет ответить.'}.items():
    add(1,col,'Полные СНДЗ по причине: '+meaning,'ended kind sndz_reason',limitations=['Одна структурированная причина полного СНДЗ. Не выводится из надписи «СНДЗ» у нерешённого вопроса.'])
-  add(1,'P','Законченные заключения с явно подтверждённым признаком 3214-р.','ended kind decree',unknown=['Неизвестный признак не считается «нет».'],limitations=['Категории 1 и 5 не подтверждают 3214-р. Нужны отдельный признак и основание.'])
+  add(1,'P','Законченные заключения по16.1/16.2 с отметкой «Самовольное строение».','ended kind decree',limitations=['Учитываются только16.1/16.2 с явной отметкой. Без отметки —0 в этой графе, дополнительный файл и пояснение не обязательны. Категории 1 и 5 не заменяют отметку.'])
   for col,meaning in {'I':'недостаточная разработанность методик','J':'недостаточность материалов','K':'недостаточная информативность объектов','L':'иные причины'}.items():
    add(2,col,'Нерешённые вопросы законченных заключений и исследований по причине: '+meaning+'.','ended kind questions allocations',unit='вопрос',unknown=['Распределение должно быть полным, причины — сопоставлены бланку, сумма распределения равна T.'],limitations=['Считаются количества вопросов, не число строк распределения. Полный СНДЗ не подменяет частично нерешённые вопросы.'])
   repeat_sources='ended kind nature previous'

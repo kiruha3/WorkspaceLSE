@@ -71,15 +71,16 @@ def test_native_authority_and_3214_feed_report_and_real_xlsx(employee_factory,gr
     from test_registration import registration_setup,register
     from apps.reports.xlsx import export_xlsx
     client,actor,receipt,dept,specialty,data=registration_setup(employee_factory,grant);grant(actor,'expertise.work.update');grant(actor,'expertise.closed.correct');grant(actor,'documents.view')
+    specialty.code='16.1';specialty.save()
     work=Expertise.objects.get(pk=register(client,receipt,data).json()['id'])
     doc=Document.objects.create(kind='expert_conclusion',source_kind='paper_original',created_by=actor)
     result=ResultRevision.objects.create(expertise=work,number=1,kind='expert_conclusion',actor=actor.user,reason='Принятый итог',completed_on=date(2026,10,28),document=doc)
     WorkClosure.objects.create(expertise=work,number=1,kind='completed',ended_on=date(2026,10,28),result=result,document=doc,actor=actor.user,reason='Окончание');work.state='completed';work.save()
-    before=calculate_registry(year=2026,month=10);assert value(before,1,'P108') is None
+    before=calculate_registry(year=2026,month=10);assert value(before,1,'P108')==0
     evidence=Document.objects.create(kind='resolution',source_kind='paper_original',created_by=actor)
     response=send(client,work,body(work,authority_type_id=authority(client,work,'sk')['id'],decree3214=True,decree_document_id=str(evidence.pk),decree_basis='ДЕМО · документированное основание3214'));assert response.status_code==200,response.content
     report=calculate_registry(year=2026,month=10)
-    assert value(report,5,'F108')==1 and value(report,5,'G108')==0 and value(report,1,'P108')==1 and value(report,1,'P11')==1
+    assert value(report,5,'F108')==1 and value(report,5,'G108')==0 and value(report,1,'P108')==1 and value(report,1,'P59')==1
     assert value(report,1,'J108')==1 and value(report,1,'K108')==1 and len(report['cells'])==996 and report['data_revision']!=before['data_revision']
     with ZipFile(BytesIO(export_xlsx(report))) as archive:
         root=ET.fromstring(archive.read('xl/worksheets/sheet2.xml'));ns={'s':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
@@ -115,6 +116,7 @@ def test_case_update_scopes_and_unrelated_historical_actor(employee_factory,gran
 
 def test_document_access_is_rechecked_on_replay_and_uploaded_copy_requires_file(employee_factory,grant,settings,tmp_path):
     client,actor,work,_,_,_=setup(employee_factory,grant,settings,tmp_path)
+    work.specialty.code='16.1';work.specialty.save()
     doc=Document.objects.create(kind='other',source_kind='uploaded_copy',created_by=actor)
     data=body(work,decree3214=True,decree_document_id=str(doc.pk),decree_basis='Подтверждено документом')
     assert send(client,work,data).status_code==400
@@ -153,6 +155,7 @@ def test_authority_group_changes_fingerprint_and_old_download_cannot_be_reused(e
 
 def test_case_evidence_is_shared_only_through_the_allowed_work_not_its_creator(employee_factory,grant,settings,tmp_path):
     client,actor,work,history,_,_=setup(employee_factory,grant,settings,tmp_path)
+    work.specialty.code='16.1';work.specialty.save()
     doc=Document.objects.create(kind='other',source_kind='paper_original',created_by=actor)
     unrelated=Document.objects.create(kind='other',source_kind='paper_original',created_by=actor)
     assert send(client,work,body(work,decree3214=True,decree_document_id=str(doc.pk),decree_basis='ДЕМО · подтверждено')).status_code==200

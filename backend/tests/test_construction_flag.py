@@ -66,6 +66,30 @@ def test_edit_flag_without_document_can_be_cleared_with_history_and_version_guar
     assert details['revisions'][1]['before']['decree3214'] is True
 
 
+def test_other_specialty_cannot_be_newly_marked_but_legacy_mark_is_retained(employee_factory, grant):
+    from apps.documents.models import Document
+    client, actor, receipt, _, _, values = registration_setup(employee_factory, grant)
+    work = Expertise.objects.get(pk=register(client, receipt, values).json()['id'])
+    grant(actor, 'expertise.work.update')
+    assert send(client, work, body(work, decree3214=True)).status_code == 400
+    assert not WorkCaseDetails.objects.exists() and not CaseDetailsRevision.objects.exists()
+    evidence = Document.objects.create(kind='resolution', source_kind='paper_original', created_by=actor)
+    WorkCaseDetails.objects.create(expertise=work, created_by=actor.user, decree3214=True,
+                                  decree_document=evidence, decree_basis='Старое основание')
+    grant(actor, 'documents.view')
+    response = send(client, work, body(work, decree3214=True, decree_document_id=str(evidence.pk), decree_basis='Старое основание'))
+    assert response.status_code == 200, response.content
+    assert response.json()['expertise']['case_details']['decree3214'] is True
+
+
+def test_unresolved_historical_specialty_rejects_new_mark_without_server_error(employee_factory, grant, settings, tmp_path):
+    from test_case_details import setup
+    client, _, work, _, _, _ = setup(employee_factory, grant, settings, tmp_path, specialty_known=False)
+    response = send(client, work, body(work, decree3214=True))
+    assert response.status_code == 400
+    assert not WorkCaseDetails.objects.exists() and not CaseDetailsRevision.objects.exists()
+
+
 @pytest.mark.parametrize('code,marked,want', [
     ('16.1', True, 1), ('16.2', True, 1), ('16.1', False, 0), ('16.2', None, 0),
     ('18.1', True, 0), ('1.1', None, 0),

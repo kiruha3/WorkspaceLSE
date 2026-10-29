@@ -104,6 +104,8 @@ def save_case_details(*,actor,expertise_id,data,key,payload):
             raise ValidationError({'decree_document_id':'Сначала подкрепите файл копии документа.'})
     def operation():
         require_case_edit(actor,work);check_version(work,data['expected_version'])
+        if data['decree3214'] is True and getattr(work.specialty,'code',None) not in ('16.1','16.2') and not (details and details.decree3214 is True):
+            raise ValidationError({'decree3214':'Самовольное строение отмечается только для специальностей16.1 и16.2.'})
         # Read the same current profile that was locked, without a stale reverse cache.
         work.case_details=details if details is not None else None
         before=case_snapshot(work)

@@ -9,7 +9,7 @@ from apps.intake.models import Receipt
 from apps.intake.services import validate_basis
 from apps.intake.locking import locked_receipt, require_not_issued
 from apps.references.models import Department, Specialty
-from .models import Expertise, ComplexGroup, ExpertAssignment
+from .models import Expertise, ComplexGroup, ExpertAssignment, WorkCaseDetails, CaseDetailsRevision
 from .numbering import parse_current_number
 from .policies import require_work
 
@@ -35,6 +35,9 @@ def register_expertise(*,actor,receipt_id,data,idempotency_key,payload):
         specialty=get_object_or_404(Specialty.objects.select_for_update(),pk=values["specialty"].id)
         if not department.is_active:raise ValidationError({"department_id":"Отдел неактивен."})
         if not specialty.is_active:raise ValidationError({"specialty_id":"Специальность неактивна."})
+        construction=values.pop('decree3214',None)
+        if construction is True and specialty.code not in ('16.1','16.2'):
+            raise ValidationError({'decree3214':'Самовольное строение отмечается только для специальностей16.1 и16.2.'})
         parsed=parse_current_number(values["registration_number"])
         if parsed.department_code!=department.code:
             raise ValidationError({"department_id":"Отдел не совпадает с текущим регистрационным номером."})
@@ -49,6 +52,13 @@ def register_expertise(*,actor,receipt_id,data,idempotency_key,payload):
         except IntegrityError as exc:
             if getattr(exc.__cause__,"sqlstate",None)=="23505": raise RegistrationConflict() from exc
             raise
+        if construction is not None:
+            from .case_details import case_snapshot
+            before=case_snapshot(work)
+            details=WorkCaseDetails.objects.create(expertise=work,created_by=actor,decree3214=construction)
+            work.case_details=details
+            CaseDetailsRevision.objects.create(details=details,number=1,actor=actor,
+                reason='Отметка при регистрации экспертизы',before=before,after=case_snapshot(work))
         audit(actor,"expertise.register",work,{"registration_number":work.registration_number,"receipt_id":str(receipt.id),"specialty_id":str(specialty.id)})
         from .serializers import ExpertiseOutput
         return ExpertiseOutput(work,context={"user":actor,"scopes":permission_scopes(actor)}).data

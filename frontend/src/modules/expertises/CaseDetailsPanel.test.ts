@@ -21,7 +21,7 @@ async function open(current=initial,respond?:(write:Write,n:number)=>Response|Pr
  })}}});await flushPromises()
  return {wrapper,writes,router,set:(next:Expertise)=>{work=next},refresh:async()=>{await wrapper.findAll('button').find(b=>b.text()==='Обновить серверные сведения')!.trigger('click');await flushPromises()}}
 }
-async function edit(wrapper:Awaited<ReturnType<typeof open>>['wrapper']){await wrapper.get('[data-case-edit]').trigger('click');await flushPromises();await wrapper.get('[name="case_reason"]').setValue('Сверено с делом')}
+async function edit(wrapper:Awaited<ReturnType<typeof open>>['wrapper']){await wrapper.get('[data-card-tab="case"]').trigger('click');await wrapper.get('[data-case-edit]').trigger('click');await flushPromises();await wrapper.get('[name="case_reason"]').setValue('Сверено с делом')}
 it('shows source facts and offers only the server-authorized action',async()=>{
  const {wrapper}=await open({...initial,case_details:{...details,can_edit:false}} as unknown as Expertise)
  expect(wrapper.get('[data-case-panel]').text()).toContain('Исходное управление');expect(wrapper.find('[data-case-edit]').exists()).toBe(false)
@@ -30,7 +30,7 @@ it('saves explicit unknown separately from false and preserves registration iden
  const {wrapper,writes}=await open();await edit(wrapper)
  expect(wrapper.get('[name="case_authority_type_id"]').findAll('option').map(o=>o.attributes('value'))).toEqual(['','sk','inactive'])
  await wrapper.get('[name="case_authority_type_id"]').setValue('');await wrapper.get('[name="case_authority_name"]').setValue('')
- await wrapper.get('[name="case_decree3214"]').setValue('false');await wrapper.get('[data-case-form]').trigger('submit');await flushPromises()
+ await wrapper.get('[name="case_decree3214"]').setValue(true);await wrapper.get('[name="case_decree3214"]').setValue(false);await wrapper.get('[data-case-form]').trigger('submit');await flushPromises()
  expect(writes[0]!.path).toBe('/api/v1/expertises/work-1/case-details/');expect(writes[0]!.key).toBeTruthy()
  expect(writes[0]!.body).toEqual({expected_version:1,reason:'Сверено с делом',authority_type_id:null,authority_name:'',official:'Следователь',contact:'',case_number:'',case_description:'Описание дела',basis_text:'Постановление',inventory:'Опись',questions_text:'',decree3214:false,decree_document_id:null,decree_basis:''})
 })
@@ -55,7 +55,7 @@ it('does not offer the construction flag for another specialty',async()=>{
 it('creates a real document once and freezes the case packet after a lost response',async()=>{
  let metadataCalls=0
  const {wrapper,writes}=await open(initial,async w=>{if(w.path==='/api/v1/documents/')return json({...basis,id:'new-document'});metadataCalls++;if(metadataCalls===1)throw new TypeError('Lost');return json({event:{id:'same'},expertise:{...initial,version:2}})})
- await edit(wrapper);await wrapper.get('[name="case_decree3214"]').setValue('true');await wrapper.get('[name="case_decree_basis"]').setValue('Явное основание')
+ await edit(wrapper);await wrapper.get('[name="case_decree3214"]').setValue(true);await wrapper.get('[name="case_decree_basis"]').setValue('Явное основание')
  await wrapper.get('[name="case_document_mode"]').setValue('new');await wrapper.get('[name="document_title"]').setValue('Основание 3214')
  await wrapper.get('[data-case-form]').trigger('submit');await flushPromises();expect(wrapper.get('[data-case-fields]').attributes('disabled')).toBeDefined()
  await wrapper.get('[name="case_authority_name"]').setValue('Не должно попасть в повтор')

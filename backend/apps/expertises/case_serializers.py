@@ -24,9 +24,6 @@ class CaseDetailsInput(StrictSerializer):
     decree_basis=serializers.CharField(allow_blank=True,max_length=100000)
 
     def validate(self,data):
-        if data['decree3214'] is True:
-            if data['decree_document'] is None or not data['decree_basis']:
-                raise serializers.ValidationError({'decree_basis':'Для3214-р нужны подтверждающий документ и пояснение основания.'})
-        elif data['decree_document'] is not None or data['decree_basis']:
+        if data['decree3214'] is not True and (data['decree_document'] is not None or data['decree_basis']):
             raise serializers.ValidationError({'decree_basis':'Основание3214-р относится только к явному признаку «Да».'})
         return data

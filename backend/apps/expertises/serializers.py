@@ -18,6 +18,7 @@ class RegistrationInput(VersionedSerializer):
     specialty_id = serializers.PrimaryKeyRelatedField(source="specialty",queryset=Specialty.objects.all())
     appointment_nature = serializers.ChoiceField(choices=["primary","repeated","additional"])
     is_commission = serializers.BooleanField()
+    decree3214 = serializers.BooleanField(required=False)
     complex_group_id = serializers.PrimaryKeyRelatedField(source="complex_group",queryset=ComplexGroup.objects.all(),required=False,allow_null=True,default=None)
 
 

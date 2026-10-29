@@ -159,9 +159,7 @@ def calculate(rows, year, month, opening_balances_complete=False, *, mode="journ
             put(2,col,[finish,is_kind("result")],None if inconsistent else n)
         if mode=='registry':
             decree=f.get('decree3214')
-            put(1,'P',[finish,expertise],None if type(decree) is not bool else int(decree))
-            if finish is not False and expertise is True and type(decree) is not bool:
-                gap('decree3214',[1],'Признак выполнения по3214-р не подтверждён. Категория1/5 его не определяет.','case_details.decree3214',row.source_row)
+            put(1,'P',[finish,expertise],int(f.get('specialty_code') in ('16.1','16.2') and decree is True))
             sndz_reason=f.get('sndz_reason');return_reason=f.get('return_reason')
             allocated=unresolved_counts(f,inconsistent=inconsistent)
             for code,col in SNDZ_COLUMNS.items():put(1,col,[finish,sndz],None if sndz_reason not in SNDZ_COLUMNS else int(sndz_reason==code))

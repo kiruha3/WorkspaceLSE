@@ -126,6 +126,7 @@ def test_url_without_archived_copy_is_not_paper_evidence_for_existing_consumers(
         path=f'/expertises/{work.pk}/deadline-events/'
         data={'expected_version':1,'kind':'agreement','recorded_on':'2026-10-02','due_on':'2026-11-01','reason':'По согласованию','document_id':str(doc.pk)}
     elif consumer=='decree':
+        work.specialty.code='16.1';work.specialty.save()
         path=f'/expertises/{work.pk}/case-details/';data=case_body(work,decree3214=True,decree_document_id=str(doc.pk),decree_basis='Указано в документе')
     elif consumer=='previous':
         path=f'/expertises/{work.pk}/classification/';data=class_body(work,previous_conclusions=[previous(document_id=str(doc.pk))])
