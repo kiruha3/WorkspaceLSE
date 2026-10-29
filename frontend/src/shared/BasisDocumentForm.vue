@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpTip from './ui/HelpTip.vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ApiError, LatestRequest, useApi } from '../api/client'
 import ApiMessage from './ui/ApiMessage.vue'
@@ -61,10 +62,10 @@ defineExpose({ persist, dirty, uploadConflict })
     <h4 v-if="heading">{{ heading }}</h4>
     <fieldset class="form-grid" :disabled="inputLocked">
     <div class="form-columns"><label>{{ heading ? 'Вид документа' : 'Вид основания' }}<select v-model="kind" name="document_kind"><option v-for="option in options" :key="option.value" :value="option.value">{{ option.label }}</option></select></label><label>{{ heading ? 'Источник документа' : 'Источник основания' }}<select v-model="sourceKind" name="source_kind"><option value="paper_original">Бумажный оригинал</option><option value="uploaded_copy">Загруженная копия / фото</option><option v-if="allowExternalSource" value="external_link">Внешняя ссылка</option></select></label></div>
-    <label v-if="sourceKind==='external_link'">Адрес источника<input v-model="sourceUrl" name="source_url" type="url" maxlength="2048" required/><small>Ссылка сама по себе не подтверждает наличие принятого файла. Сохранённую копию можно загрузить отдельно.</small></label>
+    <label v-if="sourceKind==='external_link'">Адрес источника<input v-model="sourceUrl" name="source_url" type="url" maxlength="2048" required/><HelpTip label="Внешняя ссылка">Ссылка сама по себе не подтверждает наличие принятого файла. Сохранённую копию можно загрузить отдельно.</HelpTip></label>
     <label>Название или известные реквизиты<input v-model="title" name="document_title" maxlength="500" required /></label>
-    <p v-if="sourceKind === 'paper_original' && !requireFile" class="muted compact">Заявляется наличие бумажного оригинала. {{ heading ? 'Электронного файла может пока не быть.' : 'Скан можно добавить позднее в карточке поступления.' }}</p>
-    <label v-else>Файл копии или фото{{initialFile?` · выбран ${initialFile.webkitRelativePath||initialFile.name}`:''}}<input name="basis_file" type="file" :required="requireFile && !prepared?.versions.length" @change="chooseFile" /><small>{{ heading ? 'Копия подтвердит документ после успешного сохранения файла на сервере.' : 'Копия станет основанием после успешного сохранения файла на сервере.' }}</small></label>
+    <HelpTip label="Бумажный оригинал" v-if="sourceKind === 'paper_original' && !requireFile">Заявляется наличие бумажного оригинала. {{ heading ? 'Электронного файла может пока не быть.' : 'Скан можно добавить позднее в карточке поступления.' }}</HelpTip>
+    <label v-else>Файл копии или фото{{initialFile?` · выбран ${initialFile.webkitRelativePath||initialFile.name}`:''}}<input name="basis_file" type="file" :required="requireFile && !prepared?.versions.length" @change="chooseFile" /><HelpTip label="Загрузка файла">{{ heading ? 'Копия подтвердит документ после успешного сохранения файла на сервере.' : 'Копия станет основанием после успешного сохранения файла на сервере.' }}</HelpTip></label>
     </fieldset>
     <p v-if="prepared" class="message message-success" role="status">Документ подготовлен: {{ prepared.id }}. {{ prepared.versions.length ? 'Файл сохранён.' : 'Электронного файла пока нет.' }} {{ savedNote || (heading ? 'Событие срока сохраняется отдельно.' : 'Поступление и номер экспертизы сохраняются отдельно.') }}</p>
     <section v-if="uploadConflict" class="message" data-document-conflict>

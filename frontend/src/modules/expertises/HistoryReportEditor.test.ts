@@ -39,6 +39,13 @@ it('offers correction only for the authoritative historical closed action',async
   }
 })
 
+it('keeps a missing edit right visible while its general explanation is optional help',async()=>{
+  const {wrapper,gets}=await open({...work,allowed_actions:[]})
+  expect(wrapper.get('[data-history-report-panel]').text()).toContain('Редактирование недоступно для ваших прав.')
+  expect(wrapper.find('[data-history-report-edit]').exists()).toBe(false)
+  expect(gets.some(path=>path.endsWith('/history-report/'))).toBe(false)
+})
+
 it('saves archival counts and specialty with explicit nulls and zero without native completion',async()=>{
   const {wrapper,writes}=await open();await edit(wrapper)
   await wrapper.get('[name="history_report_questions"]').setValue('')

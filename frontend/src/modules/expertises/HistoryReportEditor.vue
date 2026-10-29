@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpTip from '../../shared/ui/HelpTip.vue'
 import { computed,onBeforeUnmount,ref,watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiError,LatestRequest,useApi } from '../../api/client'
@@ -85,9 +86,9 @@ onBeforeUnmount(()=>{active=false;requests.cancel()})
 </script>
 <template>
  <section class="card stack-card" data-history-report-panel>
-  <div class="section-heading"><div><p class="eyebrow">Отчётные сведения старой работы</p><h2>Уточнение без повторного завершения</h2><p class="muted compact">Номер, состояние, фактический отдел и исполнители сохраняются. Это не создание нового заключения или выдачи.</p></div><button v-if="authorized&&!editing" data-history-report-edit @click="start">Редактировать отчётные сведения</button></div>
+  <div class="section-heading"><div><p class="eyebrow">Отчётные сведения старой работы</p><h2>Уточнение без повторного завершения <HelpTip label="Редактирование исторических сведений">Номер, состояние, фактический отдел и исполнители сохраняются. Это не создание нового заключения или выдачи.</HelpTip></h2></div><button v-if="authorized&&!editing" data-history-report-edit @click="start">Редактировать отчётные сведения</button></div>
   <HistoryReportDetails :history="history"/>
-  <p v-if="!editing&&!authorized" class="muted compact">Уточнение доступно ответственному пользователю с правом корректировки закрытой работы и подходящей областью доступа.</p>
+  <p v-if="!editing&&!authorized" class="muted compact">Редактирование недоступно для ваших прав. <HelpTip label="Права редактирования">Уточнение доступно ответственному пользователю с правом корректировки закрытой работы и подходящей областью доступа.</HelpTip></p>
   <form v-if="editing" data-history-report-form class="inset-form form-grid" @submit.prevent="submit">
    <h3>{{isReturn?'Уточнить решение без исполнения':'Уточнить исторический результат'}}</h3>
    <ApiMessage :error="error"/><ApiMessage :error="optionsError"/>
@@ -99,7 +100,7 @@ onBeforeUnmount(()=>{active=false;requests.cancel()})
     <label>Специальность<select v-model="specialtyId" name="history_report_specialty"><option value="">Неизвестна / не уточнена</option><option v-for="item in specialties" :key="item.id" :value="item.id">{{item.code}} · {{item.name}}{{item.is_active?'':' (неактивна, использовалась ранее)'}}</option></select></label>
     <template v-if="!isReturn">
      <div class="form-columns"><label>Вид исторического результата<select v-model="kind" name="history_report_kind"><option value="">Неизвестен</option><template v-if="expertise.category_code==='6'"><option value="research_act">Акт экспертного исследования</option></template><template v-else><option value="expert_conclusion">Заключение эксперта</option><option value="sndz">Сообщение о невозможности дать заключение</option></template></select></label><label>Дата окончания, если известна<input v-model="completedOn" name="history_report_completed_on" type="date" :min="expertise.receipt.received_at" :max="today()"/></label><label>Уровень сложности<input v-model="complexity" name="history_report_complexity" type="number" min="1" step="1"/></label></div>
-     <p class="muted compact">Пустое поле — неизвестное значение. 0 — известное отсутствие. Ничего не дополняется автоматически.</p>
+     <HelpTip label="Неизвестные числовые сведения">Пустое поле — неизвестное значение. 0 — известное отсутствие. Ничего не дополняется автоматически.</HelpTip>
      <div class="form-columns"><label v-for="field in numberFields" :key="field.name">{{field.label}}<input v-model="field.value.value" :name="`history_report_${field.name}`" type="number" min="0" step="1"/></label></div>
      <label class="check-label"><input v-model="statistics" name="history_report_statistics" type="checkbox"/>Подтверждаю полноту Q = R + S + T</label>
      <template v-if="kind==='sndz'"><label>Причина полного СНДЗ<select v-model="sndz" name="history_report_sndz_reason"><option value="">Неизвестна / не уточнена</option><option v-for="item in sndzReasons" :key="item.id" :value="item.id">{{item.name}}</option></select></label><label>Пояснение к СНДЗ<textarea v-model="sndzComment" name="history_report_sndz_comment" rows="2"/></label></template>
@@ -109,7 +110,7 @@ onBeforeUnmount(()=>{active=false;requests.cancel()})
      </section>
      <label>Отчётное примечание<textarea v-model="note" name="history_report_note" rows="2"/></label>
     </template>
-    <template v-else><label>Дата решения, если известна<input v-model="decidedOn" name="history_report_decided_on" type="date" :min="expertise.receipt.received_at" :max="today()"/></label><label>Причина решения без исполнения<select v-model="returnReason" name="history_report_return_reason"><option value="">Неизвестна / не уточнена</option><option v-for="item in returnReasons" :key="item.id" :value="item.id">{{item.name}}</option></select></label><label>Пояснение к решению<textarea v-model="returnComment" name="history_report_return_comment" rows="2"/></label><p class="muted compact">Пустая дата остаётся неизвестной. Дата выдачи не подставляется вместо даты решения.</p></template>
+    <template v-else><label>Дата решения, если известна<input v-model="decidedOn" name="history_report_decided_on" type="date" :min="expertise.receipt.received_at" :max="today()"/></label><label>Причина решения без исполнения<select v-model="returnReason" name="history_report_return_reason"><option value="">Неизвестна / не уточнена</option><option v-for="item in returnReasons" :key="item.id" :value="item.id">{{item.name}}</option></select></label><label>Пояснение к решению<textarea v-model="returnComment" name="history_report_return_comment" rows="2"/></label><HelpTip label="Дата решения">Пустая дата остаётся неизвестной. Дата выдачи не подставляется вместо даты решения.</HelpTip></template>
     <label>Основание уточнения<textarea v-model="reason" name="history_report_reason" rows="3" required/></label>
    </fieldset>
    <p v-if="validation&&!recovering" class="muted" role="status">{{validation}}</p>

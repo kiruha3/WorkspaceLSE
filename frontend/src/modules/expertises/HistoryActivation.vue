@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpTip from '../../shared/ui/HelpTip.vue'
 import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
 import { routerKey } from 'vue-router'
 import { ApiError, LatestRequest, useApi } from '../../api/client'
@@ -116,7 +117,7 @@ onBeforeUnmount(() => { active = false; requests.cancel() })
 <template>
   <section v-if="available || editing" data-history-confirmation class="card stack-card">
     <div class="section-heading"><div><p class="eyebrow">Переход к обычному процессу</p><h2>Подтвердить историческую работу</h2></div><button v-if="!editing && available" data-start-history @click="start">Подтвердить для нового учёта</button></div>
-    <p class="muted compact">Источники сохраняются. Подтверждение не назначает эксперта и не подтверждает его специальность. Выданная работа этой командой не изменяется.</p>
+    <HelpTip label="Подтверждение для нового учёта">Источники сохраняются. Подтверждение не назначает эксперта и не подтверждает его специальность. Выданная работа этой командой не изменяется.</HelpTip>
     <form v-if="editing" data-history-form class="form-grid" @submit.prevent="submit">
       <ApiMessage :error="error" /><ApiMessage :error="optionsError" />
       <p v-if="uncertain" class="message">Ответ не получен. Повтор использует прежние документы, сведения, версию и ключ.</p>
@@ -127,7 +128,7 @@ onBeforeUnmount(() => { active = false; requests.cancel() })
         <p v-if="expertise.specialty" class="muted compact">Специальность сохраняется: {{ expertise.specialty.code }} · {{ expertise.specialty.name }}.</p>
         <label class="check-label"><input v-model="complexConfirmed" name="history_complex_confirm" type="checkbox" />Подтверждаю: {{ expertise.complex_group ? `комплексная группа ${expertise.complex_group.title || expertise.complex_group.id}` : 'работа не входит в комплексную группу' }}</label>
         <DocumentPicker ref="basisForm" v-model="basisId" v-model:mode="basisMode" name="history_basis_id" :document="existingBasis" :department-id="expertise.department.id" :kinds="['resolution','decision']" :busy="busy" :input-locked="uncertain" required heading="Документ-основание" saved-note="Подтверждение работы сохраняется отдельно." @selected="selectBasis" @changed="invalidate"/>
-        <h3>История приостановок</h3><label class="check-label"><input v-model="pausesComplete" name="history_suspensions_complete" type="checkbox" />Подтверждаю полноту истории приостановок</label><p class="muted compact">Если полнота неизвестна, дни без пауз останутся неизвестными. Пустой список не означает ноль приостановок.</p>
+        <h3>История приостановок</h3><label class="check-label"><input v-model="pausesComplete" name="history_suspensions_complete" type="checkbox" />Подтверждаю полноту истории приостановок</label><HelpTip label="История приостановок">Если полнота неизвестна, дни без пауз останутся неизвестными. Пустой список не означает ноль приостановок.</HelpTip>
         <div v-for="(pause, index) in pauses" :key="index" class="form-columns"><label>Приостановлена<input v-model="pause.suspended_on" type="date" :min="expertise.receipt.received_at" :max="today()" required /></label><label>Возобновлена<input v-model="pause.resumed_on" type="date" :min="pause.suspended_on || expertise.receipt.received_at" :max="today()" required /></label><label>Основание интервала<input v-model="pause.reason" required /></label><button type="button" @click="pauses.splice(index,1)">Убрать интервал</button></div><button type="button" class="align-start" @click="pauses.push({suspended_on:'',resumed_on:'',reason:''})">Добавить подтверждённый интервал</button>
         <label v-if="expertise.state === 'suspended'">Начало текущей открытой приостановки<input v-model="openPause" name="history_open_pause" type="date" :min="expertise.receipt.received_at" :max="today()" required /></label>
         <template v-if="closed">

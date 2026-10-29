@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpTip from '../../shared/ui/HelpTip.vue'
 import { computed,onBeforeUnmount,ref,watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiError,LatestRequest,useApi } from '../../api/client'
@@ -55,9 +56,9 @@ onBeforeUnmount(()=>requests.cancel())
 <template>
  <section data-classification-panel class="card stack-card"><div class="section-heading"><div><p class="eyebrow">Классификация работы · раздел 4 формы 15.1</p><h2>Характер назначения и предыдущие заключения</h2></div><button v-if="details.can_edit&&!editing" data-classification-edit @click="start">Редактировать</button></div>
   <dl class="work-facts"><div><dt>Характер назначения</dt><dd>{{natureLabels[expertise.appointment_nature??'']||'Не уточнён'}}</dd></div><div><dt>Полнота списка прежних заключений</dt><dd>{{details.previous_complete?'Подтверждена':'Не подтверждена'}}</dd></div></dl>
-  <p class="muted compact">Первичная, дополнительная или повторная — независимо от комиссии и комплекса. Изменение не меняет номер, отдел, исполнителей, принятый результат или выдачу.</p>
+  <HelpTip label="Характер назначения">Первичная, дополнительная или повторная — независимо от комиссии и комплекса. Изменение не меняет номер, отдел, исполнителей, принятый результат или выдачу.</HelpTip>
   <article v-for="(entry,index) in details.previous_conclusions" :key="entry.id" class="previous-summary"><h3>{{index+1}}. {{entry.reference}}</h3><dl class="work-facts"><div><dt>Прежнее учреждение</dt><dd>{{entry.organization_name||'Неизвестно'}} · {{groupLabels[entry.organization_group??'']||'Группа неизвестна'}}</dd></div><div><dt>Те же исходные данные</dt><dd>{{flagText(entry.same_input_data)}}</dd></div><div><dt>Выводы подтверждены</dt><dd>{{flagText(entry.confirms_previous)}}</dd></div></dl><BasisPreview v-if="entry.document" :document="entry.document" heading="Предыдущее заключение"/></article>
-  <p v-if="!details.previous_conclusions.length" class="muted">Предыдущие заключения не указаны. Это не подтверждает первичность работы.</p>
+  <p v-if="!details.previous_conclusions.length" class="muted">Предыдущие заключения не указаны. <HelpTip label="Полнота прежних заключений">Это не подтверждает первичность работы.</HelpTip></p>
   <form v-if="editing" data-classification-form class="inset-form form-grid" @submit.prevent="submit"><ApiMessage :error="error"/><ApiMessage :error="optionsError"/><p v-if="loading" role="status">Загрузка групп учреждений…</p><button v-if="optionsError" type="button" @click="loadOptions">Повторить загрузку групп</button>
    <p v-if="uncertain" class="message">Ответ не получен. Повтор отправит ту же попытку с теми же документами.</p><p v-if="!details.can_edit" class="message message-error">Право изменения недоступно. Ввод сохранён.</p>
    <p v-if="conflict&&!uncertain" class="message">Карточка изменилась. Обновите серверные сведения; ввод останется. <button v-if="expectedVersion!==expertise.version" data-classification-accept-version type="button" @click="acceptVersion">Принять версию {{expertise.version}} для новой попытки</button></p>
@@ -71,7 +72,7 @@ onBeforeUnmount(()=>requests.cancel())
     </article>
     <button data-add-previous type="button" :disabled="entries.length>=100" @click="add">Добавить предыдущее заключение</button>
     <label class="check-line"><input v-model="complete" name="previous_complete" type="checkbox"/>Подтверждаю, что список предыдущих заключений полон</label>
-    <p class="muted compact">Полнота списка и известность каждого поля — разные сведения. «Не подтвердились выводы» учитывается только при тех же исходных данных и явном «Нет». СНДЗ не означает автоматически неподтверждение.</p>
+    <HelpTip label="Предыдущие заключения">Полнота списка и известность каждого поля — разные сведения. «Не подтвердились выводы» учитывается только при тех же исходных данных и явном «Нет». СНДЗ не означает автоматически неподтверждение.</HelpTip>
     <label>Основание изменения<textarea v-model="reason" name="classification_reason" rows="2" required/></label>
    </fieldset><div class="button-row"><button data-classification-submit class="button-primary" :disabled="busy||!uncertain&&(invalid||conflict||loading||!!optionsError||!details.can_edit)" :formnovalidate="uncertain">{{busy?'Сохранение…':uncertain?'Повторить ту же попытку':'Сохранить классификацию'}}</button><button type="button" :disabled="busy||uncertain" @click="cancel">Отмена</button></div>
   </form><FactHistory :revisions="details.revisions" :labels="labels" :format-value="historyValue"/>

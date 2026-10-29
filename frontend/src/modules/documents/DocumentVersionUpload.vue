@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpTip from '../../shared/ui/HelpTip.vue'
 import {computed,ref} from 'vue'
 import {ApiError,useApi} from '../../api/client'
 import {newCommandKey} from '../../api/commandKey'
@@ -27,7 +28,7 @@ defineExpose({dirty,busy})
 </script>
 <template>
   <form data-version-upload class="inset-form form-grid" @submit.prevent="save">
-    <h4>Добавить сохранённую версию</h4><p class="muted compact">Новая версия не заменяет файл, принятый при окончании, регистрации письма или выдаче. Право загрузки проверяется отдельно от права просмотра.</p>
+    <h4>Добавить сохранённую версию <HelpTip label="Версии документа">Новая версия не заменяет файл, принятый при окончании, регистрации письма или выдаче. Право загрузки проверяется отдельно от права просмотра.</HelpTip></h4>
     <label>Новый файл<input ref="fileInput" data-version-file type="file" :disabled="busy||!authorized||Boolean(attempt)" @change="choose"/></label><p v-if="file" class="muted">Выбран: {{file.name}}</p>
     <ApiMessage :error="error"/>
     <section v-if="conflict" class="message"><p>Документ изменён. Выбранный файл сохранён; требуется сверка версии.</p><button data-refresh-file-version type="button" :disabled="busy" @click="refresh">Загрузить текущую версию документа</button><template v-if="current"><p>Текущая версия документа {{current.version}} · {{current.title}}</p><button data-accept-file-version type="button" :disabled="busy" @click="accept">Принять версию {{current.version}} документа</button></template></section>

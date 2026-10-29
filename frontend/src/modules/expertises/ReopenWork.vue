@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpTip from '../../shared/ui/HelpTip.vue'
 import { computed, inject, ref } from 'vue'
 import { routerKey } from 'vue-router'
 import { ApiError, useApi } from '../../api/client'
@@ -46,10 +47,10 @@ async function submit() {
 
 <template>
   <section v-if="authorized || editing || history.length" class="card stack-card" data-reopen-panel>
-    <div class="section-heading"><div><h2>Возврат в работу</h2><p class="muted compact">Прежние документы, исполнители и история завершения сохраняются.</p></div><button v-if="authorized && !editing" type="button" data-reopen-start @click="start">Вернуть в работу</button></div>
+    <div class="section-heading"><div><h2>Возврат в работу <HelpTip label="Возврат в работу">Прежние документы, исполнители и история завершения сохраняются.</HelpTip></h2></div><button v-if="authorized && !editing" type="button" data-reopen-start @click="start">Вернуть в работу</button></div>
     <form v-if="editing" data-reopen-form class="reopen-form" @submit.prevent="submit">
       <p class="message">Завершение будет отменено для текущего учёта и нового расчёта отчёта. Если осталась незакрытая приостановка, работа вернётся в состояние «Приостановлена»; иначе — «В работе». Согласование руководителем не требуется.</p>
-      <p v-if="expertise.historical && !expertise.historical.operational" class="muted">Подтверждение основания для нового учёта и назначение эксперта выполняются отдельно. Этот возврат не создаёт их автоматически.</p>
+      <HelpTip label="Историческая работа" v-if="expertise.historical && !expertise.historical.operational">Подтверждение основания для нового учёта и назначение эксперта выполняются отдельно. Этот возврат не создаёт их автоматически.</HelpTip>
       <label>Причина возврата<textarea v-model="reason" name="reopen_reason" rows="3" required :disabled="busy || uncertain" /></label>
       <ApiMessage :error="error" />
       <p v-if="uncertain" class="message">Результат запроса неизвестен. Повторите ту же команду: второй возврат не создастся.</p>

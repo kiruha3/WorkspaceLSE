@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpTip from '../../shared/ui/HelpTip.vue'
 import { computed,onBeforeUnmount,ref,watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiError,LatestRequest,useApi } from '../../api/client'
@@ -54,8 +55,8 @@ onBeforeUnmount(()=>requests.cancel())
    <fieldset data-case-fields class="form-grid" :disabled="busy||uncertain||!details.can_edit||loading">
     <label>Тип назначившего органа<select v-model="authority" name="case_authority_type_id"><option value="">Неизвестно / не уточнён</option><option v-for="item in types" :key="item.id" :value="item.id">{{item.name}}{{item.is_active?'':' (неактивен, использовался)'}}</option></select></label>
     <div class="form-columns"><label v-for="[field,label] in caseFields" :key="field">{{label}}<textarea v-if="['case_description','inventory','questions_text','basis_text'].includes(field)" v-model="text[field]" :name="`case_${field}`" rows="3" maxlength="100000"/><input v-else v-model="text[field]" :name="`case_${field}`" :maxlength="field==='case_number'?500:100000"/></label></div>
-    <p class="muted compact">Текст вопросов не заменяет числа Q/R/S/T. Реквизиты не заменяют документ-основание поступления. Пустые сведения остаются неизвестными.</p>
-    <label v-if="constructionEligible" class="check-label"><input type="checkbox" name="case_decree3214" :checked="decree==='true'" @change="toggleConstruction"/>Самовольное строение <small>Учитывать в графе3214-р. Дополнительный документ и пояснение необязательны.</small></label>
+    <HelpTip label="Сведения дела">Текст вопросов не заменяет числа Q/R/S/T. Реквизиты не заменяют документ-основание поступления. Пустые сведения остаются неизвестными.</HelpTip>
+    <label v-if="constructionEligible" class="check-label"><input type="checkbox" name="case_decree3214" :checked="decree==='true'" @change="toggleConstruction"/>Самовольное строение <HelpTip label="Самовольное строение">Учитывать в графе3214-р. Дополнительный документ и пояснение необязательны.</HelpTip></label>
     <template v-if="constructionEligible&&decree==='true'"><label>Пояснение и реквизиты основания 3214-р (необязательно)<textarea v-model="basis" name="case_decree_basis" rows="2"/></label><DocumentPicker ref="documentForm" v-model="documentId" v-model:mode="documentMode" name="case_document_id" :document="details.decree_document" :department-id="expertise.department.id" :busy="busy||uncertain" heading="Основание 3214-р (необязательно)" saved-note="Сведения дела сохраняются отдельно." @changed="reset"/></template>
     <label>Основание изменения<textarea v-model="reason" name="case_reason" required rows="2"/></label>
    </fieldset>

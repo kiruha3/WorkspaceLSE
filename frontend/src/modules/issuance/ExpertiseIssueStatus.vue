@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpTip from '../../shared/ui/HelpTip.vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { LatestRequest, useApi } from '../../api/client'
@@ -25,6 +26,6 @@ onBeforeUnmount(() => requests.cancel())
     </div></div>
     <ApiMessage :error="error" /><p v-if="loading" class="state">Загрузка факта выдачи…</p>
     <template v-else-if="value"><p v-if="value.status === 'issued'" class="message message-success">{{ value.fact_origin === 'historical' ? 'Историческая отметка выдачи' : 'Материалы выданы' }}: {{ value.issued_on || 'Дата неизвестна' }}</p><p v-else-if="value.status === 'not_issued'" class="muted">{{ value.fact_origin === 'historical' ? 'Дата выдачи в журнале отсутствует; новый факт передачи не зафиксирован.' : 'Не выдано — серверный факт передачи не зафиксирован.' }}</p><p v-else class="muted">Сведения о выдаче недоступны.</p><p v-if="value.package?.restricted" class="muted compact">Доступ к полному комплекту ограничен.</p></template>
-    <p class="muted compact">Завершение этой экспертизы не означает выдачу всего материала.</p>
+    <HelpTip label="Завершение и выдача">Завершение этой экспертизы не означает выдачу всего материала.</HelpTip>
   </section>
 </template>

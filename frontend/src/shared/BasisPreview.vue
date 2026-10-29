@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpTip from './ui/HelpTip.vue'
 import { computed, ref, watch } from 'vue'
 import type { DocumentLink } from '../api/types'
 const props = defineProps<{ document: DocumentLink; heading?: string; emptyText?: string; acceptedLabel?: string }>()
@@ -24,7 +25,7 @@ watch(()=>document.value?.id,()=>{externalOpen.value=false})
     <template v-else>
       <p><strong>{{ document.title || kindLabels[document.kind] }}</strong> <span class="badge">{{ document.source_kind === 'paper_original' ? 'Бумажный оригинал' : document.source_kind==='external_link'?'Внешняя ссылка':'Загруженная копия' }}</span></p>
       <section v-if="document.source_kind==='external_link'&&document.source_url" class="inset-form">
-        <p class="muted compact">Внешний источник не загружается автоматически. Он может запрещать просмотр внутри системы. Изменения источника не изменяют сохранённые версии.</p>
+        <HelpTip label="Внешний источник">Внешний источник не загружается автоматически. Он может запрещать просмотр внутри системы. Изменения источника не изменяют сохранённые версии.</HelpTip>
         <div class="button-row"><a data-external-source :href="document.source_url" target="_blank" rel="noopener noreferrer">Открыть источник отдельно ↗</a><button v-if="!externalOpen" data-open-external-preview type="button" @click="externalOpen=true">Показать внешний источник</button><button v-else type="button" @click="externalOpen=false">Закрыть внешний просмотр</button></div>
         <iframe v-if="externalOpen" class="document-frame" :src="document.source_url" title="Внешний источник документа" sandbox="" referrerpolicy="no-referrer"/>
       </section>

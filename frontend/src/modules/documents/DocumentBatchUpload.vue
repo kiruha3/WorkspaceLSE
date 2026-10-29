@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpTip from '../../shared/ui/HelpTip.vue'
 import {computed,nextTick,ref,shallowReactive} from 'vue'
 import type {DocumentKind} from '../../api/types'
 import type {WorkDocumentResponse} from '../../api/workDocuments'
@@ -41,7 +42,7 @@ defineExpose({dirty,busy})
 </script>
 <template>
   <section class="form-grid" data-document-batch>
-    <h3>Выбранные файлы или папка</h3><p class="muted compact">До100 файлов, последовательно. Папка доступна только после вашего выбора. Это разовая загрузка, не подключение серверного каталога.</p>
+    <h3>Выбранные файлы или папка <HelpTip label="Загрузка файлов и папки">До100 файлов, последовательно. Папка доступна только после вашего выбора. Это разовая загрузка, не подключение серверного каталога.</HelpTip></h3>
     <div class="form-columns"><label>Выбрать файлы<input type="file" multiple :disabled="busy||started||!authorized" @change="select"/></label><label>Выбрать папку<input data-folder-files type="file" multiple webkitdirectory :disabled="busy||started||!authorized" @change="select"/></label></div>
     <label>Причина пакетной загрузки<textarea v-model="reason" name="batch_reason" :disabled="busy||started" @input="emit('changed')"/></label>
     <p v-if="rows.length" role="status">Сохранено {{complete}} из {{rows.length}} файлов</p>

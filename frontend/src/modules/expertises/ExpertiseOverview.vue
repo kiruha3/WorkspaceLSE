@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpTip from '../../shared/ui/HelpTip.vue'
 import { computed } from 'vue'
 import type { Expertise } from '../../api/types'
 
@@ -43,7 +44,7 @@ const basis = computed(() => props.expertise.basis_document)
       <section class="overview-sheet">
         <h2>Регистрационные сведения</h2>
         <dl class="overview-facts"><div v-for="[label, value] in registration" :key="label"><dt>{{ label }}</dt><dd>{{ value }}</dd></div></dl>
-        <p v-if="expertise.complex_group" class="overview-note">В комплексной группе отдельный номер для каждой специальности. Доступ к этой работе не предоставляет доступ ко всем работам материала.</p>
+        <HelpTip label="Комплексная группа" v-if="expertise.complex_group">В комплексной группе отдельный номер для каждой специальности. Доступ к этой работе не предоставляет доступ ко всем работам материала.</HelpTip>
         <p class="overview-version">Версия работы {{ expertise.version }}</p>
       </section>
       <section class="overview-sheet">
@@ -56,18 +57,12 @@ const basis = computed(() => props.expertise.basis_document)
             <div><dt>Сумма в источнике</dt><dd data-overview-fact="amount">{{ expertise.historical.amount ?? 'Неизвестно' }}</dd></div>
           </template>
         </dl>
-        <p v-if="legacy" class="overview-note">Сведения журнала. Электронный комплект и назначения в АИС учитываются отдельно.</p>
+        <HelpTip label="Исторические сведения" v-if="legacy">Сведения журнала. Электронный комплект и назначения в АИС учитываются отдельно.</HelpTip>
       </section>
     </div>
     <div class="overview-secondary">
-      <details>
-        <summary><strong>Текущие исполнители</strong><span>{{ expertise.current_assignments.map(item => item.employee.full_name).join(', ') || 'Назначений в АИС нет' }}</span></summary>
-        <p>Назначения, перепоручение и их история — в разделе «Исполнители». Исторические связи не заменяют назначение в АИС.</p>
-      </details>
-      <details>
-        <summary><strong>Документ-основание</strong><span>{{ basis ? 'restricted' in basis ? 'Доступ к документу ограничен' : basis.title : 'Не указан' }}</span></summary>
-        <p>Документ-основание и сведения о деле — в разделе «Дело». {{ basis ? '' : 'Для этой работы электронный документ-основание не указан.' }}</p>
-      </details>
+      <div class="overview-context"><strong>Текущие исполнители</strong><span>{{ expertise.current_assignments.map(item => item.employee.full_name).join(', ') || 'Назначений в АИС нет' }}</span><HelpTip label="Текущие исполнители">Назначения, перепоручение и их история — в разделе «Исполнители». Исторические связи не заменяют назначение в АИС.</HelpTip></div>
+      <div class="overview-context"><strong>Документ-основание</strong><span>{{ basis ? 'restricted' in basis ? 'Доступ к документу ограничен' : basis.title : 'Не указан' }}</span><HelpTip label="Документ-основание">Документ-основание и сведения о деле — в разделе «Дело».</HelpTip></div>
     </div>
   </div>
 </template>
@@ -84,10 +79,8 @@ const basis = computed(() => props.expertise.basis_document)
 .overview-facts dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
 .overview-version, .overview-note { margin-top: 18px; font-size: 12px; line-height: 1.6; color: #5a6a60; }
 .overview-secondary { display: grid; gap: 12px; }
-.overview-secondary details { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 15px 20px; }
-.overview-secondary summary { cursor: pointer; font-size: 13px; line-height: 1.7; }
-.overview-secondary summary span { margin-left: 22px; color: #58695e; overflow-wrap: anywhere; }
-.overview-secondary details > p { margin-top: 12px; color: #58695e; font-size: 13px; }
+.overview-context { display:flex;align-items:center;gap:12px;background:white;border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:13px;flex-wrap:wrap; }
+.overview-context > span { color:#58695e;overflow-wrap:anywhere; }
 @media (max-width: 1150px) { .overview-columns { grid-template-columns: 1fr; } }
-@media (max-width: 600px) { .overview-sheet { padding: 18px; } .overview-facts > div { grid-template-columns: 1fr; gap: 5px; } .overview-secondary summary span { display: block; margin-left: 0; } }
+@media (max-width: 600px) { .overview-sheet { padding: 18px; } .overview-facts > div { grid-template-columns: 1fr; gap: 5px; } }
 </style>

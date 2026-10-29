@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpTip from '../../shared/ui/HelpTip.vue'
 import type { HistoricalWork } from '../../api/types'
 import BasisPreview from '../../shared/BasisPreview.vue'
 defineProps<{history:HistoricalWork}>()
@@ -25,7 +26,7 @@ function time(value:string){return new Intl.DateTimeFormat('ru-RU',{timeZone:'As
  <section data-history-corrections class="subsection"><h3>История уточнений</h3>
   <details v-for="c in history.corrections??[]" :key="c.id" class="correction"><summary>№{{c.number}} · {{c.actor.full_name}} · {{time(c.created_at)}}</summary>
    <p>{{c.reason}}</p><div class="table-scroll"><table><thead><tr><th>Сведение</th><th>Было</th><th>Стало</th></tr></thead><tbody><tr v-for="change in changes(c)" :key="change.key"><th>{{labels[change.key]??change.key}}</th><td>{{show(change.before)}}</td><td>{{show(change.after)}}</td></tr></tbody></table></div>
-  </details><p v-if="!history.corrections?.length" class="muted compact">Ручных уточнений пока нет. Исходный снимок сохраняется отдельно.</p>
+  </details><p v-if="!history.corrections?.length" class="muted compact">Ручных уточнений пока нет. <HelpTip label="История уточнений">Исходный снимок сохраняется отдельно.</HelpTip></p>
  </section>
 </template>
 <style scoped>.correction{padding:14px 0;border-top:1px solid var(--border)}summary{cursor:pointer;line-height:1.6}td{white-space:pre-wrap;overflow-wrap:anywhere;max-width:420px;vertical-align:top}th{min-width:130px}</style>

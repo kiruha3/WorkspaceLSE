@@ -26,6 +26,14 @@ it('shows source facts and offers only the server-authorized action',async()=>{
  const {wrapper}=await open({...initial,case_details:{...details,can_edit:false}} as unknown as Expertise)
  expect(wrapper.get('[data-case-panel]').text()).toContain('Исходное управление');expect(wrapper.find('[data-case-edit]').exists()).toBe(false)
 })
+it('keeps factual fields visible and moves their reference explanation behind a question',async()=>{
+ const {wrapper,writes}=await open();await edit(wrapper)
+ expect(wrapper.get('[name="case_authority_name"]').element).toHaveProperty('value','Исходное управление')
+ expect(wrapper.text()).not.toContain('Текст вопросов не заменяет числа Q/R/S/T.')
+ await wrapper.get('button[aria-label="Пояснение: Сведения дела"]').trigger('focus');await flushPromises()
+ expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('Текст вопросов не заменяет числа Q/R/S/T.')
+ expect(writes).toEqual([])
+})
 it('saves explicit unknown separately from false and preserves registration identity',async()=>{
  const {wrapper,writes}=await open();await edit(wrapper)
  expect(wrapper.get('[name="case_authority_type_id"]').findAll('option').map(o=>o.attributes('value'))).toEqual(['','sk','inactive'])
