@@ -62,7 +62,7 @@ describe('manual expertise registration', () => {
         if (!committedKey) { committedKey = key; throw new TypeError('Ответ потерян после сохранения') }
         return key === committedKey ? json(expertise, 201) : json({ code: 'registration_conflict', message: 'Номер уже занят', field_errors: {} }, 409)
       }
-      if (path.includes('number-hint')) return json({ last_number: null })
+      if (path.includes('number-hint')) return json({ last_number: '150/4-1-26', next_sequence: 151 })
       if (path.includes('/references/')) return json(page(path.includes('departments') ? [department] : [specialty]))
       if (path.includes('/complex-groups/')) return json(page([]))
       return json({ ...receipt })
@@ -90,7 +90,7 @@ describe('manual expertise registration', () => {
         if (keys.length < 3) throw new TypeError('Связь потеряна')
         return json(expertise, 201)
       }
-      if (path.includes('number-hint')) return json({ last_number: null })
+      if (path.includes('number-hint')) return json({ last_number: '150/4-1-26', next_sequence: 151 })
       if (path.includes('/references/')) return json(page(path.includes('departments') ? [department] : [specialty]))
       if (path.includes('/complex-groups/')) return json(page([]))
       return json(receipt)
@@ -110,6 +110,7 @@ describe('manual expertise registration', () => {
       expect(keys[1]).toBe(keys[0])
       await wrapper.get('[name="registration_number"]').setValue('152/4-1-26')
       await wrapper.get('[data-register-expertise]').trigger('submit'); await flushPromises()
+      await wrapper.get('[data-confirm-sequence]').trigger('click'); await flushPromises()
       expect(keys[2]).not.toBe(keys[0])
       expect(router.currentRoute.value.path).toBe('/expertises/work-1')
     } finally { wrapper.unmount() }
@@ -134,7 +135,7 @@ describe('manual expertise registration', () => {
     const client = new ApiClient(async input => {
       const path = String(input)
       if (path.includes('/references/')) return json(page(path.includes('departments') ? [department, { ...department, id: 'd-3', code: '3', name: 'Отдел 3' }] : [specialty]))
-      if (path.includes('number-hint')) return json({ last_number: null })
+      if (path.includes('number-hint')) return json({ last_number: '150/4-1-26', next_sequence: 151 })
       if (path.includes('/complex-groups/')) return json(page(path.includes('receipt-2') ? [] : [{ id: 'group-1', title: 'Чужая прежняя группа', material_id: receipt.material.id }]))
       return json(path.includes('receipt-2') ? { ...receipt, id: 'receipt-2', department_id: 'd-3' } : receipt)
     })
@@ -205,7 +206,7 @@ describe('manual expertise registration', () => {
       if (path.endsWith('/csrf/')) return json({ csrf_token: 'token' })
       if (init?.method === 'POST') return json({ code: 'permission_denied', message: 'Право регистрации отозвано', field_errors: {} }, 403)
       if (path.includes('/references/')) return json(page(path.includes('departments') ? [department] : [specialty]))
-      if (path.includes('number-hint')) return json({ last_number: null })
+      if (path.includes('number-hint')) return json({ last_number: '150/4-1-26', next_sequence: 151 })
       if (path.includes('/complex-groups/')) return json(page([]))
       return json(receipt)
     })
@@ -256,7 +257,7 @@ describe('manual expertise registration', () => {
         if (commands.length < 3) throw new TypeError('Связь потеряна')
         return json(expertise, 201)
       }
-      if (path.includes('number-hint')) return json({ last_number: '150/4-1-26' })
+      if (path.includes('number-hint')) return json({ last_number: '150/4-1-26', next_sequence: 151 })
       if (path.includes('/references/')) return json(page(path.includes('departments') ? [department] : [specialty]))
       if (path.includes('/complex-groups/')) return json(page([]))
       return json(receipt)
@@ -277,6 +278,7 @@ describe('manual expertise registration', () => {
     expect(commands[0]?.body).toEqual({ expected_version: 2, registration_number: '151/4-1-26', historical_number: '', department_id: 'd-4', specialty_id: 's-18', appointment_nature: 'primary', is_commission: false, complex_group_id: null })
     await wrapper.get('[name="registration_number"]').setValue('152/4-1-26')
     await wrapper.get('[data-register-expertise]').trigger('submit'); await flushPromises()
+    await wrapper.get('[data-confirm-sequence]').trigger('click'); await flushPromises()
     expect(commands[2]?.key).not.toBe(commands[0]?.key)
     expect(router.currentRoute.value.path).toBe('/expertises/work-1')
     wrapper.unmount()

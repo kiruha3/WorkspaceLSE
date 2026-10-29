@@ -20,7 +20,7 @@ async function open() {
     if (path.includes('/references/specialties/')) return json(page([
       { ...specialty, id: 's-16-1', code: '16.1' }, { ...specialty, id: 's-16-2', code: '16.2' }, specialty,
     ]))
-    if (path.includes('number-hint')) return json({ last_number: null })
+    if (path.includes('number-hint')) return json({ last_number: '150/4-1-26', next_sequence: 151 })
     if (path.includes('/complex-groups/')) return json(page([]))
     return json({ ...receipt })
   })

@@ -15,7 +15,7 @@ async function setup(onWrite?: (path: string, init: RequestInit) => Promise<Resp
       return onWrite ? onWrite(path, init) : json(path.includes('complex-expertises') ? { expertises: [expertise, { ...expertise, id: 'work-2' }] } : expertise, 201)
     }
     if (path.includes('/references/')) return json(page(path.includes('departments') ? [department] : [specialty, { ...specialty, id: 's-16', code: '16.1' }]))
-    if (path.includes('number-hint')) return json({ last_number: null, next_sequence: 1 })
+    if (path.includes('number-hint')) return json({ last_number: '150/4-1-26', next_sequence: 151 })
     return json(receipt)
   })
   const router = await testRouter('/receipts/receipt-1')

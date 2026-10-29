@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { LatestRequest, useApi } from '../../api/client'
+import { ApiError, LatestRequest, useApi } from '../../api/client'
 import { newCommandKey } from '../../api/commandKey'
 import type { BasisDocument, Expertise, FileVersion, Receipt, Reference } from '../../api/types'
 import { useSessionStore } from '../../stores/session'
@@ -60,11 +60,33 @@ const registrationPayload = computed(() => isComplex.value
   ? { expected_version: receipt.value?.version, works: [primaryRow.value, ...extraWorks.value.map(row => ({ registration_number: row.registration_number.trim(), historical_number: row.historical_number.trim(), department_id: row.department_id, specialty_id: row.specialty_id, appointment_nature: nature.value, is_commission: commission.value, ...(constructionFor(row.specialty_id) ? { decree3214: row.decree3214 } : {}) }))] }
   : { expected_version: receipt.value?.version, ...primaryRow.value, complex_group_id: null })
 const registrationReady = computed(() => Boolean(number.value.trim() && departmentId.value && specialtyId.value && (!isComplex.value || (extraWorks.value.length && extraWorks.value.every(row => row.registration_number.trim() && row.department_id && row.specialty_id)))))
+interface SequenceWarning { stamp: string; year: number; rows: { index: number; entered: string; expected: string }[] }
+const sequenceWarning = ref<SequenceWarning | null>(null), registrationForm = ref<HTMLFormElement | null>(null), sequenceWarningPanel = ref<HTMLElement | null>(null)
+let sequenceCheckedStamp = ''
+async function inspectNumberSequence() {
+  const values = [number.value.trim(), ...(isComplex.value ? extraWorks.value.map(row => row.registration_number.trim()) : [])]
+  const parsed = values.map((entered, index) => {
+    const match = /^([1-9]\d{0,8})\/([1-9]\d*)-([1-6])-(\d{2})$/.exec(entered)
+    return match ? { index, entered, sequence: Number(match[1]), suffix: `/${match[2]}-${match[3]}-${match[4]}`, year: 2000 + Number(match[4]), category: match[3] } : null
+  }).filter((value): value is NonNullable<typeof value> => value !== null)
+  // Leave malformed or mixed-year/category packets to the existing server validation.
+  if (parsed.length !== values.length || new Set(parsed.map(row => `${row.year}:${row.category}`)).size !== 1) return null
+  const checked = await api.request<{ next_sequence: number }>(`/expertises/number-hint/?${new URLSearchParams({ department_id: departmentId.value, year: String(parsed[0]!.year) })}`)
+  if (!Number.isSafeInteger(checked.next_sequence) || checked.next_sequence < 1) throw new ApiError(502, 'invalid_response', 'Не удалось проверить очередность номера. Повторите регистрацию.')
+  const rows = parsed.filter((row, index) => row.sequence !== checked.next_sequence + index).map(row => ({ index: row.index, entered: row.entered, expected: `${checked.next_sequence + row.index}${row.suffix}` }))
+  return rows.length ? { year: parsed[0]!.year, rows } : null
+}
+async function editSequence() {
+  const index = sequenceWarning.value?.rows[0]?.index ?? 0
+  sequenceWarning.value = null; sequenceCheckedStamp = ''
+  await nextTick()
+  registrationForm.value?.querySelectorAll<HTMLInputElement>('input[name="registration_number"],input[name="additional_registration_number"]')[index]?.focus()
+}
 const registered = ref(false)
 const amendmentDirty = computed(() => Boolean(amendReason.value || basisForm.value?.dirty) || (amending.value && (amendDate.value !== receipt.value?.received_at || amendSender.value !== receipt.value?.sender_name || amendDepartment.value !== (receipt.value?.department_id ?? ''))))
 const dirty = computed(() => !registered.value && (Boolean(number.value || numberCategory.value || historical.value || specialtyId.value || construction.value || isComplex.value || commission.value || nature.value !== 'primary' || amendReason.value || uploadFile.value || basisForm.value?.dirty) || (amending.value && Boolean(amendDate.value !== receipt.value?.received_at || amendSender.value !== receipt.value?.sender_name || amendDepartment.value !== (receipt.value?.department_id ?? '')))))
-useDirtyGuard(() => dirty.value || busy.value || fillingNumbers.value, router)
-watch(() => JSON.stringify(registrationPayload.value), () => { key.value = '' }, { flush: 'sync' })
+useDirtyGuard(() => dirty.value, router, () => busy.value || fillingNumbers.value)
+watch(() => JSON.stringify(registrationPayload.value), () => { key.value = ''; sequenceWarning.value = null; sequenceCheckedStamp = '' }, { flush: 'sync' })
 const returnTo = computed(() => typeof route.query.return === 'string' && /^\/intake(?:\?|$)/.test(route.query.return) ? route.query.return : '/intake')
 async function load() {
   loading.value = true; error.value = null
@@ -111,16 +133,35 @@ function toggleAmend() {
   amending.value = !amending.value
   if (!amending.value) { amendReason.value = ''; replaceBasis.value = false }
 }
-async function register() {
+async function register(confirmed = false) {
   if (busy.value || fillingNumbers.value || !canRegister.value || !receipt.value || !registrationReady.value) return
   busy.value = true; commandError.value = null; success.value = ''
   try {
+    const stamp = JSON.stringify(registrationPayload.value), receiptId = receipt.value.id
+    if (confirmed) {
+      if (sequenceWarning.value?.stamp !== stamp) return
+      sequenceCheckedStamp = stamp; sequenceWarning.value = null
+    } else if (sequenceCheckedStamp !== stamp) {
+      const warning = await inspectNumberSequence()
+      if (!registrationForm.value || receipt.value?.id !== receiptId || JSON.stringify(registrationPayload.value) !== stamp) return
+      if (warning) {
+        sequenceWarning.value = { stamp, ...warning }
+        await nextTick(); sequenceWarningPanel.value?.focus()
+        return
+      }
+      sequenceCheckedStamp = stamp
+    }
     if (!key.value) key.value = newCommandKey()
     const result = await api.request<Expertise | { expertises: Expertise[] }>(`/receipts/${receipt.value.id}/${isComplex.value ? 'complex-expertises' : 'expertises'}/`, { method: 'POST', body: registrationPayload.value, headers: { 'Idempotency-Key': key.value } })
     const work = 'expertises' in result ? result.expertises[0]! : result
     registered.value = true; busy.value = false
     await router.push({ path: `/expertises/${work.id}`, query: { return: '/expertises' } })
-  } catch (cause) { commandError.value = cause } finally { busy.value = false }
+  } catch (cause) {
+    commandError.value = cause
+    // A definite rejection can be checked again. An uncertain response must
+    // replay the same command, which may already have consumed this number.
+    if (cause instanceof ApiError && cause.status >= 400 && cause.status < 500) sequenceCheckedStamp = ''
+  } finally { busy.value = false }
 }
 function selectUpload(event: Event) { uploadFile.value = (event.target as HTMLInputElement).files?.[0] ?? null }
 async function upload() {
@@ -162,7 +203,7 @@ onBeforeUnmount(() => { details.cancel(); hints.cancel() })
       <form v-if="amending" class="inset-form form-grid" @submit.prevent="amend"><h3>Уточнение с основанием</h3><ApiMessage :error="refsError" /><fieldset class="form-grid" :disabled="busy"><div class="form-columns"><label>Дата поступления<input v-model="amendDate" type="date" required /></label><label>Отправитель<input v-model="amendSender" /></label><label>Первоначальный отдел<select v-model="amendDepartment" required><option value="">Выберите отдел</option><option v-for="item in departments.filter(item => item.is_active)" :key="item.id" :value="item.id">{{ item.code }} · {{ item.name }}</option></select></label></div><label v-if="session.can('documents.upload')" class="check-label"><input v-model="replaceBasis" type="checkbox" />Добавить или заменить документ-основание</label><BasisDocumentForm v-if="replaceBasis" ref="basisForm" :department-id="amendDepartment" :busy="busy" /><label>Причина уточнения<textarea v-model="amendReason" name="amend_reason" required rows="2" /></label></fieldset><button class="button-primary align-start" :disabled="busy || !amendReason.trim()">Сохранить уточнение</button></form>
     </section>
     <section class="card stack-card"><BasisPreview :document="receipt.basis_document" /><form v-if="document && session.can('documents.upload')" class="inset-form form-grid" @submit.prevent="upload"><h4>Добавить скан / новую версию файла</h4><ApiMessage :error="uploadError" /><label>Файл<input type="file" :disabled="busy" @change="selectUpload" /></label><p class="muted compact">Общий документ сохраняет прежние версии. Новый файл будет доступен по разрешённым связям этого основания.</p><button class="align-start" :disabled="busy || !uploadFile">Сохранить новую версию</button></form></section>
-    <section v-if="canRegister" class="card stack-card"><div class="section-heading"><div><p class="eyebrow">Самостоятельная команда</p><h2>{{ isComplex ? 'Регистрация комплексной экспертизы' : 'Закрепить номер экспертизы' }}</h2></div><span class="badge">Номер можно подставить или ввести вручную</span></div><p class="muted compact">Делопроизводитель регистрирует работу по специальности. Начальник отдела назначает конкретного эксперта отдельным действием.</p><ApiMessage :error="refsError" /><form data-register-expertise class="form-grid" @submit.prevent="register"><fieldset class="form-grid" :disabled="busy || fillingNumbers"><div class="button-row"><label class="check-label"><input v-model="isComplex" name="is_complex" type="checkbox" />Комплексная экспертиза</label><HelpTip label="Комплексная экспертиза">Укажите отдельный номер, специальность и отдел для каждой работы. Все строки сохраняются вместе. Постановление и материалы общие. Характер назначения и комиссионность ниже применяются ко всем строкам.</HelpTip></div><div class="number-fill-tools">
+    <section v-if="canRegister" class="card stack-card"><div class="section-heading"><div><p class="eyebrow">Самостоятельная команда</p><h2>{{ isComplex ? 'Регистрация комплексной экспертизы' : 'Закрепить номер экспертизы' }}</h2></div><span class="badge">Номер можно подставить или ввести вручную</span></div><p class="muted compact">Делопроизводитель регистрирует работу по специальности. Начальник отдела назначает конкретного эксперта отдельным действием.</p><ApiMessage :error="refsError" /><form ref="registrationForm" data-register-expertise class="form-grid" @submit.prevent="register()"><fieldset class="form-grid" :disabled="busy || fillingNumbers"><div class="button-row"><label class="check-label"><input v-model="isComplex" name="is_complex" type="checkbox" />Комплексная экспертиза</label><HelpTip label="Комплексная экспертиза">Укажите отдельный номер, специальность и отдел для каждой работы. Все строки сохраняются вместе. Постановление и материалы общие. Характер назначения и комиссионность ниже применяются ко всем строкам.</HelpTip></div><div class="number-fill-tools">
         <label>Категория дела<select v-model="numberCategory" name="number_category"><option value="">Выберите категорию</option><option v-for="item in numberCategories" :key="item.code" :value="item.code">{{item.code}} · {{item.name}}</option></select></label>
         <label>Год регистрации<input v-model="hintYear" type="number" min="2000" max="2099" name="hint_year" /></label>
         <div class="button-row"><button type="button" data-fill-registration-number :disabled="busy || fillingNumbers || !canFillNumbers" @click="fillNumbers">{{fillingNumbers?'Подбор номера…':isComplex?'Подставить номера':'Подставить номер'}}</button><HelpTip label="Подставить номер">Запрашивает свежий максимальный номер учреждения за выбранный год. Для комплекса подставляет последовательные номера с отделом каждой строки и общей категорией. Введённые номера заменяются только по нажатию этой кнопки. Номера сохраняются и проверяются при регистрации.</HelpTip></div>
@@ -178,12 +219,19 @@ onBeforeUnmount(() => { details.cancel(); hints.cancel() })
           <label v-if="constructionFor(row.specialty_id)" class="check-label"><input v-model="row.decree3214" name="additional_decree3214" type="checkbox" />Самовольное строение · 3214-р</label>
         </article>
         <button type="button" data-add-complex-row class="align-start" @click="addWork">+ Добавить специальность</button>
-      </section><div class="number-hint"><div><p v-if="hintLoading" class="muted compact">Загрузка последнего номера…</p><template v-else><p class="compact">Максимальный номер по учреждению за {{ hintYear }}: <strong>{{ lastNumber || 'не найден' }}</strong></p><p v-if="nextSequence !== null" data-next-sequence class="compact">Следующий порядковый номер: <strong>{{ nextSequence }}</strong></p></template><p class="muted compact">Первая часть номера общая для всех отделов и категорий за год. Номер закрепляется при регистрации.</p></div></div><div class="form-columns"><label>Характер назначения<select v-model="nature" name="appointment_nature"><option value="primary">Первичная</option><option value="repeated">Повторная</option><option value="additional">Дополнительная</option></select></label><label class="check-label"><input v-model="commission" name="is_commission" type="checkbox" />Комиссионная: один номер, не менее двух квалифицированных участников</label></div></fieldset><button class="button-primary align-start" :disabled="busy || fillingNumbers || !registrationReady">{{ busy ? 'Сохранение…' : isComplex ? 'Зарегистрировать все номера' : 'Закрепить номер' }}</button></form></section>
+      </section><div class="number-hint"><div><p v-if="hintLoading" class="muted compact">Загрузка последнего номера…</p><template v-else><p class="compact">Максимальный номер по учреждению за {{ hintYear }}: <strong>{{ lastNumber || 'не найден' }}</strong></p><p v-if="nextSequence !== null" data-next-sequence class="compact">Следующий порядковый номер: <strong>{{ nextSequence }}</strong></p></template><p class="muted compact">Первая часть номера общая для всех отделов и категорий за год. Номер закрепляется при регистрации.</p></div></div><div class="form-columns"><label>Характер назначения<select v-model="nature" name="appointment_nature"><option value="primary">Первичная</option><option value="repeated">Повторная</option><option value="additional">Дополнительная</option></select></label><label class="check-label"><input v-model="commission" name="is_commission" type="checkbox" />Комиссионная: один номер, не менее двух квалифицированных участников</label></div></fieldset><section v-if="sequenceWarning" ref="sequenceWarningPanel" data-sequence-warning class="message sequence-warning" role="alert" tabindex="-1">
+        <h3>{{isComplex?'Номера не по порядку':'Номер не по порядку'}}</h3>
+        <p>Проверьте очередность за {{sequenceWarning.year}} год. Вы уверены, что хотите зарегистрировать {{isComplex?'указанные номера':'указанный номер'}}?</p>
+        <table><thead><tr><th>Указано</th><th>По порядку</th></tr></thead><tbody><tr v-for="row in sequenceWarning.rows" :key="row.index"><td>{{row.entered}}</td><td>{{row.expected}}</td></tr></tbody></table>
+        <div class="button-row"><button type="button" data-edit-sequence :disabled="busy" @click="editSequence">{{isComplex?'Исправить номера':'Исправить номер'}}</button><button type="button" data-confirm-sequence class="button-primary" :disabled="busy" @click="register(true)">Да, зарегистрировать</button></div>
+      </section><button v-else class="button-primary align-start" :disabled="busy || fillingNumbers || !registrationReady">{{ busy ? 'Сохранение…' : isComplex ? 'Зарегистрировать все номера' : 'Закрепить номер' }}</button></form></section>
     <p v-else-if="receipt.status === 'draft' && session.can('expertise.register')" class="message message-error stack-card">Номер можно закрепить после приёмки поступления.</p>
   </template>
 </template>
 
 <style scoped>
+.sequence-warning{background:#fff9ed;border:1px solid #d8b369;color:var(--ink)}
+.sequence-warning:focus{outline:2px solid #bd8a30;outline-offset:2px}
 .number-fill-tools{display:grid;grid-template-columns:minmax(0,1fr) 130px auto;align-items:end;gap:12px}
 @media(max-width:720px){.number-fill-tools{grid-template-columns:1fr}}
 </style>
