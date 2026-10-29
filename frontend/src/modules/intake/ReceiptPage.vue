@@ -196,42 +196,153 @@ void loadReferences()
 onBeforeUnmount(() => { details.cancel(); hints.cancel() })
 </script>
 <template>
-  <div class="page-heading"><div><p class="eyebrow">Поступление · материал</p><h1>{{ receipt?.material.title || 'Карточка поступления' }}</h1><p class="muted">{{ receipt ? `Поступление ${receipt.id.slice(0, 8)} · версия ${receipt.version}` : 'Загрузка серверных данных' }}</p></div><RouterLink :to="returnTo">← К поступлениям</RouterLink></div>
-  <ApiMessage :error="error" /><p v-if="loading" class="state">Загрузка поступления…</p>
-  <template v-if="receipt">
-    <section class="card"><div class="section-heading"><h2>Сведения приёмки</h2><div class="button-row"><span class="badge" :class="receipt.status === 'accepted' ? 'badge-green' : 'badge-amber'">{{ receipt.status === 'historical' ? 'Историческое поступление' : receipt.status === 'accepted' ? 'Принято' : 'Черновик' }}</span><button :disabled="busy" @click="load">Обновить серверные сведения</button></div></div><dl class="profile-facts"><div><dt>Дата поступления</dt><dd>{{ receipt.received_at }}</dd></div><div><dt>Отправитель</dt><dd>{{ receipt.sender_name || 'Не указан' }}</dd></div><div><dt>Первоначальный отдел</dt><dd>{{ departments.find(item => item.id === receipt?.department_id)?.name || (receipt.department_id ? 'Указан' : 'Не указан') }}</dd></div></dl><ApiMessage :error="commandError" /><p v-if="success" class="message message-success" role="status">{{ success }}</p><div class="button-row"><button v-if="receipt.status === 'draft' && session.can('receipts.accept')" data-accept-receipt class="button-primary" :disabled="busy || !basisReady" @click="accept">Принять поступление</button><button v-if="receipt.status !== 'historical' && session.can('receipts.amend')" :disabled="busy" @click="toggleAmend">Редактировать поступление</button></div><p v-if="receipt.status === 'draft' && !basisReady" class="muted compact">Для приёмки необходимо основание: бумажный оригинал или сохранённая копия.</p>
-      <form v-if="amending" class="inset-form form-grid" @submit.prevent="amend"><h3>Уточнение с основанием</h3><ApiMessage :error="refsError" /><fieldset class="form-grid" :disabled="busy"><div class="form-columns"><label>Дата поступления<input v-model="amendDate" type="date" required /></label><label>Отправитель<input v-model="amendSender" /></label><label>Первоначальный отдел<select v-model="amendDepartment" required><option value="">Выберите отдел</option><option v-for="item in departments.filter(item => item.is_active)" :key="item.id" :value="item.id">{{ item.code }} · {{ item.name }}</option></select></label></div><label v-if="session.can('documents.upload')" class="check-label"><input v-model="replaceBasis" type="checkbox" />Добавить или заменить документ-основание</label><BasisDocumentForm v-if="replaceBasis" ref="basisForm" :department-id="amendDepartment" :busy="busy" /><label>Причина уточнения<textarea v-model="amendReason" name="amend_reason" required rows="2" /></label></fieldset><button class="button-primary align-start" :disabled="busy || !amendReason.trim()">Сохранить уточнение</button></form>
-    </section>
-    <section class="card stack-card"><BasisPreview :document="receipt.basis_document" /><form v-if="document && session.can('documents.upload')" class="inset-form form-grid" @submit.prevent="upload"><h4>Добавить скан / новую версию файла</h4><ApiMessage :error="uploadError" /><label>Файл<input type="file" :disabled="busy" @change="selectUpload" /></label><p class="muted compact">Общий документ сохраняет прежние версии. Новый файл будет доступен по разрешённым связям этого основания.</p><button class="align-start" :disabled="busy || !uploadFile">Сохранить новую версию</button></form></section>
-    <section v-if="canRegister" class="card stack-card"><div class="section-heading"><div><p class="eyebrow">Самостоятельная команда</p><h2>{{ isComplex ? 'Регистрация комплексной экспертизы' : 'Закрепить номер экспертизы' }}</h2></div><span class="badge">Номер можно подставить или ввести вручную</span></div><p class="muted compact">Делопроизводитель регистрирует работу по специальности. Начальник отдела назначает конкретного эксперта отдельным действием.</p><ApiMessage :error="refsError" /><form ref="registrationForm" data-register-expertise class="form-grid" @submit.prevent="register()"><fieldset class="form-grid" :disabled="busy || fillingNumbers"><div class="button-row"><label class="check-label"><input v-model="isComplex" name="is_complex" type="checkbox" />Комплексная экспертиза</label><HelpTip label="Комплексная экспертиза">Укажите отдельный номер, специальность и отдел для каждой работы. Все строки сохраняются вместе. Постановление и материалы общие. Характер назначения и комиссионность ниже применяются ко всем строкам.</HelpTip></div><div class="number-fill-tools">
-        <label>Категория дела<select v-model="numberCategory" name="number_category"><option value="">Выберите категорию</option><option v-for="item in numberCategories" :key="item.code" :value="item.code">{{item.code}} · {{item.name}}</option></select></label>
-        <label>Год регистрации<input v-model="hintYear" type="number" min="2000" max="2099" name="hint_year" /></label>
-        <div class="button-row"><button type="button" data-fill-registration-number :disabled="busy || fillingNumbers || !canFillNumbers" @click="fillNumbers">{{fillingNumbers?'Подбор номера…':isComplex?'Подставить номера':'Подставить номер'}}</button><HelpTip label="Подставить номер">Запрашивает свежий максимальный номер учреждения за выбранный год. Для комплекса подставляет последовательные номера с отделом каждой строки и общей категорией. Введённые номера заменяются только по нажатию этой кнопки. Номера сохраняются и проверяются при регистрации.</HelpTip></div>
-      </div><ApiMessage :error="hintError" /><h3 v-if="isComplex">Специальность 1</h3><div class="form-columns"><label>Отдел работы<select v-model="departmentId" name="department_id" required><option value="">Выберите отдел</option><option v-for="item in departments.filter(item => item.is_active)" :key="item.id" :value="item.id">{{ item.code }} · {{ item.name }}</option></select></label><label>Специальность<select v-model="specialtyId" name="specialty_id" required><option value="">Выберите специальность</option><option v-for="item in specialties.filter(item => item.is_active)" :key="item.id" :value="item.id">{{ item.code }} · {{ item.name }}</option></select></label><label>Текущий номер<input v-model="number" name="registration_number" :placeholder="currentNumberPlaceholder" required pattern="[0-9]+/[0-9]+-[1-6]-[0-9]{2}" /><small>Формат N/отдел-категория-год. Категорию можно выбрать выше или указать в номере. Исторический номер — отдельно.</small></label><label>Исторический номер, если известен<input v-model="historical" name="historical_number" /></label></div><label v-if="constructionEligible" class="check-label"><input v-model="construction" name="decree3214" type="checkbox" />Самовольное строение <small>Учитывать в графе3214-р. Дополнительный файл не обязателен.</small></label><section v-if="isComplex" class="form-grid" data-complex-registration>
-        <article v-for="(row,index) in extraWorks" :key="row.key" class="inset-form form-grid" data-complex-row>
-          <div class="section-heading"><h3>Специальность {{index+2}}</h3><button v-if="extraWorks.length>1" type="button" data-remove-complex-row @click="extraWorks.splice(index,1)">Убрать строку</button></div>
-          <div class="form-columns">
-            <label>Отдел работы<select v-model="row.department_id" name="additional_department_id" required><option value="">Выберите отдел</option><option v-for="item in departments.filter(item=>item.is_active)" :key="item.id" :value="item.id">{{item.code}} · {{item.name}}</option></select></label>
-            <label>Специальность<select v-model="row.specialty_id" name="additional_specialty_id" required @change="row.decree3214=false"><option value="">Выберите специальность</option><option v-for="item in specialties.filter(item=>item.is_active)" :key="item.id" :value="item.id">{{item.code}} · {{item.name}}</option></select></label>
-            <label>Текущий номер<input v-model="row.registration_number" name="additional_registration_number" :placeholder="suggestedNumber(row.department_id,index+1)" required pattern="[0-9]+/[0-9]+-[1-6]-[0-9]{2}" /></label>
-            <label>Исторический номер, если известен<input v-model="row.historical_number" name="additional_historical_number" /></label>
+  <div class="intake-compact receipt-page">
+    <RouterLink class="receipt-back" :to="returnTo">← К поступлениям</RouterLink>
+    <header class="receipt-heading">
+      <div>
+        <p class="eyebrow">Приёмка материалов</p>
+        <div class="receipt-title">
+          <h1>{{ receipt?.material.title || 'Карточка поступления' }}</h1>
+          <span v-if="receipt" class="badge" :class="receipt.status === 'accepted' ? 'badge-green' : 'badge-amber'">{{ receipt.status === 'historical' ? 'Историческое поступление' : receipt.status === 'accepted' ? 'Принято' : 'Черновик' }}</span>
+        </div>
+        <p class="muted receipt-meta">{{ receipt ? `Поступление ${receipt.id.slice(0, 8)} · версия ${receipt.version}` : 'Загрузка серверных данных' }}</p>
+      </div>
+      <div v-if="receipt" class="button-row receipt-tools">
+        <button :disabled="busy" @click="load">Обновить серверные сведения</button>
+        <button v-if="receipt.status !== 'historical' && session.can('receipts.amend')" :disabled="busy" :aria-expanded="amending" aria-controls="receipt-amendment" @click="toggleAmend">Редактировать поступление</button>
+      </div>
+    </header>
+    <ApiMessage :error="error" />
+    <p v-if="loading" class="state">Загрузка поступления…</p>
+    <template v-if="receipt">
+      <dl class="receipt-summary" aria-label="Сведения приёмки">
+        <div><dt>Дата поступления</dt><dd>{{ receipt.received_at }}</dd></div>
+        <div><dt>Первоначальный отдел</dt><dd>{{ departments.find(item => item.id === receipt?.department_id)?.name || (receipt.department_id ? 'Указан' : 'Не указан') }}</dd></div>
+        <div><dt>Отправитель</dt><dd>{{ receipt.sender_name || 'Не указан' }}</dd></div>
+      </dl>
+      <ApiMessage :error="commandError" />
+      <p v-if="success" class="message message-success" role="status">{{ success }}</p>
+      <section v-if="amending" id="receipt-amendment" class="card receipt-amendment">
+        <h2>Редактировать поступление</h2>
+        <form class="form-grid" @submit.prevent="amend">
+          <ApiMessage :error="refsError" />
+          <fieldset class="form-grid" :disabled="busy">
+            <div class="form-columns">
+              <label>Дата поступления<input v-model="amendDate" type="date" required /></label>
+              <label>Отправитель<input v-model="amendSender" /></label>
+              <label>Первоначальный отдел<select v-model="amendDepartment" required><option value="">Выберите отдел</option><option v-for="item in departments.filter(item => item.is_active)" :key="item.id" :value="item.id">{{ item.code }} · {{ item.name }}</option></select></label>
+            </div>
+            <label v-if="session.can('documents.upload')" class="check-label"><input v-model="replaceBasis" type="checkbox" />Добавить или заменить документ-основание</label>
+            <BasisDocumentForm v-if="replaceBasis" ref="basisForm" :department-id="amendDepartment" :busy="busy" />
+            <label>Причина уточнения<textarea v-model="amendReason" name="amend_reason" required rows="2" /></label>
+          </fieldset>
+          <div class="button-row">
+            <button class="button-primary" :disabled="busy || !amendReason.trim()">Сохранить уточнение</button>
+            <button type="button" :disabled="busy" @click="toggleAmend">Отмена</button>
           </div>
-          <label v-if="constructionFor(row.specialty_id)" class="check-label"><input v-model="row.decree3214" name="additional_decree3214" type="checkbox" />Самовольное строение · 3214-р</label>
-        </article>
-        <button type="button" data-add-complex-row class="align-start" @click="addWork">+ Добавить специальность</button>
-      </section><div class="number-hint"><div><p v-if="hintLoading" class="muted compact">Загрузка последнего номера…</p><template v-else><p class="compact">Максимальный номер по учреждению за {{ hintYear }}: <strong>{{ lastNumber || 'не найден' }}</strong></p><p v-if="nextSequence !== null" data-next-sequence class="compact">Следующий порядковый номер: <strong>{{ nextSequence }}</strong></p></template><p class="muted compact">Первая часть номера общая для всех отделов и категорий за год. Номер закрепляется при регистрации.</p></div></div><div class="form-columns"><label>Характер назначения<select v-model="nature" name="appointment_nature"><option value="primary">Первичная</option><option value="repeated">Повторная</option><option value="additional">Дополнительная</option></select></label><label class="check-label"><input v-model="commission" name="is_commission" type="checkbox" />Комиссионная: один номер, не менее двух квалифицированных участников</label></div></fieldset><section v-if="sequenceWarning" ref="sequenceWarningPanel" data-sequence-warning class="message sequence-warning" role="alert" tabindex="-1">
-        <h3>{{isComplex?'Номера не по порядку':'Номер не по порядку'}}</h3>
-        <p>Проверьте очередность за {{sequenceWarning.year}} год. Вы уверены, что хотите зарегистрировать {{isComplex?'указанные номера':'указанный номер'}}?</p>
-        <table><thead><tr><th>Указано</th><th>По порядку</th></tr></thead><tbody><tr v-for="row in sequenceWarning.rows" :key="row.index"><td>{{row.entered}}</td><td>{{row.expected}}</td></tr></tbody></table>
-        <div class="button-row"><button type="button" data-edit-sequence :disabled="busy" @click="editSequence">{{isComplex?'Исправить номера':'Исправить номер'}}</button><button type="button" data-confirm-sequence class="button-primary" :disabled="busy" @click="register(true)">Да, зарегистрировать</button></div>
-      </section><button v-else class="button-primary align-start" :disabled="busy || fillingNumbers || !registrationReady">{{ busy ? 'Сохранение…' : isComplex ? 'Зарегистрировать все номера' : 'Закрепить номер' }}</button></form></section>
-    <p v-else-if="receipt.status === 'draft' && session.can('expertise.register')" class="message message-error stack-card">Номер можно закрепить после приёмки поступления.</p>
-  </template>
+        </form>
+      </section>
+      <div class="receipt-layout">
+        <section v-if="canRegister" class="card registration-card">
+          <div class="section-heading">
+            <h2>{{ isComplex ? 'Регистрация комплексной экспертизы' : 'Закрепить номер экспертизы' }}</h2>
+            <HelpTip label="Регистрация экспертизы">Делопроизводитель регистрирует работу по специальности. Начальник отдела назначает конкретного эксперта отдельным действием. Номер можно подставить или ввести вручную.</HelpTip>
+          </div>
+          <ApiMessage :error="refsError" />
+          <form ref="registrationForm" data-register-expertise class="form-grid" @submit.prevent="register()">
+            <fieldset class="form-grid" :disabled="busy || fillingNumbers">
+              <div class="button-row">
+                <label class="check-label"><input v-model="isComplex" name="is_complex" type="checkbox" />Комплексная экспертиза</label>
+                <HelpTip label="Комплексная экспертиза">Укажите отдельный номер, специальность и отдел для каждой работы. Все строки сохраняются вместе. Постановление и материалы общие. Характер назначения и комиссионность ниже применяются ко всем строкам.</HelpTip>
+              </div>
+              <div class="number-fill-tools">
+                <label>Категория дела<select v-model="numberCategory" name="number_category"><option value="">Выберите категорию</option><option v-for="item in numberCategories" :key="item.code" :value="item.code">{{ item.code }} · {{ item.name }}</option></select></label>
+                <label>Год регистрации<input v-model="hintYear" type="number" min="2000" max="2099" name="hint_year" /></label>
+                <div class="button-row">
+                  <button type="button" data-fill-registration-number :disabled="busy || fillingNumbers || !canFillNumbers" @click="fillNumbers">{{ fillingNumbers ? 'Подбор номера…' : isComplex ? 'Подставить номера' : 'Подставить номер' }}</button>
+                  <HelpTip label="Подставить номер">Запрашивает свежий максимальный номер учреждения за выбранный год. Для комплекса подставляет последовательные номера с отделом каждой строки и общей категорией. Введённые номера заменяются только по нажатию этой кнопки. Номера сохраняются и проверяются при регистрации.</HelpTip>
+                </div>
+              </div>
+              <ApiMessage :error="hintError" />
+              <h3 v-if="isComplex">Специальность 1</h3>
+              <div class="form-columns">
+                <label>Отдел работы<select v-model="departmentId" name="department_id" required><option value="">Выберите отдел</option><option v-for="item in departments.filter(item => item.is_active)" :key="item.id" :value="item.id">{{ item.code }} · {{ item.name }}</option></select></label>
+                <label>Специальность<select v-model="specialtyId" name="specialty_id" required><option value="">Выберите специальность</option><option v-for="item in specialties.filter(item => item.is_active)" :key="item.id" :value="item.id">{{ item.code }} · {{ item.name }}</option></select></label>
+                <div class="field-group"><div class="label-with-help"><label for="receipt-registration-number">Текущий номер</label><HelpTip label="Формат номера">Формат N/отдел-категория-год. Категорию можно выбрать выше или указать в номере. Исторический номер — отдельно.</HelpTip></div><input id="receipt-registration-number" v-model="number" name="registration_number" :placeholder="currentNumberPlaceholder" required pattern="[0-9]+/[0-9]+-[1-6]-[0-9]{2}" /></div>
+                <label>Исторический номер, если известен<input v-model="historical" name="historical_number" /></label>
+              </div>
+              <div v-if="constructionEligible" class="button-row">
+                <label class="check-label"><input v-model="construction" name="decree3214" type="checkbox" />Самовольное строение</label>
+                <HelpTip label="Самовольное строение">Учитывать в графе 3214-р. Дополнительный файл не обязателен.</HelpTip>
+              </div>
+              <section v-if="isComplex" class="form-grid" data-complex-registration>
+                <article v-for="(row, index) in extraWorks" :key="row.key" class="inset-form form-grid complex-work" data-complex-row>
+                  <div class="section-heading">
+                    <h3>Специальность {{ index + 2 }}</h3>
+                    <button v-if="extraWorks.length > 1" type="button" data-remove-complex-row @click="extraWorks.splice(index, 1)">Убрать строку</button>
+                  </div>
+                  <div class="form-columns">
+                    <label>Отдел работы<select v-model="row.department_id" name="additional_department_id" required><option value="">Выберите отдел</option><option v-for="item in departments.filter(item => item.is_active)" :key="item.id" :value="item.id">{{ item.code }} · {{ item.name }}</option></select></label>
+                    <label>Специальность<select v-model="row.specialty_id" name="additional_specialty_id" required @change="row.decree3214 = false"><option value="">Выберите специальность</option><option v-for="item in specialties.filter(item => item.is_active)" :key="item.id" :value="item.id">{{ item.code }} · {{ item.name }}</option></select></label>
+                    <label>Текущий номер<input v-model="row.registration_number" name="additional_registration_number" :placeholder="suggestedNumber(row.department_id, index + 1)" required pattern="[0-9]+/[0-9]+-[1-6]-[0-9]{2}" /></label>
+                    <label>Исторический номер, если известен<input v-model="row.historical_number" name="additional_historical_number" /></label>
+                  </div>
+                  <label v-if="constructionFor(row.specialty_id)" class="check-label"><input v-model="row.decree3214" name="additional_decree3214" type="checkbox" />Самовольное строение · 3214-р</label>
+                </article>
+                <button type="button" data-add-complex-row class="align-start" @click="addWork">+ Добавить специальность</button>
+              </section>
+              <div class="number-hint">
+                <p v-if="hintLoading" class="muted compact">Загрузка последнего номера…</p>
+                <template v-else>
+                  <p class="compact">Максимальный номер за {{ hintYear }}: <strong>{{ lastNumber || 'не найден' }}</strong></p>
+                  <p v-if="nextSequence !== null" data-next-sequence class="compact">Следующий порядковый номер: <strong>{{ nextSequence }}</strong></p>
+                </template>
+                <HelpTip label="Очередность номеров">Первая часть номера общая для всех отделов и категорий за год. Номер закрепляется при регистрации.</HelpTip>
+              </div>
+              <div class="form-columns registration-options">
+                <label>Характер назначения<select v-model="nature" name="appointment_nature"><option value="primary">Первичная</option><option value="repeated">Повторная</option><option value="additional">Дополнительная</option></select></label>
+                <div class="button-row">
+                  <label class="check-label"><input v-model="commission" name="is_commission" type="checkbox" />Комиссионная</label>
+                  <HelpTip label="Комиссионная экспертиза">Один номер, не менее двух квалифицированных участников. Комиссионность не исключает комплексную экспертизу.</HelpTip>
+                </div>
+              </div>
+            </fieldset>
+            <section v-if="sequenceWarning" ref="sequenceWarningPanel" data-sequence-warning class="message sequence-warning" role="alert" tabindex="-1">
+              <h3>{{ isComplex ? 'Номера не по порядку' : 'Номер не по порядку' }}</h3>
+              <p>Проверьте очередность за {{ sequenceWarning.year }} год. Вы уверены, что хотите зарегистрировать {{ isComplex ? 'указанные номера' : 'указанный номер' }}?</p>
+              <div class="table-scroll"><table><thead><tr><th>Указано</th><th>По порядку</th></tr></thead><tbody><tr v-for="row in sequenceWarning.rows" :key="row.index"><td>{{ row.entered }}</td><td>{{ row.expected }}</td></tr></tbody></table></div>
+              <div class="button-row"><button type="button" data-edit-sequence :disabled="busy" @click="editSequence">{{ isComplex ? 'Исправить номера' : 'Исправить номер' }}</button><button type="button" data-confirm-sequence class="button-primary" :disabled="busy" @click="register(true)">Да, зарегистрировать</button></div>
+            </section>
+            <div v-else class="registration-footer"><button class="button-primary" :disabled="busy || fillingNumbers || !registrationReady">{{ busy ? 'Сохранение…' : isComplex ? 'Зарегистрировать все номера' : 'Закрепить номер' }}</button></div>
+          </form>
+        </section>
+        <section v-else class="card receipt-state">
+          <h2>{{ receipt.status === 'draft' ? 'Приёмка поступления' : 'Регистрация экспертизы' }}</h2>
+          <template v-if="receipt.status === 'draft'">
+            <p v-if="!basisReady" class="message message-error">Для приёмки необходимо основание: бумажный оригинал или сохранённая копия.</p>
+            <p v-else class="muted compact">Основание указано. Поступление готово к приёмке.</p>
+            <button v-if="session.can('receipts.accept')" data-accept-receipt class="button-primary" :disabled="busy || !basisReady" @click="accept">Принять поступление</button>
+            <p v-if="session.can('expertise.register')" class="muted compact">Номер можно закрепить после приёмки поступления.</p>
+          </template>
+          <p v-else class="muted compact">{{ receipt.status === 'historical' ? 'Историческое поступление доступно для просмотра.' : 'Для закрепления номера необходимо право регистрации экспертизы.' }}</p>
+        </section>
+        <aside class="card receipt-documents" aria-label="Документ-основание">
+          <BasisPreview :document="receipt.basis_document" :compact="true" />
+          <ApiMessage :error="uploadError" />
+          <details v-if="document && session.can('documents.upload')" class="receipt-disclosure">
+            <summary>Добавить скан / новую версию файла</summary>
+            <form class="form-grid disclosure-body" @submit.prevent="upload">
+              <label>Файл<input type="file" :disabled="busy" @change="selectUpload" /></label>
+              <div class="button-row">
+                <button :disabled="busy || !uploadFile">Сохранить новую версию</button>
+                <HelpTip label="Новая версия файла">Общий документ сохраняет прежние версии. Новый файл будет доступен по разрешённым связям этого основания.</HelpTip>
+              </div>
+            </form>
+          </details>
+        </aside>
+      </div>
+    </template>
+  </div>
 </template>
 
-<style scoped>
-.sequence-warning{background:#fff9ed;border:1px solid #d8b369;color:var(--ink)}
-.sequence-warning:focus{outline:2px solid #bd8a30;outline-offset:2px}
-.number-fill-tools{display:grid;grid-template-columns:minmax(0,1fr) 130px auto;align-items:end;gap:12px}
-@media(max-width:720px){.number-fill-tools{grid-template-columns:1fr}}
-</style>
+<style scoped src="/src/modules/intake/intake-compact.css"></style>

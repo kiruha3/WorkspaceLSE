@@ -48,6 +48,8 @@ describe('manual expertise registration', () => {
     await wrapper.get('form').trigger('submit'); await flushPromises()
     expect(wrapper.text()).toContain('Ответ потерян после загрузки')
     await wrapper.get('form').trigger('submit'); await flushPromises()
+    expect(wrapper.find('img[src="/preview/"]').exists()).toBe(false)
+    await wrapper.get('[data-document-details-toggle]').trigger('click')
     expect(wrapper.find('img[src="/preview/"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Новая версия файла сохранена сервером')
     wrapper.unmount()
