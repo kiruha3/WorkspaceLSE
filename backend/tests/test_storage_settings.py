@@ -1,4 +1,5 @@
 import subprocess
+import sys
 import pytest
 from django.apps import apps
 from django.test import Client
@@ -138,6 +139,9 @@ def test_probe_timeout_has_bounded_child_and_does_not_mark_root_available(manage
     from apps.documents import storage_probe
     def timeout(args, **kwargs):
         assert kwargs['timeout'] == 5
+        # A Windows venv python.exe is a redirector spawning another process;
+        # killing it alone must not orphan the real, potentially blocked worker.
+        assert args[0] == sys._base_executable
         raise subprocess.TimeoutExpired(args, kwargs['timeout'])
     monkeypatch.setattr(storage_probe.subprocess, 'run', timeout)
     response = client.post(CHECK, {'path': str(tmp_path)}, content_type='application/json')

@@ -30,12 +30,12 @@
 documents/urls.py, accounts/catalog.py, accounts/views.py, tests/test_storage_settings.py.
 **Interfaces:** GET/PUT /document-storage/<year>/ и POST /document-storage/check/ из spec.
 
-- [ ] Написать RED API tests: пустой GET, два года, replay/stale/audit rollback,
+- [x] Написать RED API tests: пустой GET, два года, replay/stale/audit rollback,
   permission/revocation, отсутствие IO при save, валидация пути.
-- [ ] Воспроизвести RED, реализовать модель/команды/право/маршруты.
-- [ ] Написать и выполнить RED проверки настоящего временного каталога,
+- [x] Воспроизвести RED, реализовать модель/команды/право/маршруты.
+- [x] Написать и выполнить RED проверки настоящего временного каталога,
   отсутствующей папки и timeout дочернего процесса; реализовать bounded probe.
-- [ ] Прогнать профильные tests и Django check/drift.
+- [x] Прогнать профильные tests и Django check/drift.
 
 ## Task 2: Настройки во Vue и проверка
 
@@ -43,10 +43,10 @@ documents/urls.py, accounts/catalog.py, accounts/views.py, tests/test_storage_se
 api/storage.ts, router.ts, App.vue, тесты и инструкция README.
 **Interfaces:** Контракты Task 1, existing institutionPermission/session/client/dirty guard.
 
-- [ ] RED UI tests: нет запроса без права, сохранить не проверяет,
+- [x] RED UI tests: нет запроса без права, сохранить не проверяет,
   check отдельно, ввод сбрасывает результат, конфликт/повтор, отзыв роли.
-- [ ] Реализовать страницы/навигацию, контролируемые ошибки/загрузку.
-- [ ] Полный frontend/backend, build, check/drift/diff; независимое итоговое ревью.
-- [ ] Резервная копия и аддитивная миграция перед перезапуском только Django.
+- [x] Реализовать страницы/навигацию, контролируемые ошибки/загрузку.
+- [x] Полный frontend/backend, build, check/drift/diff; независимое итоговое ревью.
+- [x] Резервная копия и аддитивная миграция перед перезапуском только Django.
   Рабочие данные и пример UNC не изменять; общий Vite переиспользовать.
-- [ ] Документировать фактическую готовность; локальный commit без push.
+- [x] Документировать фактическую готовность; локальный commit без push.

@@ -91,16 +91,21 @@ def test_confirmed_pause_history_produces_known_days_without_replacing_source_pa
 
 
 @pytest.mark.parametrize('state,kind',[('completed','expert_conclusion'),('without_execution','return_decision')])
-def test_closed_history_requires_actual_file_and_records_native_closure_without_overwriting_source(employee_factory,grant,settings,tmp_path,state,kind):
+@pytest.mark.parametrize('has_file',[False,True])
+def test_closed_history_accepts_missing_file_and_preserves_actual_acceptance_and_source(employee_factory,grant,settings,tmp_path,state,kind,has_file):
     client,actor,work,history,_,specialty,basis=activation_setup(employee_factory,grant,settings,tmp_path,state=state)
     from apps.documents.models import Document
     document=Document.objects.create(kind=kind,title='ДЕМО · без файла',source_kind='paper_original',created_by=actor)
     payload={'result':{'kind':'expert_conclusion','completed_on':'2026-10-08','document_id':str(document.pk)}} if state=='completed' else {'return_data':{'decided_on':'2026-10-08','document_id':str(document.pk)}}
-    assert activate(client,work,activation_body(basis,specialty,**payload)).status_code==400
     from test_basis_documents import upload
-    assert upload(client,str(document.pk)).status_code==201
+    if has_file:assert upload(client,str(document.pk)).status_code==201
     response=activate(client,work,activation_body(basis,specialty,**payload),key='with-real-file');assert response.status_code==200
-    closure=WorkClosure.objects.get();assert closure.kind==state and closure.ended_on==date(2026,10,8) and closure.accepted_version_id is not None
+    closure=WorkClosure.objects.get();assert closure.kind==state and closure.ended_on==date(2026,10,8)
+    assert (closure.accepted_version_id is not None)==has_file
+    if not has_file:
+        assert response.json()['expertise']['result_readiness']['document_gaps']
+        assert upload(client,str(document.pk)).status_code==201
+        closure.refresh_from_db();assert closure.accepted_version_id is None
     history.refresh_from_db();assert history.completed_on==(date(2026,10,6) if state=='completed' else None) and history.return_decided_on is None
     from apps.expertises.history import historical_facts
     facts=historical_facts(Expertise.objects.get(pk=work.pk));assert facts['completed_on' if state=='completed' else 'return_decided_on']==date(2026,10,8)

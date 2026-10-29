@@ -122,6 +122,17 @@ def test_historical_work_gets_real_missing_fields_without_operational_activation
     assert not history.operational and not work.closures.exists()
 
 
+def test_conclusion_draft_file_does_not_hide_missing_return_document(employee_factory, grant, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    client, _, work, _, _, _, _ = completion_setup(employee_factory, grant)
+    work = ready_result(client, work)
+    response = send(client, work, 'return-without-execution', decided_on='2026-10-11', document_id=None)
+    assert response.status_code == 200
+    row = client.get(URL).json()['results'][0]
+    assert 'result_document_missing' in {item['code'] for item in row['missing']}
+    assert response.json()['expertise']['result_readiness']['document_gaps']
+
+
 def test_reminders_paginate_once_and_avoid_per_work_queries(employee_factory, grant):
     client, actor, work, _, _, _, _ = completion_setup(employee_factory, grant)
     grant(actor, 'expertise.view', 'institution')

@@ -59,7 +59,7 @@ def missing_for(work):
         document_kind = 'return_decision' if work.state == 'without_execution' else kind
         candidates = [closure.document if closure else None, result.document if result else None]
         candidates += [doc for doc in extra if doc.kind == document_kind]
-        if not any(has_reference(doc) for doc in candidates):
+        if not any(doc is not None and doc.kind == document_kind and has_reference(doc) for doc in candidates):
             add('result_document_missing', 'Не прикреплён документ решения без исполнения.' if work.state == 'without_execution' else 'Не прикреплён итоговый документ экспертизы.')
         if work.state == 'completed':
             facts = history if retrospective else result

@@ -1,6 +1,6 @@
 from apps.accounts.policies import permission_scopes
 from apps.documents.policies import can_document
-from apps.expertises.results import latest_closure
+from apps.expertises.results import latest_closure, has_result_reference
 
 DOCUMENT_KINDS = {
     "expert_subscription": ["expert_subscription"], "cover_letter": ["cover_letter", "letter"],
@@ -94,7 +94,8 @@ def readiness(package, user, scopes=None):
             if not any(item.kind == kind and item.expertise_id == work.pk for item in items):
                 name = {"expert_subscription": "подписка эксперта", "cover_letter": "сопроводительное письмо", "notification": "уведомление", "invoice": "счёт"}[kind]
                 warn("item_missing", kind, f"Не добавлено: {name}. Можно дополнить позднее.", work)
-        if closure.document is None or not (closure.document.source_url or closure.document.versions.exists()):
+        result_kind = 'return_decision' if closure.kind == 'without_execution' else closure.result.kind if closure.result_id else None
+        if not has_result_reference(work, closure.document, result_kind):
             warn("file_missing", "result", "Не прикреплён итоговый документ или документ решения.", work)
     for item_id, closure_id, document, version_id in files:
         if not can_document(user, "documents.view", document):

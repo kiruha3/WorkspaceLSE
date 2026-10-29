@@ -10,7 +10,7 @@ import ApiMessage from '../../shared/ui/ApiMessage.vue'
 
 const api=useApi(),session=useSessionStore(),route=useRoute(),router=useRouter()
 const reads=new LatestRequest(),probes=new LatestRequest()
-const enabled=computed(()=>canManageStorage(session.user))
+const denied=ref(false),enabled=computed(()=>!denied.value&&canManageStorage(session.user))
 const initialYear=Number(route.query.year),year=ref(Number.isInteger(initialYear)&&initialYear>=1900&&initialYear<=9999?initialYear:new Date().getFullYear())
 const source=ref<StorageRoot|null>(null),path=ref(''),loading=ref(false),busy=ref(false),checking=ref(false)
 const dirty=ref(false),uncertain=ref(false),saved=ref(false),error=ref<unknown>(null),writeError=ref<unknown>(null),checkError=ref<unknown>(null)
@@ -25,6 +25,12 @@ let generation=0
 
 function fill(value:StorageRoot){source.value=value;year.value=value.year;path.value=value.path;dirty.value=false}
 function forget(){try{sessionStorage.removeItem(retryKey.value)}catch{/* Nothing to replay after a confirmed result. */}}
+function authorizationDenied(cause:unknown){
+ if(!(cause instanceof ApiError)||![401,403].includes(cause.status))return false
+ forget();denied.value=true
+ void session.refresh().catch(()=>{/* Session store handles an unavailable refresh. */})
+ return true
+}
 function restore(){
  try{
   const raw=sessionStorage.getItem(retryKey.value)
@@ -45,7 +51,7 @@ async function load(){
    if(!validStorageRoot(value)||value.year!==target)throw new ApiError(200,'invalid_response','Не получена настройка выбранного года.')
    fill(value);attempt.value=null;writeError.value=null;loading.value=false
   })
- }catch(cause){error.value=cause;loading.value=false}
+ }catch(cause){if(!authorizationDenied(cause)){error.value=cause;loading.value=false}}
 }
 async function submit(){
  if(!enabled.value||locked.value&&!uncertain.value||loading.value||checking.value||yearPending.value||!source.value||busy.value)return
@@ -60,7 +66,7 @@ async function submit(){
   if(!validStorageRoot(value)||value.year!==packet.year||value.version<1||!value.event?.id)throw new ApiError(200,'invalid_response','Не получено подтверждение. Повторите ту же попытку.')
   fill(value);forget();attempt.value=null;uncertain.value=false;saved.value=true
  }catch(cause){
-  if(stamp===generation){writeError.value=cause;uncertain.value=!(cause instanceof ApiError)||cause.status>=500||cause.code==='invalid_response';if(!uncertain.value){forget();attempt.value=null}}
+  if(stamp===generation&&!authorizationDenied(cause)){writeError.value=cause;uncertain.value=!(cause instanceof ApiError)||cause.status>=500||cause.code==='invalid_response';if(!uncertain.value){forget();attempt.value=null}}
  }finally{if(stamp===generation)busy.value=false}
 }
 async function check(){
@@ -72,9 +78,10 @@ async function check(){
    if(value?.read_only!==true||!['available','unavailable','timeout'].includes(value.status))throw new ApiError(200,'invalid_response','Не получен результат проверки папки.')
    checkResult.value=value.status;checking.value=false
   })
- }catch(cause){checkError.value=cause;checking.value=false}
+ }catch(cause){if(!authorizationDenied(cause)){checkError.value=cause;checking.value=false}}
 }
 watch([path,year],()=>{probes.cancel();checking.value=false;checkResult.value=null;checkError.value=null;saved.value=false},{flush:'sync'})
+watch(()=>session.user?.id,()=>{denied.value=false},{flush:'sync'})
 watch([enabled,()=>session.user?.id],([allowed])=>{
  generation++;reads.cancel();probes.cancel();loading.value=false;busy.value=false;checking.value=false
  source.value=null;path.value='';dirty.value=false;uncertain.value=false;attempt.value=null;checkResult.value=null;saved.value=false;error.value=null;writeError.value=null

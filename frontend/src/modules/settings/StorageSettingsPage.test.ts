@@ -101,3 +101,11 @@ it('shows a settings hub with only available management links',async()=>{
  expect(wrapper.get('[data-setting="roles"]').attributes('href')).toBe('/roles')
  expect(wrapper.find('[data-setting="references"]').exists()).toBe(false)
 })
+
+it('clears an already displayed path when the server reports role revocation',async()=>{
+ const {wrapper,session}=await open(async(_input,init)=>init?.method==='POST'?json({code:'permission_denied',message:'Нет права'},403):json(configured))
+ vi.spyOn(session,'refresh').mockResolvedValue()
+ await wrapper.get('[data-check-storage]').trigger('click');await flushPromises()
+ expect(wrapper.find('[data-storage-form]').exists()).toBe(false)
+ expect(wrapper.text()).not.toContain(configured.path)
+})
