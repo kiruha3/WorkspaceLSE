@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed,inject,onBeforeUnmount,ref,watch } from 'vue'
-import { routerKey } from 'vue-router'
+import { RouterLink,routerKey } from 'vue-router'
 import { ApiError,LatestRequest,useApi } from '../../api/client'
 import { newCommandKey } from '../../api/commandKey'
 import type { ConfiguredGoogleSource,GooglePreviewPayload,GoogleSourceInfo,ImportBatch,ImportPreviewResponse } from '../../api/imports'
@@ -34,7 +34,7 @@ onBeforeUnmount(()=>requests.cancel())
 </script>
 <template>
   <section v-if="enabled" data-google-source class="card stack-card">
-    <div class="section-heading"><div><p class="eyebrow">Актуальный источник</p><h2>Google-таблица</h2><p class="muted compact">Только чтение. Исходную таблицу и её доступ не меняем.</p></div><button v-if="!editing" data-google-reload :disabled="loading" @click="load">Обновить сведения об источнике</button></div>
+    <div class="section-heading"><div><p class="eyebrow">Актуальный источник</p><h2>Google-таблица</h2><p class="muted compact">Только чтение. Исходную таблицу и её доступ не меняем.</p></div><div class="button-row"><RouterLink v-if="session.can('imports.source.manage')&&session.user?.supported_modules?.includes('journal_source_settings')" :to="{path:'/imports/source-settings',query:{return:'/imports'}}">Настроить источник</RouterLink><button v-if="!editing" data-google-reload :disabled="loading" @click="load">Обновить сведения об источнике</button></div></div>
     <ApiMessage :error="error"/><p v-if="loading" class="state">Проверка настройки источника…</p><p v-else-if="source&&!source.configured" class="muted">Google-источник не настроен. Загрузка файла остаётся доступной.</p>
     <template v-if="source?.configured"><p><strong>{{source.label||source.sheet_name}}</strong> · лист {{source.sheet_name}} · gid {{source.gid}}</p><p class="source-address muted compact">{{source.url}}</p><p class="muted compact">Сохраняется снимок значений выбранного листа в CSV. Формулы и другие листы не переносятся; рабочие экспертизы этим действием не создаются.</p><button v-if="canStart&&!editing" data-read-google class="button-primary" @click="start">Проверить актуальную Google-таблицу</button></template>
     <form v-if="editing&&selected" data-google-preview-form class="form-grid" @submit.prevent="submit"><h3>Проверка листа {{selected.sheet_name}}</h3><ApiMessage :error="writeError"/><p v-if="uncertain" class="message">Ответ не получен. Повтор использует прежний источник, основание и ключ, а сервер вернёт сохранённый снимок, если он уже создан.</p><p v-if="!canStart" class="message">Новая проверка больше не разрешена. Подготовленные сведения сохранены.</p><label>Основание проверки Google<textarea v-model="reason" name="google_reason" required rows="2" :disabled="busy||(!canStart&&!uncertain)"/></label><div class="button-row"><button type="submit" class="button-primary" :formnovalidate="uncertain" :disabled="busy||(!canStart&&!uncertain)||(!attempt&&!normalizedReason)">{{busy?'Чтение и сохранение…':uncertain?'Повторить ту же попытку':'Сохранить результат проверки'}}</button><button type="button" :disabled="busy" @click="cancel">Отмена</button></div><p class="muted compact">Если настройка источника изменилась, завершите эту попытку и явно обновите сведения. Автоматической подмены выбранного листа нет.</p></form>

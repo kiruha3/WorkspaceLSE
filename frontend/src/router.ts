@@ -18,6 +18,7 @@ import ImportPreviewsPage from './modules/imports/ImportPreviewsPage.vue'
 import ImportPreviewPage from './modules/imports/ImportPreviewPage.vue'
 import ReconciliationPage from './modules/imports/ReconciliationPage.vue'
 import JournalReviewPage from './modules/imports/JournalReviewPage.vue'
+import GoogleSourceSettingsPage from './modules/imports/GoogleSourceSettingsPage.vue'
 import ReportsPage from './modules/reports/ReportsPage.vue'
 import ReportPlansPage from './modules/reports/ReportPlansPage.vue'
 import {reportPlanReadActions,institutionPermission} from './api/reportPlans'
@@ -44,6 +45,7 @@ export const router = createRouter({
     { path: '/issue-packages/:id', component: IssuePackagePage, meta: { permission: 'issue.view', supportedModule: 'issuance', title: 'Комплект материала' } },
     { path: '/roles', component: RolesPage, meta: { permissionsAny: ['access.roles.view','access.roles.manage'], title: 'Роли и права' } },
     { path: '/imports', component: ImportPreviewsPage, meta: { permission: 'imports.results.view', supportedModule: 'journal_import_preview', title: 'Источники журнала' } },
+    { path: '/imports/source-settings', component: GoogleSourceSettingsPage, meta: { permission: 'imports.source.manage', supportedModule: 'journal_source_settings', title: 'Настройка источника' } },
     { path: '/imports/:id', component: ImportPreviewPage, meta: { permission: 'imports.results.view', supportedModule: 'journal_import_preview', title: 'Предпросмотр переноса' } },
     { path: '/imports/:id/reconciliation', component: ReconciliationPage, meta: { permission: 'imports.results.view', supportedModule: 'journal_application', title: 'Сверка журнала' } },
     { path: '/imports/:id/review', component: JournalReviewPage, meta: { permission: 'imports.results.view', supportedModule: 'journal_application', title: 'Принять изменения журнала' } },
@@ -62,6 +64,7 @@ router.beforeEach(async to => {
   if (to.meta.supportedModule === 'work_documents' && !session.workDocumentsEnabled) return { path: '/workspace', query: { denied: '1' } }
   if (to.meta.supportedModule === 'journal_import_preview' && !session.importPreviewEnabled) return { path: '/workspace', query: { denied: '1' } }
   if (to.meta.supportedModule === 'journal_application' && (!session.journalApplicationEnabled || !session.importPreviewEnabled)) return { path: '/workspace', query: { denied: '1' } }
+  if (to.meta.supportedModule === 'journal_source_settings' && !session.user?.supported_modules?.includes('journal_source_settings')) return { path: '/workspace', query: { denied: '1' } }
   if (to.meta.permission && !session.can(String(to.meta.permission))) return { path: '/workspace', query: { denied: '1' } }
   if (Array.isArray(to.meta.permissionsAny) && !session.canAny(...to.meta.permissionsAny)) return {path:'/workspace',query:{denied:'1'}}
   return true

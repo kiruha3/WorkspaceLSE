@@ -4,6 +4,8 @@ export interface ImportBatch { id:string; source_name:string; source_kind:string
 export interface ConfiguredGoogleSource { configured:true; spreadsheet_id:string; gid:string; sheet_name:string; label:string; url:string }
 export type GoogleSourceInfo={configured:false}|ConfiguredGoogleSource
 export interface GooglePreviewPayload { reason:string; spreadsheet_id:string; gid:string }
+export interface GoogleSourceSettings {url:string;gid:string;sheet_name:string;version:number}
+export interface GoogleSourceSettingsResult extends GoogleSourceSettings {event:{id:string}}
 export interface ImportRow { id:string; source_row:number; raw:Record<string,string|null>; formulas:Record<string,string>; extra:Record<string,string|null>; facts:Record<string,string|number|null>; diagnostics:ImportDiagnostic[]; normalization_complete:boolean }
 export interface ImportPreviewResponse { event:{id:string}; batch:ImportBatch }
 export interface HistoryReference { id: string; code: string; name: string; is_active: boolean }

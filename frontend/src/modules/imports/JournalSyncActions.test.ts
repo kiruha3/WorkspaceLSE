@@ -9,8 +9,8 @@ import JournalSyncActions from './JournalSyncActions.vue'
 enableAutoUnmount(afterEach)
 const source={configured:true,spreadsheet_id:'source-123456789',gid:'0',sheet_name:'Лист1',label:'Журнал',url:'https://docs.google.com/spreadsheets/d/source-123456789/edit'}
 async function open(transport:typeof fetch,codes=['imports.preview','imports.results.view']){
- const pinia=sessionWith(...codes);useSessionStore(pinia).user!.supported_modules=['journal_import_preview','journal_application','journal_google_preview']
- const router=createRouter({history:createMemoryHistory(),routes:[{path:'/expertises',component:{template:'<p>Реестр</p>'}},{path:'/imports',component:{template:'<p>Источники</p>'}},{path:'/imports/:id/review',component:{template:'<p>Перечень</p>'}}]})
+ const pinia=sessionWith(...codes);useSessionStore(pinia).user!.supported_modules=['journal_import_preview','journal_application','journal_google_preview','journal_source_settings']
+ const router=createRouter({history:createMemoryHistory(),routes:[{path:'/expertises',component:{template:'<p>Реестр</p>'}},{path:'/imports',component:{template:'<p>Источники</p>'}},{path:'/imports/source-settings',component:{template:'<p>Настройка источника</p>'}},{path:'/imports/:id/review',component:{template:'<p>Перечень</p>'}}]})
  await router.push('/expertises?department_id=d3&page=2')
  const api=new ApiClient(async(input,init)=>String(input).includes('/csrf/')?json({csrf_token:'t'}):transport(input,init))
  const wrapper=mount(JournalSyncActions,{global:{plugins:[pinia,router],provide:{[apiKey as symbol]:api}}});await flushPromises()
@@ -62,6 +62,14 @@ it('does not replay an earlier failed write when a fresh source metadata read fa
 
 it('does not expose source mutations without preview permission',async()=>{
  const {wrapper}=await open(async()=>json(source),['imports.results.view'])
+ expect(wrapper.find('[data-read-journal-source]').exists()).toBe(false)
+ expect(wrapper.find('[data-upload-journal-file]').exists()).toBe(false)
+ expect(wrapper.find('[data-configure-journal-source]').exists()).toBe(false)
+})
+
+it('offers source settings only by its role permission, without granting import actions',async()=>{
+ const {wrapper}=await open(async()=>json(source),['imports.source.manage'])
+ expect(wrapper.get('[data-configure-journal-source]').attributes('href')).toContain('/imports/source-settings?')
  expect(wrapper.find('[data-read-journal-source]').exists()).toBe(false)
  expect(wrapper.find('[data-upload-journal-file]').exists()).toBe(false)
 })

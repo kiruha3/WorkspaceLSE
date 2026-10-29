@@ -10,6 +10,7 @@ import ApiMessage from '../../shared/ui/ApiMessage.vue'
 
 const api=useApi(),session=useSessionStore(),route=useRoute(),router=useRouter()
 const enabled=computed(()=>session.importPreviewEnabled&&session.journalApplicationEnabled&&session.can('imports.results.view')&&session.can('imports.preview'))
+const canConfigure=computed(()=>session.can('imports.source.manage')&&Boolean(session.user?.supported_modules?.includes('journal_source_settings')))
 const busy=ref(false),uncertain=ref(false),error=ref<unknown>(null),upload=ref(false),file=ref<File|null>(null),saved=ref(false)
 const attempt=shallowRef<{path:string;body:unknown;key:string;returnTo:string}|null>(null)
 let active=true
@@ -46,11 +47,12 @@ async function start(kind:'google'|'file'|'retry'){
 onBeforeUnmount(()=>{active=false})
 </script>
 <template>
- <section v-if="enabled" class="card stack-card journal-sync-actions" data-journal-sync>
+ <section v-if="enabled||canConfigure" class="card stack-card journal-sync-actions" data-journal-sync>
   <div class="section-heading"><div><h2>Обновление из журнала</h2><p class="muted compact">Сначала перечень «было → станет». В БД попадёт только то, что вы выберете и подтвердите.</p></div><div class="button-row">
-   <button v-if="session.googlePreviewEnabled" data-read-journal-source class="button-primary" :disabled="busy||uncertain" @click="start('google')">{{busy&&!upload?'Чтение таблицы…':'Обновить из таблицы'}}</button>
-   <button data-upload-journal-file :disabled="busy||uncertain" @click="upload=!upload">Загрузить Excel/CSV</button>
-   <RouterLink to="/imports">Источники и история</RouterLink>
+   <button v-if="enabled&&session.googlePreviewEnabled" data-read-journal-source class="button-primary" :disabled="busy||uncertain" @click="start('google')">{{busy&&!upload?'Чтение таблицы…':'Обновить из таблицы'}}</button>
+   <button v-if="enabled" data-upload-journal-file :disabled="busy||uncertain" @click="upload=!upload">Загрузить Excel/CSV</button>
+   <RouterLink v-if="session.can('imports.results.view')" to="/imports">Источники и история</RouterLink>
+   <RouterLink v-if="canConfigure" data-configure-journal-source :to="{path:'/imports/source-settings',query:{return:route.fullPath}}">Настроить источник</RouterLink>
   </div></div>
   <ApiMessage :error="error"/>
   <p v-if="uncertain" class="message">Ответ о сохранении источника не получен. Повтор не создаст второй снимок для этой попытки.</p>
