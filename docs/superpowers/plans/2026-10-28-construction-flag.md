@@ -24,15 +24,15 @@ Existing implementation checkout/no push/merge/newworktree; preserve outputs/.su
 **Files:** backend/apps/expertises/{services,serializers,case_details,case_serializers,models}.py; migrations/0012*; backend/apps/reports/{calculation,column_rules}.py; tests/test_construction_flag.py and superseded case expectations; frontend/src/modules/intake/ReceiptPage.vue; modules/expertises/CaseDetailsPanel.vue; corresponding SFC tests and references/catalogs.ts.
 **Interfaces:** registration optionaldecree3214 bool, existing case-details bool|null/document/basis unchanged; reportP counts eligibleflagtrue only. No new route/role/duplicatefield.
 
-- [ ] Write API/SFC/calculation RED: true/false/omission/retry registration; flagwithoutfile saves/toggles/history; foreignspecialty reject atomically; otherlegacytrue notcounted; reportP literal1for16.1/16.2true and0forfalse/null/others. Run backend `-m pytest tests/test_construction_flag.py -o addopts= -q` and frontend `npm.cmd test -- --run src/modules/intake/ReceiptPage.test.ts src/modules/expertises/CaseDetailsPanel.test.ts`; expected missing input/checkbox and oldmandatory evidence failures.
-- [ ] Minimal implementation and generated constraint migration; update only superseded oldpolicy assertions, preserve evidence validation/retry/rights. Same focusedtests plus test_case_details/test_registration/report tests green. Commit/task-done focusedbackendcommand. Fullfrontend/typecheck/build and fullbackend must run before final claim.
+- [x] Write API/SFC/calculation RED: true/false/omission/retry registration; flagwithoutfile saves/toggles/history; foreignspecialty reject atomically; otherlegacytrue notcounted; reportP literal1for16.1/16.2true and0forfalse/null/others. Run backend `-m pytest tests/test_construction_flag.py -o addopts= -q` and frontend `npm.cmd test -- --run src/modules/intake/ReceiptPage.test.ts src/modules/expertises/CaseDetailsPanel.test.ts`; expected missing input/checkbox and oldmandatory evidence failures.
+- [x] Minimal implementation and generated constraint migration; update only superseded oldpolicy assertions, preserve evidence validation/retry/rights. Same focusedtests plus test_case_details/test_registration/report tests green. Commit/task-done focusedbackendcommand. Fullfrontend/typecheck/build and fullbackend must run before final claim.
 
 ### Task 2: Verification and local rollout
 
 **Files:** docs/verification/construction-flag-2026-10-28.md; runtime-only backup/checkpoint/QA; docs/API wording.
 **Interfaces:** consumes Task1schema/DTO/UI, existing local/acceptance runtime. Real records read-only, fakepositive only isolatedDB.
 
-- [ ] One fresh whole-range review/spec/ledger/ReviewFocus, regrade/fixImportant RED→GREEN inonepass/no rereview. Fullsuite outputs read; preserve deferredminors. Backup+constraintmigration+alloldrow/filecomparison, restartown8000only; realbrowser flag visible/register/edit oneligible example and hiddenelsewhere, optional docs, planeditverified separatelywithoutchanging294. Docs/claims exact, keepbranch/no push; overallgoalactive.
+- [x] One fresh whole-range review/spec/ledger/ReviewFocus, regrade/fixImportant RED→GREEN inonepass/no rereview. Fullsuite outputs read; preserve deferredminors. Backup+constraintmigration+alloldrow/filecomparison, restartown8000only; realbrowser flag visible/register/edit oneligible example and hiddenelsewhere, optional docs, planeditverified separatelywithoutchanging294. Docs/claims exact, keepbranch/no push; overallgoalactive.
 
 ## Self-review
 
