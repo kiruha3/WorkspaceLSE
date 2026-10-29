@@ -10,6 +10,7 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 from apps.accounts.policies import effective_scope, require, access_snapshot, can
 from apps.accounts.services import audit, check_version, require_any
 from .models import Employee, EmployeeOrgAssignment, EmployeeSpecialty, EmployeeRole
+from .serializers import AccountPasswordReset
 from .serializers import EmployeeOutput, EmployeeCreate, EmployeeUpdate, SpecialtyOutput, SpecialtyCreate, SpecialtyQualify, SpecialtyMetadataUpdate, RoleAssignmentOutput, RoleAssignmentCreate, OrgAssignmentCreate, OrgAssignmentEnd, OrgAssignmentOutput, RoleAssignmentRevoke, AccountCreate, AccountUpdate
 
 
@@ -243,7 +244,7 @@ def account_data(user):
 
 class EmployeeAccountView(GenericAPIView):
     def get(self,request,pk):
-        require_any(request.user,"users.view","users.create","users.deactivate")
+        require_any(request.user,"users.view","users.create","users.reset_password","users.deactivate")
         employee = get_object_or_404(Employee.objects.select_related("user"),pk=pk)
         # DRF treats Response(None) as an empty body, not JSON null.
         return JsonResponse(account_data(employee.user),safe=False)
@@ -296,9 +297,34 @@ class EmployeeAccountView(GenericAPIView):
         return Response(account_data(user))
 
 
+class EmployeePasswordResetView(GenericAPIView):
+    @transaction.atomic
+    def post(self, request, pk):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        require(request.user, "users.reset_password")
+        employee = get_object_or_404(Employee.objects.select_for_update(), pk=pk)
+        if not employee.user_id:
+            raise ValidationError("У сотрудника нет учётной записи. Сначала создайте персональный вход.")
+        serializer = AccountPasswordReset(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        user = get_user_model().objects.select_for_update().get(pk=employee.user_id)
+        try:
+            validate_password(data["password"], user)
+        except DjangoValidationError as exc:
+            raise ValidationError({"password": exc.messages}) from exc
+        user.set_password(data["password"])
+        user.save(update_fields=["password"])
+        audit(request.user, "employee.account.password_reset", employee, account_data(user), data["reason"])
+        return Response(account_data(user))
+
+
 class AccessEmployeeDirectoryView(GenericAPIView):
     def get(self,request):
-        require_any(request.user,"users.view","users.create","users.deactivate","access.roles.assign","access.effective.view")
+        require_any(request.user,"users.view","users.create","users.reset_password","users.deactivate","access.roles.assign","access.effective.view")
         queryset = Employee.objects.all()
         if search := request.query_params.get("search","").strip():
             queryset = queryset.filter(full_name__icontains=search)

@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { api, ApiError } from '../api/client'
 import type { CurrentUser } from '../api/types'
 
-export const accessDirectoryActions = ['users.view','users.create','users.deactivate','access.roles.assign','access.effective.view']
+export const accessDirectoryActions = ['users.view','users.create','users.reset_password','users.deactivate','access.roles.assign','access.effective.view']
 
 export const useSessionStore = defineStore('session', () => {
   const user = ref<CurrentUser | null>(null)

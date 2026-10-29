@@ -19,7 +19,7 @@ def stable_id(key):
 
 
 TEMPLATES = {
-    "Администратор доступа": {code:"institution" for code in ["access.roles.view","access.roles.manage","access.roles.assign","access.effective.view","users.view","users.create","users.deactivate"]},
+    "Администратор доступа": {code:"institution" for code in ["access.roles.view","access.roles.manage","access.roles.assign","access.effective.view","users.view","users.create","users.reset_password","users.deactivate"]},
     "Кадровый учёт": {code:"institution" for code in ["employees.view","employees.create","employees.update","employees.deactivate","employees.org_assignments.manage","specialties.training.manage","specialties.qualify","references.view","references.manage"]},
     "Эксперт": {code:"own" for code in ["employees.view","expertise.view","expertise.work.update","expertise.suspend","expertise.resume","expertise.deadline.record","expertise.complete","expertise.export","documents.view","documents.upload","letters.view","letters.draft","control.close"]},
     "Руководитель отдела": {code:"departments" for code in ["employees.view","expertise.view","expertise.assign","expertise.reassign","documents.view","documents.upload","letters.view","reports.form151.run","reports.form151.download"]},

@@ -5,7 +5,7 @@ from apps.personnel.api import EmployeeListView, EmployeeDetailView, EmployeeSpe
 from apps.references.api import ReferenceListView, ReferenceDetailView
 from apps.references.history import ReferenceHistoryView
 from apps.personnel.api import EmployeeOrgAssignmentsView, OrgAssignmentDetailView, EmployeeRoleDetailView, EmployeeAccountView
-from apps.personnel.api import AccessEmployeeDirectoryView
+from apps.personnel.api import AccessEmployeeDirectoryView, EmployeePasswordResetView
 from apps.reports.api import Form151View
 from apps.reports.plan_api import ReportPlanView
 
@@ -35,6 +35,7 @@ urlpatterns = [
     path("api/v1/employees/<uuid:pk>/effective-access/",EmployeeEffectiveView.as_view()),
     path("api/v1/employees/<uuid:pk>/org-assignments/",EmployeeOrgAssignmentsView.as_view()),
     path("api/v1/employees/<uuid:pk>/account/",EmployeeAccountView.as_view()),
+    path("api/v1/employees/<uuid:pk>/account/reset-password/",EmployeePasswordResetView.as_view()),
     path("api/v1/employee-org-assignments/<uuid:pk>/",OrgAssignmentDetailView.as_view()),
     path("api/v1/employee-roles/<uuid:pk>/",EmployeeRoleDetailView.as_view()),
     path("api/v1/employee-specialties/<uuid:pk>/qualify/",SpecialtyQualifyView.as_view()),

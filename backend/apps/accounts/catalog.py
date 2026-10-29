@@ -31,6 +31,7 @@ PERMISSIONS = {item.code: item for item in [
     Permission("access.effective.view", "Проверять эффективные права", "Доступ", ("institution",)),
     Permission("users.view", "Просматривать учётные записи", "Доступ", ("institution",)),
     Permission("users.create", "Создавать учётные записи", "Доступ", ("institution",)),
+    Permission("users.reset_password", "Сбрасывать пароль пользователя", "Доступ", ("institution",)),
     Permission("users.deactivate", "Блокировать вход пользователя", "Доступ", ("institution",)),
     Permission("expertise.view", "Просматривать экспертизы", "Экспертизы"),
     Permission("expertise.register", "Закреплять регистрационный номер", "Экспертизы", ("departments", "institution")),

@@ -149,3 +149,8 @@ class AccountCreate(StrictSerializer):
 class AccountUpdate(StrictSerializer):
     is_active = serializers.BooleanField()
     reason = serializers.CharField()
+
+
+class AccountPasswordReset(StrictSerializer):
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
+    reason = serializers.CharField(required=False, allow_blank=True, default="")

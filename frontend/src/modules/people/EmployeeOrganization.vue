@@ -13,7 +13,7 @@ const adding = ref(false), departmentId = ref(''), positionId = ref(''), validFr
 const ending = ref<OrgAssignment | null>(null), endDate = ref(''), endReason = ref('')
 const error = ref<unknown>(null), loadError = ref<unknown>(null), success = ref('')
 const dirty = computed(() => (adding.value && Boolean(departmentId.value || positionId.value || validFrom.value || validTo.value || reason.value)) || (ending.value !== null && Boolean(endDate.value || endReason.value)))
-defineExpose({ dirty })
+defineExpose({ dirty, busy: saving })
 function toggleAdd() {
   if (adding.value && dirty.value && !window.confirm('Свернуть несохранённое кадровое назначение?')) return
   adding.value = !adding.value

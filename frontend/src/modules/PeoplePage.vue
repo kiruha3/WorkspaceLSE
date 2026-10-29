@@ -36,11 +36,11 @@ function updated(employee: Employee) {
   if (index >= 0) list.value.results[index] = employee
 }
 function startCreate() {
-  if (!confirmLeave() || (panel.value?.dirty && !window.confirm('Есть несохранённые изменения карточки. Открыть новую форму?'))) return
+  if (saving.value || panel.value?.busy || !confirmLeave() || (panel.value?.dirty && !window.confirm('Есть несохранённые изменения карточки. Открыть новую форму?'))) return
   details.cancel(); selected.value = null; loadingDetail.value = false; mode.value = 'create'; fullName.value = ''; createError.value = null; success.value = ''
 }
 function backToList() {
-  if (saving.value || !confirmLeave() || (panel.value?.dirty && !window.confirm('Есть несохранённые изменения карточки. Вернуться к списку?'))) return
+  if (saving.value || panel.value?.busy || !confirmLeave() || (panel.value?.dirty && !window.confirm('Есть несохранённые изменения карточки. Вернуться к списку?'))) return
   details.cancel(); mode.value = 'list'; selected.value = null; fullName.value = ''; loadingDetail.value = false; detailError.value = null; success.value = ''
 }
 async function create() {
@@ -58,7 +58,7 @@ onBeforeUnmount(() => { requests.cancel(); details.cancel() })
 </script>
 
 <template>
-  <div class="page-heading"><div><p class="eyebrow">Кадровый учёт</p><h1>{{ mode === 'detail' ? selected?.full_name ?? 'Карточка сотрудника' : creating ? 'Новый сотрудник' : 'Сотрудники' }}</h1><p class="muted">Один человек — одна карточка, несколько должностей, специальностей и ролей.</p></div><button v-if="mode !== 'list'" data-back-to-people :disabled="saving" @click="backToList">← Назад к списку</button><button v-else-if="session.can('employees.create')" class="button-primary" @click="startCreate">+ Добавить сотрудника</button></div>
+  <div class="page-heading"><div><p class="eyebrow">Кадровый учёт</p><h1>{{ mode === 'detail' ? selected?.full_name ?? 'Карточка сотрудника' : creating ? 'Новый сотрудник' : 'Сотрудники' }}</h1><p class="muted">Один человек — одна карточка, несколько должностей, специальностей и ролей.</p></div><div class="button-row"><button v-if="mode !== 'list'" data-back-to-people :disabled="saving||panel?.busy" @click="backToList">← Назад к списку</button><button v-if="!creating&&session.can('employees.create')" data-add-employee class="button-primary" :disabled="saving||panel?.busy" @click="startCreate">+ Добавить сотрудника</button></div></div>
   <section v-if="mode === 'list'" class="card">
     <form class="toolbar" @submit.prevent="load(1)"><label class="search-field">Поиск сотрудников<input v-model="search" type="search" placeholder="Фамилия, имя или отчество" /></label><button :disabled="loading">Найти</button><span class="toolbar-note">Данные в разрешённой области</span></form>
     <ApiMessage :error="error" /><p v-if="loading" class="state" aria-live="polite">Загрузка сотрудников…</p>

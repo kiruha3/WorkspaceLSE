@@ -16,7 +16,7 @@ const ending = ref<EmployeeRole | null>(null), endReason = ref('')
 const dirty = computed(() => Boolean(roleId.value || scopeLimit.value || departmentIds.value.length || validFrom.value || validTo.value || reason.value || (ending.value && endReason.value)))
 const controller = new AbortController()
 const scopeLabels: Record<Scope, string> = { own: 'Свои', departments: 'Выбранные отделы', institution: 'Учреждение' }
-defineExpose({ dirty })
+defineExpose({ dirty, busy: saving })
 async function loadAccess() {
   if (session.can('access.effective.view')) effective.value = await api.request<Access>(`/employees/${props.employeeId}/effective-access/`, { signal: controller.signal })
 }

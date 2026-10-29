@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiClient, apiKey } from '../api/client'
 import { employee, json, page, sessionWith } from '../test/fixtures'
 import PeoplePage from './PeoplePage.vue'
+import { createMemoryHistory, createRouter } from 'vue-router'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -102,6 +103,59 @@ describe('people registry', () => {
     confirm.mockReturnValue(true)
     await wrapper.get('[data-back-to-people]').trigger('click')
     expect(wrapper.findAll('[data-employee-row]')).toHaveLength(1)
+    wrapper.unmount()
+  })
+  it('offers new employee creation from a card without silently discarding its edits', async () => {
+    const client = new ApiClient(async input => String(input).includes('/employees/employee-1/') ? json(employee) : json(page([employee])))
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const wrapper = mount(PeoplePage, { global: { plugins: [sessionWith('employees.view', 'employees.create', 'employees.update')], provide: { [apiKey as symbol]: client } } })
+    await flushPromises()
+    await wrapper.get('[data-open-employee="employee-1"]').trigger('click'); await flushPromises()
+    await wrapper.get('.employee-card input:not([type])').setValue('Несохранённое имя')
+    await wrapper.get('[data-add-employee]').trigger('click')
+    expect(wrapper.find('.employee-card').exists()).toBe(true)
+    confirm.mockReturnValue(true)
+    await wrapper.get('[data-add-employee]').trigger('click')
+    expect(wrapper.find('.employee-card').exists()).toBe(false)
+    expect(wrapper.get('.narrow-card h2').text()).toBe('Новый сотрудник')
+    wrapper.unmount()
+  })
+  it('keeps organizational command context until the assignment is saved', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    let finish!: (response: Response) => void
+    const pending = new Promise<Response>(resolve => { finish = resolve })
+    const pinia = sessionWith('employees.view', 'employees.create', 'employees.org_assignments.manage')
+    const client = new ApiClient(async (input, init) => {
+      const path = String(input)
+      if (path.endsWith('/csrf/')) return json({ csrf_token: 'token' })
+      if (init?.method === 'POST') return pending
+      if (path.includes('/references/departments/')) return json(page([{ id: 'd-4', code: '4', name: 'Отдел 4' }]))
+      if (path.includes('/references/positions/')) return json(page([{ id: 'p-1', code: 'expert', name: 'Эксперт' }]))
+      if (path.includes('/employees/employee-1/')) return json(employee)
+      return json(page([employee]))
+    })
+    const localRouter = createRouter({ history: createMemoryHistory(), routes: [{ path: '/people', component: PeoplePage }, { path: '/workspace', component: { template: '<p>Рабочее место</p>' } }] })
+    await localRouter.push('/people'); await localRouter.isReady()
+    const wrapper = mount(PeoplePage, { global: { plugins: [pinia, localRouter], provide: { [apiKey as symbol]: client } } })
+    await flushPromises()
+    await wrapper.get('[data-open-employee="employee-1"]').trigger('click'); await flushPromises()
+    await wrapper.get('[data-add-org]').trigger('click')
+    await wrapper.get('[name="org_department"]').setValue('d-4')
+    await wrapper.get('[name="org_position"]').setValue('p-1')
+    await wrapper.get('[data-org-create-form]').trigger('submit'); await flushPromises()
+    const addDisabled = wrapper.get('[data-add-employee]').attributes('disabled') !== undefined
+    await wrapper.get('[data-add-employee]').trigger('click')
+    const remainedOnCard = wrapper.find('.employee-card').exists()
+    await localRouter.push('/workspace')
+    const pendingRoute = localRouter.currentRoute.value.path
+    finish(json({ ...employee.org_assignments[0], id: 'new-org', version: 1 })); await flushPromises()
+    expect(addDisabled).toBe(true)
+    expect(remainedOnCard).toBe(true)
+    expect(pendingRoute).toBe('/people')
+    expect(confirm).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Кадровое назначение сохранено сервером')
+    await localRouter.push('/workspace')
+    expect(localRouter.currentRoute.value.path).toBe('/workspace')
     wrapper.unmount()
   })
 })

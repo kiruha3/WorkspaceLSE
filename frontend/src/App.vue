@@ -4,13 +4,13 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from './stores/session'
 import UiIcon from './shared/ui/UiIcon.vue'
 import ApiMessage from './shared/ui/ApiMessage.vue'
-import { hasDirtyForms } from './shared/ui/useDirtyGuard'
+import { hasBusyForms, hasDirtyForms } from './shared/ui/useDirtyGuard'
 import {canReadReportPlans} from './api/reportPlans'
 import {settingsActions} from './api/storage'
 const session = useSessionStore(), route = useRoute(), router = useRouter()
 const logoutError = ref<unknown>(null), signingOut = ref(false), menuOpen = ref(false)
 async function logout() {
-  if (signingOut.value || (hasDirtyForms() && !window.confirm('Есть несохранённые изменения. Выйти из системы?'))) return
+  if (signingOut.value || hasBusyForms() || (hasDirtyForms() && !window.confirm('Есть несохранённые изменения. Выйти из системы?'))) return
   signingOut.value = true; logoutError.value = null
   try { await session.logout(); await router.replace('/login') }
   catch (cause) { logoutError.value = cause }
