@@ -36,10 +36,11 @@ class ImportListView(GenericAPIView):
 
 class GoogleSourceView(GenericAPIView):
     def get(self,request):
-        from .google_source import configured_google_source
+        from .source_settings import active_google_source
         from .source import JournalSourceError
-        require_preview_read(request.user)
-        try:source=configured_google_source()
+        from apps.accounts.services import require_any
+        require_any(request.user,'imports.results.view','imports.source.manage')
+        try:source=active_google_source()
         except JournalSourceError as error:raise ValidationError({"source":str(error)}) from error
         return Response({"configured":True,"spreadsheet_id":source.spreadsheet_id,"gid":source.gid,"sheet_name":source.sheet_name,"label":source.label,"url":source.url} if source else {"configured":False})
 

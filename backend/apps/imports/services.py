@@ -92,7 +92,8 @@ def create_preview(*,actor,upload,reason,key):
 def create_google_preview(*,actor,reason,spreadsheet_id,gid,key):
     from . import google_source
     require_preview_create(actor)
-    try:source=google_source.configured_google_source()
+    from .source_settings import active_google_source
+    try:source=active_google_source()
     except JournalSourceError as error:raise ValidationError({"source":str(error)}) from error
     if source is None:raise ValidationError({"source":"Google-источник не настроен."})
     if (spreadsheet_id,gid)!=(source.spreadsheet_id,source.gid):raise CommandConflict("Настроенный источник изменился. Обновите сведения и начните новую проверку.")

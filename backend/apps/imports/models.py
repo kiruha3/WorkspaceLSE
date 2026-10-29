@@ -7,6 +7,19 @@ def source_path(instance,filename):
     return f"imports/{instance.pk}/{filename}"
 
 
+class JournalSourceSettings(models.Model):
+    id=models.PositiveSmallIntegerField(primary_key=True,default=1,editable=False)
+    spreadsheet_id=models.CharField(max_length=200)
+    gid=models.CharField(max_length=10)
+    sheet_name=models.CharField(max_length=255)
+    version=models.PositiveIntegerField(default=0)
+    updated_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    updated_at=models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints=[models.CheckConstraint(condition=models.Q(id=1),name='single_journal_source_settings')]
+
+
 class ImportBatch(models.Model):
     id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
     source_name=models.CharField(max_length=255)
