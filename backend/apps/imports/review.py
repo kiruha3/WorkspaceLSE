@@ -12,7 +12,7 @@ from apps.intake.models import Material,Receipt
 from apps.personnel.models import Employee
 from apps.references.models import Department,Specialty
 from .application import apply_selection,application_data,lock_numbers,require_apply
-from .models import ImportBatch,ImportRow,ImportApplication,ImportSelection
+from .models import ImportBatch,ImportRow,ImportApplication,ImportApplicationItem,ImportSelection
 from .reconciliation import ReconciliationContext,classify_row,selection_data,save_selection,require_reconcile,validate_mapping
 from .reconciliation_serializers import SelectionInput
 from .updates import apply_updates,update_preview,source_values
@@ -61,9 +61,10 @@ def proposal(row,context=None,people=None):
           'expected_selection_version':saved['version'] if saved else 0,'selection':choice,
           'work_id':str(work.pk) if work else None,'blockers':blockers,'changes':[],
           'diagnostics':row.diagnostics}
-    if work and previous_choice and classified['classification']=='changed':
+    if work and previous_choice and classified['classification'] in ('changed','unchanged'):
         preview=update_preview(row,work,selective=True,proposed_selection=choice)
         blockers.extend(preview['blockers']);info['changes']=preview['changes']
+        if info['changes']:info['classification']='changed'
     elif work:
         blockers.append('Нет изменений источника либо подтверждённой базы прежнего переноса.')
     elif not blockers:
@@ -85,9 +86,17 @@ def proposal(row,context=None,people=None):
 def review_batch(batch):
     rows=list(batch.rows.select_related('selection').prefetch_related('selection__employees'))
     context=ReconciliationContext.for_rows(rows);people=list(Employee.objects.all().order_by('pk'))
-    summary=Counter(classify_row(row,context)['classification'] for row in rows)
-    return {'batch_id':str(batch.pk),'summary':{key:summary[key] for key in ('new','changed','unchanged','invalid')},
-            'results':[proposal(row,context,people) for row in rows if classify_row(row,context)['classification']!='unchanged']}
+    partial=set()
+    for links in ImportApplication.objects.filter(links__contains=[{'action':'updated'}]).values_list('links',flat=True):
+        partial.update(link['expertise_id'] for link in links if link.get('action')=='updated' and 'accepted_fields' in link)
+    summary=Counter();results=[]
+    for row in rows:
+        classified=classify_row(row,context);work=context.works.get(row.facts.get('registration_number'))
+        if classified['classification']!='unchanged' or work and str(work.pk) in partial:
+            info=proposal(row,context,people);summary[info['classification']]+=1
+            if info['classification']!='unchanged':results.append(info)
+        else:summary['unchanged']+=1
+    return {'batch_id':str(batch.pk),'summary':{key:summary[key] for key in ('new','changed','unchanged','invalid')},'results':results}
 
 
 @transaction.atomic
@@ -101,7 +110,11 @@ def apply_review(*,actor,batch_id,selections,key,payload):
         # Match the established material/receipt/work/row/reference lock order.
         ImportBatch.objects.select_for_update().get(pk=batch.pk)
         anchors=list(Expertise.objects.filter(registration_number__in=[r.facts.get('registration_number') for r in rows]).values('id','material_id','receipt_id'))
-        list(Material.objects.select_for_update().filter(pk__in={a['material_id'] for a in anchors}).order_by('pk'))
+        material_ids={a['material_id'] for a in anchors}
+        group_keys=set(ImportSelection.objects.filter(row_id__in=[r.pk for r in rows],complex_group_key__isnull=False).values_list('complex_group_key',flat=True))
+        for item in ImportApplicationItem.objects.filter(row__batch=batch,row__selection__complex_group_key__in=group_keys).select_related('work__complex_group'):
+            if item.work.complex_group_id:material_ids.add(item.work.complex_group.material_id)
+        list(Material.objects.select_for_update().filter(pk__in=material_ids).order_by('pk'))
         list(Receipt.objects.select_for_update().filter(pk__in={a['receipt_id'] for a in anchors}).order_by('pk'))
         list(Expertise.objects.select_for_update().filter(pk__in={a['id'] for a in anchors}).order_by('pk'))
         locked=list(ImportRow.objects.select_for_update().filter(pk__in=[r.pk for r in rows]).order_by('pk'))
@@ -127,7 +140,8 @@ def apply_review(*,actor,batch_id,selections,key,payload):
         for row,info,entry in plans:
             body={'expected_version':info['expected_selection_version'],'reason':reason,**info['selection']}
             form=SelectionInput(data=body);form.is_valid(raise_exception=True)
-            save_selection(actor=actor,row_id=row.pk,data=form.validated_data,key=child_key(str(row.pk)),payload=body)
+            if not ImportApplicationItem.objects.filter(row=row).exists():
+                save_selection(actor=actor,row_id=row.pk,data=form.validated_data,key=child_key(str(row.pk)),payload=body)
             version=ImportSelection.objects.get(row=row).version
             if info['action']=='create':create.append({'row_id':row.pk,'expected_selection_version':version})
             else:updates.append({'row_id':row.pk,'expected_selection_version':version,'expected_work_version':entry['expected_work_version'],
