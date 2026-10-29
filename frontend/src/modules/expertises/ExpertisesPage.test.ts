@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ApiClient, apiKey } from '../../api/client'
 import { json, page, sessionWith } from '../../test/fixtures'
 import { department, expertise, specialty, testRouter } from '../../test/intakeFixtures'
@@ -7,6 +7,57 @@ import ExpertisesPage from './ExpertisesPage.vue'
 import { useSessionStore } from '../../stores/session'
 
 describe('expertise registry', () => {
+  it('downloads all applied URL filters without pagination only after a click', async () => {
+    const downloads: string[] = [], saved: string[] = []
+    const createUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:expertises')
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { saved.push(this.download) })
+    const client = new ApiClient(async input => {
+      const path = String(input)
+      if (path.includes('/export.xlsx')) {
+        downloads.push(path)
+        return new Response('xlsx', { headers: {
+          'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition':'attachment; filename="expertises-2026-10-29.xlsx"',
+        } })
+      }
+      if (path.includes('filter-options')) return json({ employees: [] })
+      return json(page([]))
+    })
+    const router = await testRouter('/expertises?search=151&state=suspended&calendar_days_min=0&calendar_days_max=12&department_id=d-4&specialty_id=s-1&employee_id=e-1&received_from=2026-01-01&received_to=2026-12-31&page=2&page_size=1')
+    const wrapper = mount(ExpertisesPage, { global: { plugins: [sessionWith('expertise.view','expertise.export'),router], provide: { [apiKey as symbol]:client } } })
+    try {
+      await flushPromises(); expect(downloads).toEqual([])
+      await wrapper.get('[name="search"]').setValue('not-yet-applied')
+      await wrapper.get('[data-export-expertises]').trigger('click'); await flushPromises()
+      expect(downloads).toHaveLength(1)
+      const query = new URL(downloads[0]!, 'http://localhost').searchParams
+      expect(Object.fromEntries(query)).toEqual({ search:'151', state:'suspended', calendar_days_min:'0', calendar_days_max:'12', department_id:'d-4', specialty_id:'s-1', employee_id:'e-1', received_from:'2026-01-01', received_to:'2026-12-31' })
+      expect(saved).toEqual(['expertises-2026-10-29.xlsx'])
+      expect(createUrl).toHaveBeenCalledOnce()
+    } finally { wrapper.unmount(); vi.restoreAllMocks() }
+  })
+  it('hides Excel download without export access', async () => {
+    const client = new ApiClient(async input => String(input).includes('filter-options') ? json({employees:[]}) : json(page([])))
+    const router = await testRouter('/expertises')
+    const wrapper = mount(ExpertisesPage,{global:{plugins:[sessionWith('expertise.view'),router],provide:{[apiKey as symbol]:client}}})
+    await flushPromises()
+    expect(wrapper.find('[data-export-expertises]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+  it('shows a denied export without starting a browser download', async () => {
+    const createUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:unexpected')
+    const client = new ApiClient(async input => String(input).includes('/export.xlsx')
+      ? json({code:'permission_denied',message:'Нет права выгружать эту выборку.'},403)
+      : String(input).includes('filter-options') ? json({employees:[]}) : json(page([])))
+    const router = await testRouter('/expertises')
+    const wrapper = mount(ExpertisesPage,{global:{plugins:[sessionWith('expertise.view','expertise.export'),router],provide:{[apiKey as symbol]:client}}})
+    try {
+      await flushPromises(); await wrapper.get('[data-export-expertises]').trigger('click'); await flushPromises()
+      expect(wrapper.get('[role="alert"]').text()).toContain('Нет права выгружать эту выборку.')
+      expect(createUrl).not.toHaveBeenCalled()
+      expect(wrapper.get('[data-export-expertises]').attributes('disabled')).toBeUndefined()
+    } finally { wrapper.unmount(); vi.restoreAllMocks() }
+  })
   it('offers Google and file sync directly and opens review without applying expertise changes', async () => {
     const writes: { path:string; body:unknown }[] = []
     const client = new ApiClient(async (input, init) => {

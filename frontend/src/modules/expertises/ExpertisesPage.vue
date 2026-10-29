@@ -6,10 +6,13 @@ import type { Expertise, Page, Reference } from '../../api/types'
 import ApiMessage from '../../shared/ui/ApiMessage.vue'
 import PaginationBar from '../../shared/ui/PaginationBar.vue'
 import JournalSyncActions from '../imports/JournalSyncActions.vue'
-const api = useApi(), route = useRoute(), router = useRouter(), requests = new LatestRequest(), optionsRequests = new LatestRequest()
+import { useSessionStore } from '../../stores/session'
+const api = useApi(), route = useRoute(), router = useRouter(), session = useSessionStore(), requests = new LatestRequest(), optionsRequests = new LatestRequest(), downloads = new LatestRequest()
 const filterKeys = ['search', 'department_id', 'specialty_id', 'employee_id', 'received_from', 'received_to', 'state', 'calendar_days_min', 'calendar_days_max'] as const
 const filters = reactive(Object.fromEntries(filterKeys.map(key => [key, String(route.query[key] ?? '')])) as Record<typeof filterKeys[number], string>)
 const list = ref<Page<Expertise>>({ count: 0, next: null, previous: null, results: [] }), loading = ref(false), error = ref<unknown>(null), refsError = ref<unknown>(null)
+const downloading = ref(false), downloadError = ref<unknown>(null)
+const canExport = computed(() => session.can('expertise.view') && session.can('expertise.export'))
 const departments = ref<Reference[]>([]), specialties = ref<Reference[]>([]), employees = ref<{ id: string; full_name: string }[]>([])
 const page = computed(() => Math.max(1, Number(route.query.page) || 1))
 const stateLabels = { in_progress: 'В производстве', suspended: 'Приостановлена', completed: 'Завершена', without_execution: 'Без исполнения' }
@@ -20,6 +23,19 @@ async function load() {
   catch (cause) { error.value = cause; loading.value = false }
 }
 async function filter(nextPage = 1) { await router.replace({ path: '/expertises', query: { ...Object.fromEntries(filterKeys.filter(key => filters[key]).map(key => [key, filters[key]])), page: String(nextPage) } }) }
+async function download() {
+  if (downloading.value || !canExport.value) return
+  downloading.value = true; downloadError.value = null
+  const query = new URLSearchParams(Object.fromEntries(filterKeys.filter(key => route.query[key]).map(key => [key, String(route.query[key])])))
+  try {
+    await downloads.run(signal => api.download(`/expertises/export.xlsx?${query}`, signal, 'expertises.xlsx'), file => {
+      const url = URL.createObjectURL(file.blob), link = document.createElement('a')
+      link.href = url; link.download = file.filename; link.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      downloading.value = false
+    })
+  } catch (cause) { downloadError.value = cause; downloading.value = false }
+}
 async function loadOptions() {
   try {
     await optionsRequests.run(async signal => {
@@ -28,12 +44,13 @@ async function loadOptions() {
     }, value => { departments.value = value.departments; specialties.value = value.specialties; employees.value = value.employees })
   } catch (cause) { refsError.value = cause }
 }
-watch(() => route.fullPath, () => { if (route.path === '/expertises') { filterKeys.forEach(key => { filters[key] = String(route.query[key] ?? '') }); void load() } })
+watch(() => route.fullPath, () => { downloads.cancel(); downloading.value = false; downloadError.value = null; if (route.path === '/expertises') { filterKeys.forEach(key => { filters[key] = String(route.query[key] ?? '') }); void load() } })
 onMounted(() => { void load(); void loadOptions() })
-onBeforeUnmount(() => { requests.cancel(); optionsRequests.cancel() })
+onBeforeUnmount(() => { requests.cancel(); optionsRequests.cancel(); downloads.cancel() })
 </script>
 <template>
-  <div class="page-heading"><div><p class="eyebrow">Разрешённая область работ</p><h1>Реестр экспертиз</h1><p class="muted">Номер, специальность и текущий состав исполнителей. Перепоручение сохраняет историю.</p></div></div>
+  <div class="page-heading"><div><p class="eyebrow">Разрешённая область работ</p><h1>Реестр экспертиз</h1><p class="muted">Номер, специальность и текущий состав исполнителей. Перепоручение сохраняет историю.</p></div><div v-if="canExport" class="export-actions"><button data-export-expertises :disabled="loading || downloading" @click="download">{{ downloading ? 'Подготовка Excel…' : 'Скачать Excel' }}</button><small class="muted">Вся выборка по применённым фильтрам</small></div></div>
+  <ApiMessage :error="downloadError" />
   <JournalSyncActions/>
   <section class="card">
     <form class="toolbar work-filters" @submit.prevent="filter()">
@@ -62,3 +79,7 @@ onBeforeUnmount(() => { requests.cancel(); optionsRequests.cancel() })
     <PaginationBar :page="page" :count="list.count" :next="Boolean(list.next)" :previous="Boolean(list.previous)" :busy="loading" @change="filter" />
   </section>
 </template>
+<style scoped>
+.export-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+@media (max-width: 720px) { .export-actions { align-items: flex-start; } }
+</style>

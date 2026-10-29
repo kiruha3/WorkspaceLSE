@@ -9,7 +9,7 @@ def expertise_scope_queryset(user, action, scopes=None):
     scope = scopes.get(action, AccessScope())
     if not scope.rules: raise PermissionDenied("Нет права просматривать экспертизы.")
     predicate=scope.query(employee_field="current__employee_id",department_field="department_id")
-    if action=="expertise.view":
+    if action in ("expertise.view", "expertise.export"):
         predicate |= Q(origin_kind="historical",assignments__isnull=True)&scope.query(employee_field="historical__participants__employee_id",department_field="department_id")
     return Expertise.objects.annotate(current=FilteredRelation("assignments", condition=Q(assignments__ended_at__isnull=True))).filter(predicate).distinct()
 

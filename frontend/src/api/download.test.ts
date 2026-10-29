@@ -14,3 +14,8 @@ it('propagates a stale report error instead of returning a JSON blob',async()=>{
   expect(typeof client.download).toBe('function')
   await expect(client.download('/reports/form151/xlsx/')).rejects.toMatchObject({status:409,code:'command_conflict',message:'Пересчитайте отчёт'})
 })
+it('uses a registry-specific fallback without changing the report fallback', async () => {
+  const client = new ApiClient(async () => new Response('xlsx', {headers:{'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}}))
+  expect((await client.download('/expertises/export.xlsx', undefined, 'expertises.xlsx')).filename).toBe('expertises.xlsx')
+  expect((await client.download('/reports/form151/xlsx/')).filename).toBe('15-1.xlsx')
+})
