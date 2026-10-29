@@ -45,6 +45,7 @@ PERMISSIONS = {item.code: item for item in [
     Permission("expertise.result.draft", "Сохранять результат экспертизы", "Экспертизы"),
     Permission("expertise.return_without_execution", "Оформлять решение без исполнения", "Экспертизы"),
     Permission("expertise.closed.correct", "Корректировать завершённую работу", "Экспертизы"),
+    Permission("expertise.reopen", "Возвращать завершённую экспертизу в работу", "Экспертизы"),
     Permission("expertise.export", "Выгружать выборку экспертиз", "Экспертизы"),
     Permission("documents.view", "Просматривать документы", "Документы"),
     Permission("documents.upload", "Подкреплять документы", "Документы"),

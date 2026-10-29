@@ -17,7 +17,7 @@ from apps.expertises.models import Expertise,WorkClosure,UnresolvedAllocation,Hi
 from .calculation import calculate
 from .plan_snapshot import coherent_snapshot
 
-VERSION='form151-registry-v8'
+VERSION='form151-registry-v9'
 RESULT_FIELDS=('result_kind','completed_on','return_decided_on','complexity_level','questions','categorical','probable','unresolved','authority_type')
 COUNT_FIELDS=('complexity_level','questions','categorical','probable','unresolved')
 
@@ -63,7 +63,7 @@ def calculate_registry(*,year,month,opening_balances_complete=False,delay_reason
     for item in stored:
         if item['material__is_demo']:
             excluded+=1;continue
-        key=str(item['id']);closure=item['accepted']
+        key=str(item['id']);closure=item['accepted'] if item['state'] not in ('in_progress','suspended') else None
         facts={field:item['historical__'+field] for field in RESULT_FIELDS}
         facts.update(sndz_reason=item['historical__sndz_reason__code'],return_reason=item['historical__return_reason__code'],allocations_complete=item['historical__allocations_complete'],unresolved_allocations=item['historical_allocations'])
         facts['decree3214']=item['case_details__decree3214']

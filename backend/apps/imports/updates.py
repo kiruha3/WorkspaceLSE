@@ -109,6 +109,8 @@ def update_preview(row,work,*,selective=False,proposed_selection=None):
     history=getattr(work,'historical',None)
     if work.origin_kind!='historical' or history is None:
         blockers.append('Это не перенесённая историческая работа.');return result
+    if work.reopenings.exists():
+        blockers.append('Есть локальный возврат в работу. Источник его не перезаписывает.');return result
     if not selective and history.corrections.exists():blockers.append('Есть ручное уточнение исторических сведений. Источник его не перезаписывает.')
     if getattr(work,'case_details',None) is not None:blockers.append('Есть ручные сведения дела в рабочей карточке. Источник их не перезаписывает.')
     if getattr(work,'classification',None) is not None:blockers.append('Есть ручная классификация работы. Источник её не перезаписывает.')

@@ -81,6 +81,7 @@ class ExpertiseOutput(serializers.ModelSerializer):
     result_history=serializers.SerializerMethodField()
     closure=serializers.SerializerMethodField()
     closure_history=serializers.SerializerMethodField()
+    reopening_history=serializers.SerializerMethodField()
     result_readiness=serializers.SerializerMethodField()
     historical=serializers.SerializerMethodField()
     case_details=serializers.SerializerMethodField()
@@ -89,7 +90,7 @@ class ExpertiseOutput(serializers.ModelSerializer):
 
     class Meta:
         model = Expertise
-        fields = ["id","origin_kind","historical","case_details","classification","timing","registration_number","registration_department_code","historical_number","sequence","year","category_code","department","specialty","receipt","material","appointment_nature","is_commission","complex_group","state","version","current_assignments","assignment_history","allowed_actions","basis_document","production","suspensions","deadline_events","result","result_history","closure","closure_history","result_readiness"]
+        fields = ["id","origin_kind","historical","case_details","classification","timing","registration_number","registration_department_code","historical_number","sequence","year","category_code","department","specialty","receipt","material","appointment_nature","is_commission","complex_group","state","version","current_assignments","assignment_history","allowed_actions","basis_document","production","suspensions","deadline_events","result","result_history","closure","closure_history","reopening_history","result_readiness"]
 
     def get_timing(self,obj):
         from .timing import timing_output
@@ -111,16 +112,18 @@ class ExpertiseOutput(serializers.ModelSerializer):
         scopes=self.context["scopes"];context=work_context(obj,self.context["user"],scopes)
         from .history import historical_record
         history=historical_record(obj)
+        from .reopen import can_reopen
+        reopen_actions=['expertise.reopen'] if can_reopen(obj,self.context['user'],scopes) else []
         if obj.origin_kind=="historical" and (history is None or not history.operational):
             from .history_activation import can_activate_history
             from .historical_reports import can_correct_historical_report
             actions=['imports.history.activate'] if history is not None and can_activate_history(self.context['user'],obj,scopes) else []
             if can_correct_historical_report(self.context['user'],obj,scopes):actions.append('expertise.closed.correct')
-            return actions
+            return actions+reopen_actions
         if obj.state not in ("in_progress","suspended"):
             from apps.issuance.models import MaterialIssue
             if MaterialIssue.objects.filter(package__material_id=obj.material_id).exists():return []
-            return ["expertise.closed.correct"] if scopes.get("expertise.closed.correct",AccessScope()).allows(**context) else []
+            return (["expertise.closed.correct"] if scopes.get("expertise.closed.correct",AccessScope()).allows(**context) else [])+reopen_actions
         action = "expertise.reassign" if any(a.ended_at is None for a in obj.assignments.all()) else "expertise.assign"
         result=[action] if scopes.get(action,AccessScope()).allows(**context) else []
         production_action="expertise.suspend" if obj.state=="in_progress" else "expertise.resume"
@@ -146,6 +149,9 @@ class ExpertiseOutput(serializers.ModelSerializer):
     def get_closure_history(self,obj):
         from .result_serializers import ClosureOutput
         return ClosureOutput(obj.closures.all(),many=True,context=self.context).data
+    def get_reopening_history(self,obj):
+        from .result_serializers import ReopeningOutput
+        return ReopeningOutput(obj.reopenings.all(),many=True).data
     def get_result_readiness(self,obj):
         from .history import historical_record,report_gaps
         history=historical_record(obj)

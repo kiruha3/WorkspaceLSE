@@ -41,3 +41,11 @@ class ClosureView(GenericAPIView):
         serializer,command={"complete":(CompleteInput,complete_work),"return":(ReturnInput,return_work),"correct":(CorrectInput,correct_closed_work)}[self.kind]
         form=serializer(data=request.data);form.is_valid(raise_exception=True)
         return command_response(request,command(actor=request.user,expertise_id=pk,data=form.validated_data,key=request.headers.get("Idempotency-Key"),payload=request.data))
+
+
+class ReopenView(GenericAPIView):
+    def post(self,request,pk):
+        from .result_serializers import ReopenInput
+        from .reopen import reopen_work
+        form=ReopenInput(data=request.data);form.is_valid(raise_exception=True)
+        return command_response(request,reopen_work(actor=request.user,expertise_id=pk,data=form.validated_data,key=request.headers.get('Idempotency-Key'),payload=request.data))

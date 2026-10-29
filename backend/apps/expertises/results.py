@@ -15,6 +15,7 @@ def latest_result(work):
 
 
 def latest_closure(work):
+    if work.state in OPEN_STATES:return None
     return max(work.closures.all(),key=lambda c:c.number,default=None)
 
 
@@ -139,7 +140,8 @@ def confirm_result(work,actor,result):
 
 
 def create_closure(work,actor,*,reason,kind,ended_on,document,result=None,return_reason=None,comment=""):
-    previous=latest_closure(work)
+    # Retired closures still reserve their numbers after an explicit reopening.
+    previous=max(work.closures.all(),key=lambda c:c.number,default=None)
     # checked_document already holds the same lock as add_file_version. Pin
     # the actual accepted bytes, not a moving "latest file" relation.
     accepted=document.versions.order_by("-number").first() if document is not None else None

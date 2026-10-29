@@ -8,6 +8,7 @@ import BasisPreview from '../../shared/BasisPreview.vue'
 import AssignmentForm from './AssignmentForm.vue'
 import ProductionPanel from './ProductionPanel.vue'
 import ResultPanel from './ResultPanel.vue'
+import ReopenWork from './ReopenWork.vue'
 import ExpertiseLetters from '../letters/ExpertiseLetters.vue'
 import ExpertiseIssueStatus from '../issuance/ExpertiseIssueStatus.vue'
 import HistoricalFacts from './HistoricalFacts.vue'
@@ -56,6 +57,11 @@ async function load() {
 function updated(value: Expertise) { requests.cancel(); loading.value = false; expertise.value = value; action.value = null; success.value = 'Назначения сохранены сервером. Номер работы не изменён.' }
 function productionUpdated(value: Expertise) { requests.cancel(); loading.value = false; expertise.value = value; success.value = 'Событие производства сохранено сервером.' }
 function resultUpdated(value: Expertise) { requests.cancel(); loading.value = false; expertise.value = value; success.value = 'Сведения о результате сохранены сервером.' }
+function reopened(value: Expertise) {
+  if (expertise.value && (expertise.value.id !== value.id || expertise.value.version > value.version)) return
+  requests.cancel(); loading.value = false; expertise.value = value
+  success.value = value.state === 'suspended' ? 'Завершение отменено. Работа приостановлена: прежняя приостановка ещё не закрыта.' : value.state === 'in_progress' ? 'Экспертиза возвращена в работу. История и документы сохранены.' : `Команда возврата уже выполнена ранее. Текущее состояние — «${stateLabels[value.state]}».`
+}
 function historyUpdated(value: Expertise) { requests.cancel(); loading.value = false; expertise.value = value; action.value = null; success.value = 'Историческая работа подтверждена для нового учёта. Назначение выполняется отдельно.' }
 function historyReportUpdated(value: Expertise) { requests.cancel();loading.value=false;expertise.value=value;success.value='Уточнение сохранено. Номер и состояние работы не изменены.' }
 watch(() => route.params.id, () => { if (route.path.startsWith('/expertises/')) { selectedTab.value = 'overview'; action.value = null; expertise.value = null; success.value = ''; void load() } }, { immediate: true })
@@ -83,6 +89,7 @@ onBeforeUnmount(() => requests.cancel())
     <ClassificationPanel v-if="expertise.classification" :key="`classification-${expertise.id}`" :expertise="expertise" @updated="historyReportUpdated"/>
     </div>
     <div :id="`card-panel-${expertise.id}-result`" data-card-panel="result" class="card-tab-panel" role="tabpanel" :aria-labelledby="`card-tab-${expertise.id}-result`" v-show="selectedTab==='result'" tabindex="0">
+    <ReopenWork :key="`reopen-${expertise.id}`" :expertise="expertise" @updated="reopened" @refresh="load" />
     <section v-if="expertise.historical?.operational" class="card stack-card"><h2>Исторические отчётные сведения и уточнения</h2><p class="muted compact">Сохраняются после перехода к новому учёту. В отчёте принятый итог нового учёта имеет приоритет.</p><HistoryReportDetails :history="expertise.historical"/></section>
     <HistoryReportEditor v-if="expertise.historical&&!expertise.historical.operational&&['completed','without_execution'].includes(expertise.state)" :key="`report-history-${expertise.id}`" :expertise="expertise" @updated="historyReportUpdated"/>
     <ResultPanel v-if="expertise.result_readiness" :key="expertise.id" :expertise="expertise" @updated="resultUpdated" />

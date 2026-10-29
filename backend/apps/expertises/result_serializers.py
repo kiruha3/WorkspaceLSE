@@ -5,7 +5,7 @@ from apps.documents.policies import can_document
 from apps.documents.serializers import DocumentOutput
 from apps.references.api import reference_data
 from apps.references.models import SndzReason, UnresolvedQuestionReason, ReturnReason
-from .models import ResultRevision, UnresolvedAllocation, WorkClosure
+from .models import ResultRevision, UnresolvedAllocation, WorkClosure, WorkReopening
 from .production_serializers import actor_data
 
 
@@ -66,6 +66,20 @@ class CompleteInput(StrictSerializer):
     expected_version=serializers.IntegerField(min_value=1)
     reason=serializers.CharField()
     result_id=serializers.UUIDField()
+
+
+class ReopenInput(StrictSerializer):
+    expected_version=serializers.IntegerField(min_value=1)
+    reason=serializers.CharField()
+
+
+class ReopeningOutput(serializers.ModelSerializer):
+    actor=serializers.SerializerMethodField()
+    closure_id=serializers.UUIDField(read_only=True,allow_null=True)
+    class Meta:
+        model=WorkReopening
+        fields=['id','closure_id','historical_completed_on','historical_return_decided_on','restored_state','actor','created_at','reason']
+    def get_actor(self,obj):return actor_data(obj.actor)
 
 
 class ReturnData(StrictSerializer):

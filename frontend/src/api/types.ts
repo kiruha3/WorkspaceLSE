@@ -137,6 +137,10 @@ export interface ResultOptions {
   sndz_reasons: Reference[]; unresolved_reasons: Reference[]; return_reasons: Reference[]
 }
 export interface ExpertiseCommandResponse { event: { id: string }; expertise: Expertise }
+export interface WorkReopening {
+  id: string; closure_id: string | null; historical_completed_on: string | null; historical_return_decided_on: string | null
+  restored_state: 'in_progress' | 'suspended'; actor: { id: string; full_name: string }; created_at: string; reason: string
+}
 export interface HistoryActivationPayload {
   expected_version: number; reason: string; basis_document_id: string; specialty_id: string
   appointment_nature: 'primary' | 'repeated' | 'additional'; is_commission: boolean; complex_known: true; complex_group_id: string | null
@@ -171,5 +175,6 @@ export interface Expertise {
   current_assignments: ExpertAssignment[]; assignment_history: ExpertAssignment[]; allowed_actions: string[]; basis_document: DocumentLink
   production: Production; suspensions: Suspension[]; deadline_events: DeadlineEvent[]
   result: ResultRevision | null; result_history: ResultRevision[]; closure: WorkClosure | null; closure_history: WorkClosure[]
+  reopening_history?: WorkReopening[]
   result_readiness: { completion_blockers: ResultIssue[]; report_gaps: ResultIssue[]; document_gaps?: ResultIssue[] }
 }

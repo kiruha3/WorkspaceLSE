@@ -205,6 +205,22 @@ class HistoricalWork(models.Model):
     return_comment=models.TextField(blank=True)
 
 
+class WorkReopening(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
+    expertise=models.ForeignKey(Expertise,related_name='reopenings',on_delete=models.PROTECT)
+    closure=models.ForeignKey(WorkClosure,null=True,blank=True,on_delete=models.PROTECT)
+    historical_completed_on=models.DateField(null=True,blank=True)
+    historical_return_decided_on=models.DateField(null=True,blank=True)
+    restored_state=models.CharField(max_length=24,choices=[('in_progress','В работе'),('suspended','Приостановлена')])
+    actor=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    created_at=models.DateTimeField(auto_now_add=True)
+    reason=models.TextField()
+
+    class Meta:
+        ordering=['created_at','id']
+        constraints=[models.CheckConstraint(condition=Q(restored_state__in=['in_progress','suspended']),name='reopening_restores_open_state')]
+
+
 class HistoricalUnresolvedAllocation(models.Model):
     id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
     history=models.ForeignKey(HistoricalWork,related_name='unresolved_allocations',on_delete=models.PROTECT)
