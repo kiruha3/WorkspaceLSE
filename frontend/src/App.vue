@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from './stores/session'
 import UiIcon from './shared/ui/UiIcon.vue'
@@ -9,6 +9,7 @@ import {canReadReportPlans} from './api/reportPlans'
 import {settingsActions} from './api/storage'
 const session = useSessionStore(), route = useRoute(), router = useRouter()
 const logoutError = ref<unknown>(null), signingOut = ref(false), menuOpen = ref(false)
+const settingsSection = computed(() => ['/settings','/references','/people','/access','/roles','/imports/source-settings'].some(path => route.path === path || route.path.startsWith(`${path}/`)))
 async function logout() {
   if (signingOut.value || hasBusyForms() || (hasDirtyForms() && !window.confirm('Есть несохранённые изменения. Выйти из системы?'))) return
   signingOut.value = true; logoutError.value = null
@@ -34,11 +35,7 @@ watch(() => route.path, () => { menuOpen.value = false })
         <RouterLink v-if="session.importPreviewEnabled && session.can('imports.results.view')" to="/imports"><UiIcon name="file" />Источники журнала</RouterLink>
         <RouterLink v-if="session.can('reports.form151.run') && session.canAny('imports.results.view','expertise.view')" to="/reports"><UiIcon name="chart" />Отчёт 15.1</RouterLink>
         <RouterLink v-if="canReadReportPlans(session.user)" to="/report-plans"><UiIcon name="chart" />Годовые планы</RouterLink>
-        <RouterLink v-if="session.canAny('references.view','references.manage')" to="/references"><UiIcon name="folder" />Справочники</RouterLink>
-        <RouterLink v-if="session.can('employees.view')" to="/people"><UiIcon name="people" />Сотрудники</RouterLink>
-        <RouterLink v-if="session.canAccessDirectory" to="/access"><UiIcon name="shield" />Учётные записи</RouterLink>
-        <RouterLink v-if="session.canAny('access.roles.view','access.roles.manage')" to="/roles"><UiIcon name="shield" />Роли и права</RouterLink>
-        <RouterLink v-if="session.canAny(...settingsActions)" to="/settings"><UiIcon name="folder" />Настройки</RouterLink>
+        <RouterLink v-if="session.canAny(...settingsActions)" to="/settings" :class="{'router-link-active':settingsSection}" :aria-current="settingsSection?'location':undefined"><UiIcon name="folder" />Настройки</RouterLink>
       </nav>
       <div class="sidebar-bottom"><span class="status-dot" /><span>Персональное рабочее место<small>Приёмка · регистрация · назначения</small></span></div>
     </aside>

@@ -1,6 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import { router } from './router'
+import { setActivePinia } from 'pinia'
+import { sessionWith } from './test/fixtures'
+import { useSessionStore } from './stores/session'
 describe('business routes', () => {
+  it('allows an employee reader into Settings without granting other administrative access', async () => {
+    const pinia = sessionWith('employees.view')
+    setActivePinia(pinia)
+    await router.push('/settings')
+    expect(router.currentRoute.value.path).toBe('/settings')
+    await router.push('/people')
+    expect(router.currentRoute.value.path).toBe('/people')
+    await router.push('/roles')
+    expect(router.currentRoute.value.path).toBe('/workspace')
+    const session = useSessionStore(pinia)
+    session.user!.access = {}
+    await router.push('/settings')
+    expect(router.currentRoute.value.path).toBe('/workspace')
+  })
   it('registers issue package routes with read and capability gates, including the explicit material entry', () => {
     for (const path of ['/issue-packages', '/issue-packages/new', '/issue-packages/package-1']) {
       const target = router.resolve(path)
