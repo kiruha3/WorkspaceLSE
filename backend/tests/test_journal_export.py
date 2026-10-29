@@ -6,6 +6,7 @@ import pytest
 from django.test import Client
 from django.utils import timezone
 from openpyxl import load_workbook
+from openpyxl.worksheet.worksheet import Worksheet
 
 from apps.documents.models import Document
 from apps.expertises.models import (
@@ -191,7 +192,8 @@ def test_export_preserves_excel_cell_text_limit_and_legal_whitespace(registry):
 def test_export_only_reveals_live_issue_details_when_all_material_works_allow_issue_view(registry, grant):
     client, actor, department, specialty, create = registry
     work = create(state='completed')
-    historical(work, actor, notes='Исторический комментарий', completed_on=date(2026, 3, 6))
+    historical(work, actor, notes='Исторический комментарий', delivery='Свободная историческая отметка передачи',
+               completed_on=date(2026, 3, 6))
     package = IssuePackage.objects.create(material=work.material, created_by=actor.user)
     revision = PackageRevision.objects.create(package=package, number=1, actor=actor.user, reason='Комплект')
     checked = PackageCheck.objects.create(package=package, revision=revision, actor=actor.user, reason='Проверка')
@@ -201,12 +203,12 @@ def test_export_only_reveals_live_issue_details_when_all_material_works_allow_is
                                  tracking='СЕКРЕТ трек', comment='СЕКРЕТ комментарий', actor=actor.user, reason='Выдано')
     # The date is already a visible expertise fact; delivery details have their own ACL.
     book = workbook(client.get(URL))
-    assert book.active['W4'].value == 'Исторический комментарий'
+    assert book.active['W4'].value == 'Исторический комментарий\nСвободная историческая отметка передачи'
     assert book.active['X4'].value == 'Выдано 02.04.2026'
     book.close()
     grant(actor, 'issue.view', 'departments', departments=[department])
     book = workbook(client.get(URL))
-    assert book.active['W4'].value == 'Исторический комментарий\nСЕКРЕТ способ\nСЕКРЕТ получатель\nСЕКРЕТ основание\nСЕКРЕТ трек\nСЕКРЕТ комментарий'
+    assert book.active['W4'].value == 'Исторический комментарий\nСвободная историческая отметка передачи\nСЕКРЕТ способ\nСЕКРЕТ получатель\nСЕКРЕТ основание\nСЕКРЕТ трек\nСЕКРЕТ комментарий'
     book.close()
     other = Department.objects.create(code='3', name='Другой отдел')
     Expertise.objects.create(material=work.material, receipt=work.receipt, registered_by=actor.user,
@@ -215,8 +217,45 @@ def test_export_only_reveals_live_issue_details_when_all_material_works_allow_is
     # Filtering out a sibling does not make the shared package's protected facts visible.
     book = workbook(client.get(URL, {'search':'151/4-1-26'}))
     assert book.active.max_row == 4
-    assert book.active['W4'].value == 'Исторический комментарий'
+    assert book.active['W4'].value == 'Исторический комментарий\nСвободная историческая отметка передачи'
     assert book.active['X4'].value == 'Выдано 02.04.2026'
+    book.close()
+
+
+def test_export_formats_each_record_without_repeated_full_sheet_dimension_scans(registry, monkeypatch):
+    client, _, _, _, create = registry
+    for number in range(151, 171):
+        create(number)
+    scans = {'max_row':0, 'max_column':0, 'calculate_dimension':0}
+    original_row = Worksheet.max_row.fget
+    original_column = Worksheet.max_column.fget
+    original_dimension = Worksheet.calculate_dimension
+
+    def counted_row(sheet):
+        scans['max_row'] += 1
+        return original_row(sheet)
+
+    def counted_column(sheet):
+        scans['max_column'] += 1
+        return original_column(sheet)
+
+    def counted_dimension(sheet):
+        scans['calculate_dimension'] += 1
+        return original_dimension(sheet)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(Worksheet, 'max_row', property(counted_row))
+        patch.setattr(Worksheet, 'max_column', property(counted_column))
+        patch.setattr(Worksheet, 'calculate_dimension', counted_dimension)
+        response = client.get(URL)
+        assert response.status_code == 200
+        # Constant serializer/header work is allowed; a scan per record is not.
+        assert all(count <= 2 for count in scans.values()), scans
+    book = workbook(response)
+    assert book.active.max_row == 23 and book.active.auto_filter.ref == 'A3:AB23'
+    assert book.active['B4'].data_type == 's'
+    assert book.active['C23'].number_format == 'DD.MM.YYYY'
+    assert book.active['V23'].number_format == '#,##0.00'
     book.close()
 
 

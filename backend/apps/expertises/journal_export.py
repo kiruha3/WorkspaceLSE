@@ -112,6 +112,7 @@ def journal_values(work, ordinal, as_of, *, can_view_issue=False):
         # Keep one standalone factual marker that the same parser can read back.
         marker = f'Выдано {issued_on:%d.%m.%Y}'
         if issue:
+            notes = joined(notes, delivery)
             if can_view_issue:
                 notes = joined(notes, issue.method.name, issue.recipient_name, issue.recipient_basis, issue.tracking, issue.comment)
             delivery = marker
@@ -166,7 +167,9 @@ def build_journal(queryset, *, issue_material_ids=()):
         sheet.row_dimensions[row].height = 30
     as_of = timezone.localdate()
     issue_material_ids = frozenset(issue_material_ids)
+    last_row = 3
     for ordinal, work in enumerate(export_queryset(queryset).iterator(chunk_size=250), 1):
+        row_number = ordinal + 3
         values = journal_values(work, ordinal, as_of, can_view_issue=work.material_id in issue_material_ids)
         for column, value in enumerate(values, 1):
             if not isinstance(value, str):
@@ -177,7 +180,9 @@ def build_journal(queryset, *, issue_material_ids=()):
             if INVALID_XML.search(value):
                 raise ValidationError(f'{location}: текст содержит символ, недопустимый для Excel. Уточните значение в карточке.')
         sheet.append(values)
-        for cell in sheet[sheet.max_row]:
+        last_row = row_number
+        cells = next(sheet.iter_rows(min_row=row_number, max_row=row_number, min_col=1, max_col=28))
+        for cell in cells:
             if isinstance(cell.value, str):
                 # XLSX string cells do not execute =/+/-/@ payloads; no visible apostrophe needed.
                 cell.data_type = 's'
@@ -185,12 +190,12 @@ def build_journal(queryset, *, issue_material_ids=()):
             cell.font = Font(name='Arial', size=10)
             cell.alignment = Alignment(vertical='top', wrap_text=True)
         for column in ('C', 'P'):
-            sheet[f'{column}{sheet.max_row}'].number_format = 'DD.MM.YYYY'
-        sheet[f'V{sheet.max_row}'].number_format = '#,##0.00'
+            sheet[f'{column}{row_number}'].number_format = 'DD.MM.YYYY'
+        sheet[f'V{row_number}'].number_format = '#,##0.00'
     for column, width in enumerate(WIDTHS, 1):
         sheet.column_dimensions[get_column_letter(column)].width = width
     sheet.freeze_panes = 'E4'
-    sheet.auto_filter.ref = f'A3:AB{max(sheet.max_row, 3)}'
+    sheet.auto_filter.ref = f'A3:AB{last_row}'
     sheet.sheet_properties.pageSetUpPr.fitToPage = True
     sheet.page_setup.orientation = 'landscape'
     sheet.page_setup.paperSize = sheet.PAPERSIZE_A3
