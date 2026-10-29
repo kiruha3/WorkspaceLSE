@@ -30,7 +30,7 @@ def current_facts(package):
     items = list(package.current_revision.items.select_related("document").prefetch_related("document__versions"))
     files = []
     for closure in closures.values():
-        if closure:
+        if closure and closure.document_id:
             files.append((None, closure.pk, closure.document, closure.accepted_version_id))
     for item in items:
         latest = max(item.document.versions.all(), key=lambda value: value.number, default=None)

@@ -31,6 +31,33 @@ async function open(current: unknown = work, respond?: (write: Write, count: num
 async function draft(wrapper: Awaited<ReturnType<typeof open>>['wrapper']) { await wrapper.get('[data-result-draft]').trigger('click'); await flushPromises(); await wrapper.get('[name="result_reason"]').setValue('  Достоверные сведения  ') }
 
 describe('result and closure workflow', () => {
+  it('shows missing documents as reminders without blocking completion', async () => {
+    const { wrapper, writes } = await open({ ...withResult, result: { ...result, document: null }, result_readiness: { completion_blockers: [], report_gaps: [], document_gaps: [{ code: 'file_missing', field: 'document_id', message: 'Не прикреплён итоговый документ.' }] } })
+    expect(wrapper.get('[data-document-gaps]').text()).toContain('Не прикреплён итоговый документ')
+    expect(wrapper.get('[data-result-complete]').attributes('disabled')).toBeUndefined()
+    await wrapper.get('[data-result-complete]').trigger('click'); await wrapper.get('[name="result_reason"]').setValue('Завершено, файл добавим позже')
+    await wrapper.get('[data-result-form]').trigger('submit'); await flushPromises()
+    expect(writes[0]?.path).toBe('/api/v1/expertises/work-1/complete/')
+    wrapper.unmount()
+  })
+  it('records a return without an attached decision document', async () => {
+    const { wrapper, writes } = await open()
+    await wrapper.get('[data-result-return]').trigger('click'); await flushPromises()
+    await wrapper.get('[name="result_reason"]').setValue('Возврат подтверждён'); await wrapper.get('[name="decided_on"]').setValue('2026-10-28')
+    await wrapper.get('[data-result-form]').trigger('submit'); await flushPromises()
+    expect(writes[0]?.body.document_id).toBeNull()
+    expect(writes[0]?.path).toBe('/api/v1/expertises/work-1/return-without-execution/')
+    wrapper.unmount()
+  })
+  it('corrects result details without requiring a file', async () => {
+    const value = { ...withResult, result: { ...result, document: null }, state: 'completed', closure: { id: 'closure', kind: 'completed', document: null }, allowed_actions: ['expertise.closed.correct'] }
+    const { wrapper, writes } = await open(value)
+    await wrapper.get('[data-result-correct]').trigger('click'); await flushPromises()
+    await wrapper.get('[name="result_reason"]').setValue('Уточнение без файла'); await wrapper.get('[name="probable"]').setValue('2')
+    await wrapper.get('[data-result-form]').trigger('submit'); await flushPromises()
+    expect(writes[0]?.body.result).toMatchObject({ document_id: null, probable: 2 })
+    wrapper.unmount()
+  })
   it('gates actions by the card and distinguishes completion blockers from reporting gaps', async () => {
     const { wrapper } = await open({ ...work, allowed_actions: [] })
     expect(wrapper.get('[data-result-panel]').text()).toContain('Сохраните результат')
@@ -147,14 +174,15 @@ describe('result and closure workflow', () => {
     expect(wrapper.get('[name="questions"]').element).toHaveProperty('value', '3')
     wrapper.unmount()
   })
-  it('requires a complete typed proof when correcting a closed result', async () => {
+  it('requires a correction date but permits a missing document', async () => {
     const closure = { id: 'closed', number: 1, kind: 'completed', ended_on: '2026-10-28', document, result_id: result.id, return_reason: null, comment: '', actor: result.actor, created_at: result.created_at, reason: 'Готово' }
     const { wrapper, writes } = await open({ ...withResult, state: 'completed', closure, closure_history: [closure], allowed_actions: ['expertise.closed.correct'] })
     await wrapper.get('[data-result-correct]').trigger('click'); await flushPromises(); await wrapper.get('[name="result_reason"]').setValue('Исправление')
     await wrapper.get('[name="completed_on"]').setValue(''); await wrapper.get('[data-result-form]').trigger('submit'); await flushPromises()
     expect(writes).toHaveLength(0)
     await wrapper.get('[name="completed_on"]').setValue('2026-10-28'); await wrapper.get('[name="result_document"]').setValue(''); await wrapper.get('[data-result-form]').trigger('submit'); await flushPromises()
-    expect(writes).toHaveLength(0)
+    expect(writes).toHaveLength(1)
+    expect(writes[0]?.body.result).toMatchObject({ document_id: null, completed_on: '2026-10-28' })
     wrapper.unmount()
   })
   it('does not carry an SNDZ reason into another result kind', async () => {

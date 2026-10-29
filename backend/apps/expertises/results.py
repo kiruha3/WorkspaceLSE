@@ -73,23 +73,25 @@ def create_revision(work,actor,data,reason,*,retained_references=None):
 
 def result_readiness(work,result=None):
     result=result if result is not None else latest_result(work)
-    blockers=[];gaps=[]
+    blockers=[];gaps=[];documents=[]
     def issue(target,code,field,message):target.append({"code":code,"field":field,"message":message})
     closure=latest_closure(work)
     if work.state=="without_execution" and closure:
+        if closure.document is None or not (closure.document.source_url or closure.document.versions.exists()):
+            issue(documents,"file_missing","document_id","Не прикреплён документ решения без исполнения. Можно добавить позднее.")
         if closure.return_reason_id is None:issue(gaps,"return_reason_missing","return_reason_id","Не определена причина решения без исполнения.")
-        return {"completion_blockers":blockers,"report_gaps":gaps}
+        return {"completion_blockers":blockers,"report_gaps":gaps,"document_gaps":documents}
     if result is None:
         issue(blockers,"result_missing","result_id","Сначала сохраните результат.")
-        return {"completion_blockers":blockers,"report_gaps":gaps}
+        return {"completion_blockers":blockers,"report_gaps":gaps,"document_gaps":documents}
     if result.kind is None:issue(blockers,"kind_missing","kind","Укажите вид результата.")
     if result.completed_on is None:issue(blockers,"date_missing","completed_on","Укажите дату окончания.")
     else:
         try:validate_ending(work,result.completed_on,"completed_on")
         except ValidationError:issue(blockers,"date_invalid","completed_on","Проверьте дату окончания относительно поступления и текущей даты.")
-    if result.document_id is None or not result.document.versions.exists():
-        issue(blockers,"file_missing","document_id","Подкрепите сохранённый файл итогового документа.")
-    elif result.kind!=result.document.kind:
+    if result.document_id is None or not (result.document.source_url or result.document.versions.exists()):
+        issue(documents,"file_missing","document_id","Не прикреплён итоговый документ. Можно завершить работу и добавить документ позднее.")
+    if result.document_id is not None and result.kind!=result.document.kind:
         issue(blockers,"document_kind","document_id","Вид документа не соответствует результату.")
     if not result.statistics_complete:issue(gaps,"statistics_unconfirmed","statistics_complete","Статистика вопросов не подтверждена как полная; пустое не равно нулю.")
     if result.complexity_level is None:issue(gaps,"complexity_missing","complexity_level","Не указана категория сложности.")
@@ -97,7 +99,7 @@ def result_readiness(work,result=None):
         issue(gaps,"sndz_reason_missing","sndz_reason_id","Не определена причина полного СНДЗ.")
     if result.unresolved and not result.allocations_complete:
         issue(gaps,"allocations_unconfirmed","allocations_complete","Причины нерешённых вопросов не распределены полностью.")
-    return {"completion_blockers":blockers,"report_gaps":gaps}
+    return {"completion_blockers":blockers,"report_gaps":gaps,"document_gaps":documents}
 
 
 @transaction.atomic
@@ -129,8 +131,7 @@ def create_closure(work,actor,*,reason,kind,ended_on,document,result=None,return
     previous=latest_closure(work)
     # checked_document already holds the same lock as add_file_version. Pin
     # the actual accepted bytes, not a moving "latest file" relation.
-    accepted=document.versions.order_by("-number").first()
-    if accepted is None:raise ValidationError({"document_id":"Нет сохранённого файла для подтверждения."})
+    accepted=document.versions.order_by("-number").first() if document is not None else None
     closure=WorkClosure.objects.create(expertise=work,number=previous.number+1 if previous else 1,kind=kind,ended_on=ended_on,document=document,accepted_version=accepted,result=result,return_reason=return_reason,comment=comment,actor=actor,reason=reason)
     work.state=kind;work.version+=1;work.save(update_fields=["state","version"])
     return closure
@@ -139,7 +140,6 @@ def create_closure(work,actor,*,reason,kind,ended_on,document,result=None,return
 def return_values(work,actor,data,*,retained_references=None):
     validate_ending(work,data["decided_on"],"decided_on")
     document=checked_document(actor,data["document"],kind="return_decision")
-    if not document.versions.exists():raise ValidationError({"document_id":"Подкрепите сохранённый файл решения."})
     reason=locked_reference(data["return_reason"],set(work.closures.values_list("return_reason_id",flat=True))|(retained_references or {}).get('return_reason',set()),"return_reason_id")
     if reason and reason.code=="other" and not data["comment"]:
         raise ValidationError({"comment":"Для иной причины нужно пояснение."})

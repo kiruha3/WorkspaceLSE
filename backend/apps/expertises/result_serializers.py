@@ -70,7 +70,7 @@ class CompleteInput(StrictSerializer):
 
 class ReturnData(StrictSerializer):
     decided_on=serializers.DateField()
-    document_id=serializers.PrimaryKeyRelatedField(source="document",queryset=Document.objects.all())
+    document_id=serializers.PrimaryKeyRelatedField(source="document",queryset=Document.objects.all(),allow_null=True,required=False,default=None)
     return_reason_id=serializers.PrimaryKeyRelatedField(source="return_reason",queryset=ReturnReason.objects.all(),allow_null=True,required=False,default=None)
     comment=serializers.CharField(allow_blank=True,required=False,default="")
 
@@ -86,7 +86,7 @@ class CorrectInput(StrictSerializer):
     correction_kind=serializers.ChoiceField(choices=["result","return"])
     result=ResultData(required=False)
     decided_on=serializers.DateField(required=False)
-    document_id=serializers.PrimaryKeyRelatedField(source="document",queryset=Document.objects.all(),required=False)
+    document_id=serializers.PrimaryKeyRelatedField(source="document",queryset=Document.objects.all(),allow_null=True,required=False)
     return_reason_id=serializers.PrimaryKeyRelatedField(source="return_reason",queryset=ReturnReason.objects.all(),allow_null=True,required=False)
     comment=serializers.CharField(allow_blank=True,required=False)
 
@@ -97,9 +97,9 @@ class CorrectInput(StrictSerializer):
                 raise serializers.ValidationError("Не смешивайте исправление результата и решения без исполнения.")
         else:
             if "result" in data:raise serializers.ValidationError("Решение без исполнения не является результатом.")
-            for field in ("decided_on","document"):
+            for field in ("decided_on",):
                 if field not in data:raise serializers.ValidationError({field:"Обязательное поле."})
-            data.setdefault("return_reason",None);data.setdefault("comment","")
+            data.setdefault("document",None);data.setdefault("return_reason",None);data.setdefault("comment","")
         return data
 
 

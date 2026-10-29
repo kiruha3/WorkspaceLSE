@@ -171,5 +171,5 @@ export interface Expertise {
   current_assignments: ExpertAssignment[]; assignment_history: ExpertAssignment[]; allowed_actions: string[]; basis_document: DocumentLink
   production: Production; suspensions: Suspension[]; deadline_events: DeadlineEvent[]
   result: ResultRevision | null; result_history: ResultRevision[]; closure: WorkClosure | null; closure_history: WorkClosure[]
-  result_readiness: { completion_blockers: ResultIssue[]; report_gaps: ResultIssue[] }
+  result_readiness: { completion_blockers: ResultIssue[]; report_gaps: ResultIssue[]; document_gaps?: ResultIssue[] }
 }

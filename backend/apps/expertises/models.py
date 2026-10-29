@@ -148,7 +148,7 @@ class WorkClosure(models.Model):
     kind=models.CharField(max_length=25,choices=[("completed","Завершена"),("without_execution","Без исполнения")])
     ended_on=models.DateField()
     result=models.ForeignKey(ResultRevision,related_name="closures",null=True,blank=True,on_delete=models.PROTECT)
-    document=models.ForeignKey("documents.Document",related_name="work_closures",on_delete=models.PROTECT)
+    document=models.ForeignKey("documents.Document",related_name="work_closures",null=True,blank=True,on_delete=models.PROTECT)
     accepted_version=models.ForeignKey("documents.FileVersion",related_name="accepted_closures",null=True,blank=True,on_delete=models.PROTECT)
     return_reason=models.ForeignKey("references.ReturnReason",null=True,blank=True,on_delete=models.PROTECT)
     comment=models.TextField(blank=True)

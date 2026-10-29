@@ -152,14 +152,15 @@ def test_result_kind_matches_work_category_not_question_count(employee_factory,g
     assert draft(client,work,kind=kind).status_code==status
 
 
-def test_pending_copy_draft_is_saved_but_not_declared_ready_for_completion(employee_factory,grant):
+def test_pending_copy_draft_is_saved_with_a_nonblocking_document_gap(employee_factory,grant):
     client,_,work,_,_,_,_=result_setup(employee_factory,grant)
     document=result_document(client)
     response=draft(client,work,document_id=document["id"],completed_on="2026-10-10")
     assert response.status_code==200
     result=response.json()["expertise"]
     assert result["result"]["document"]["versions"]==[]
-    assert any(issue["field"]=="document_id" for issue in result["result_readiness"]["completion_blockers"])
+    assert not result["result_readiness"]["completion_blockers"]
+    assert any(issue["field"]=="document_id" for issue in result["result_readiness"]["document_gaps"])
     wrong=result_document(client,kind="sndz")
     assert draft(client,result,document_id=wrong["id"]).status_code==400
 

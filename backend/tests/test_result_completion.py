@@ -37,13 +37,11 @@ def result_body(work,**fields):
     return {"kind":r["kind"],"completed_on":r["completed_on"],"document_id":r["document"]["id"],"complexity_level":r["complexity_level"],"questions":r["questions"],"categorical":r["categorical"],"probable":r["probable"],"unresolved":r["unresolved"],"statistics_complete":r["statistics_complete"],"sndz_reason_id":r["sndz_reason"]["id"] if r["sndz_reason"] else None,"sndz_comment":r["sndz_comment"],"unresolved_allocations":[],"allocations_complete":False,"note":r["note"],**fields}
 
 
-def test_completion_requires_file_but_does_not_invent_optional_report_statistics(employee_factory,grant,settings,tmp_path):
+def test_completion_without_file_does_not_invent_optional_report_statistics(employee_factory,grant,settings,tmp_path):
     settings.MEDIA_ROOT=tmp_path
     client,_,work,_,_,_,_=completion_setup(employee_factory,grant)
     document=result_document(client)
     work=draft(client,work,completed_on="2026-10-10",document_id=document["id"]).json()["expertise"]
-    assert send(client,work,"complete",result_id=work["result"]["id"]).status_code==400
-    assert upload(client,document["id"]).status_code==201
     completed=send(client,work,"complete",result_id=work["result"]["id"])
     assert completed.status_code==200
     done=completed.json()["expertise"]
@@ -106,8 +104,6 @@ def test_return_decision_has_separate_proof_unknown_reason_and_no_actual_issue(e
     client,actor,work,_,_,_,_=completion_setup(employee_factory,grant)
     options=reasons(client,work);doc=result_document(client,"return_decision")
     fields={"decided_on":"2026-10-10","document_id":doc["id"],"return_reason_id":None,"comment":"Материалы ещё не забрали"}
-    assert send(client,work,"return-without-execution",**fields).status_code==400
-    assert upload(client,doc["id"]).status_code==201
     done=send(client,work,"return-without-execution",**fields)
     assert done.status_code==200
     done=done.json()["expertise"]

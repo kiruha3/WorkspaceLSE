@@ -70,11 +70,10 @@ const validation = computed(() => {
   if (loadingOptions.value || !options.value) return 'Загрузите справочники результата.'
   if (isReturn.value) {
     if (!decidedOn.value || decidedOn.value < minimumDate.value || decidedOn.value > today()) return 'Укажите допустимую дату решения.'
-    if (!documentId.value || (documentId.value !== 'new' && !selectedDocument.value?.versions.length)) return 'Для решения нужен сохранённый файл документа.'
     return ''
   }
   const p = resultPayload.value, numbers = [p.questions, p.categorical, p.probable, p.unresolved]
-  if (action.value === 'correct' && (!p.kind || !p.completed_on || !documentId.value || (documentId.value !== 'new' && !selectedDocument.value?.versions.length))) return 'Исправление завершённой работы требует вида результата, даты и сохранённого файла.'
+  if (action.value === 'correct' && (!p.kind || !p.completed_on)) return 'Исправление завершённой работы требует вида результата и даты.'
   if (numbers.some(value => value !== null && (!Number.isInteger(value) || value < 0)) || (p.complexity_level !== null && (!Number.isInteger(p.complexity_level) || p.complexity_level < 1))) return 'Количество — целое неотрицательное число; сложность — целое от 1.'
   const sum = (p.categorical ?? 0) + (p.probable ?? 0) + (p.unresolved ?? 0), allKnown = numbers.every(value => value !== null)
   if (p.questions !== null && (sum > p.questions || (allKnown && sum !== p.questions))) return 'Известные ответы должны соответствовать числу вопросов Q.'
@@ -122,7 +121,6 @@ async function save() {
       if (documentId.value === 'new' && action.value !== 'complete') {
         if (!documentForm.value) return
         const document = await documentForm.value.persist()
-        if ((isReturn.value || action.value === 'correct') && !document.versions.length) throw new ApiError(400, 'file_required', 'Сохраните файл документа перед подтверждением окончания.')
         evidence = document.id
       }
       const body: Record<string, unknown> = { expected_version: props.expertise.version, reason: reason.value.trim() }
@@ -144,6 +142,7 @@ onBeforeUnmount(() => requests.cancel())
 
 <template>
   <section data-result-panel class="card stack-card">
+    <section v-if="readiness.document_gaps?.length" data-document-gaps class="message"><strong>Документы нужно дополнить</strong><ul><li v-for="item in readiness.document_gaps" :key="item.code">{{ item.message }}</li></ul><p class="compact">Это напоминание, оно не запрещает завершение работы.</p></section>
     <div class="section-heading"><div><h2>Результат и завершение</h2><p class="muted compact">Черновик результата, подтверждение окончания и решение без исполнения сохраняются отдельными событиями.</p></div><div v-if="!action" class="button-row"><button v-if="!closed && expertise.allowed_actions.includes('expertise.result.draft')" data-result-draft @click="start('draft')">Внести результат / черновик</button><button v-if="!closed && expertise.allowed_actions.includes('expertise.complete')" data-result-complete class="button-primary" :disabled="!current || readiness.completion_blockers.length > 0" @click="start('complete')">Завершить работу</button><button v-if="!closed && expertise.allowed_actions.includes('expertise.return_without_execution')" data-result-return @click="start('return')">Решение без исполнения</button><button v-if="closed && expertise.closure && expertise.allowed_actions.includes('expertise.closed.correct')" data-result-correct @click="start('correct')">Исправить закрытую работу</button></div></div>
     <section data-completion-blockers class="subsection"><h3>Готовность к завершению</h3><p v-for="issue in readiness.completion_blockers" :key="`${issue.code}-${issue.field}`" class="message message-error">{{ issue.message }}</p><p v-if="!readiness.completion_blockers.length" class="muted compact">{{ expertise.closure ? 'Окончание подтверждено.' : 'Сервер не сообщил препятствий завершению.' }}</p></section>
     <section data-report-gaps class="subsection"><h3>Пробелы отчётных сведений</h3><p class="muted compact">Неизвестные сведения остаются неизвестными. Пробелы отчёта сами по себе не блокируют завершение.</p><p v-for="issue in readiness.report_gaps" :key="`${issue.code}-${issue.field}`" class="compact">{{ issue.message }}</p><p v-if="!readiness.report_gaps.length" class="muted compact">Пробелы не отмечены сервером.</p></section>
@@ -168,7 +167,7 @@ onBeforeUnmount(() => requests.cancel())
           <label>Примечание к результату<textarea v-model="note" name="result_note" rows="2" /></label>
         </template>
         <template v-if="isReturn"><label>Дата решения<input v-model="decidedOn" name="decided_on" type="date" :min="minimumDate" :max="today()" required /></label><label>Причина решения без исполнения<select v-model="returnReason" name="return_reason_id"><option value="">Неизвестна / не определена</option><option v-for="item in returnReasons" :key="item.id" :value="item.id">{{ item.name }}{{ item.is_active ? '' : ' (неактивна, сохранена ранее)' }}</option></select></label><label>Пояснение к решению<textarea v-model="comment" name="return_comment" rows="2" /></label></template>
-        <template v-if="action !== 'complete'"><label>{{ isReturn ? 'Документ решения' : 'Документ результата' }}<select v-model="documentId" name="result_document"><option value="">Не указан</option><option v-if="session.can('documents.upload') && evidenceKind" value="new">Подготовить новый документ</option><option v-for="item in documents" :key="item.id" :value="item.id">{{ item.title || item.id }}{{ item.versions.length ? '' : ' (файл пока не сохранён)' }}</option></select></label><BasisDocumentForm v-if="documentId === 'new'" :key="evidenceKind || 'unknown'" ref="documentForm" :department-id="expertise.department.id" :busy="saving" :kind-options="documentKindOptions" :heading="isReturn ? 'Документ решения' : 'Документ результата'" @changed="invalidateAttempt" /><p class="muted compact">Для подтверждения окончания нужен сохранённый файл соответствующего вида. Черновик можно сохранить без файла.</p></template>
+        <template v-if="action !== 'complete'"><label>{{ isReturn ? 'Документ решения' : 'Документ результата' }}<select v-model="documentId" name="result_document"><option value="">Не указан</option><option v-if="session.can('documents.upload') && evidenceKind" value="new">Подготовить новый документ</option><option v-for="item in documents" :key="item.id" :value="item.id">{{ item.title || item.id }}{{ item.versions.length ? '' : ' (файл пока не сохранён)' }}</option></select></label><BasisDocumentForm v-if="documentId === 'new'" :key="evidenceKind || 'unknown'" ref="documentForm" :department-id="expertise.department.id" :busy="saving" :kind-options="documentKindOptions" :heading="isReturn ? 'Документ решения' : 'Документ результата'" @changed="invalidateAttempt" /><p class="muted compact">Документ ожидается в составе дела, но его можно прикрепить позднее. Отсутствие файла не запрещает завершение.</p></template>
         <p v-else class="muted compact">Будет подтверждена текущая сохранённая редакция №{{ current?.number }} с её датой окончания. Пробелы отчёта сохранятся явно.</p>
         <label>Причина / основание<textarea v-model="reason" name="result_reason" required rows="3" /></label>
       </fieldset>
