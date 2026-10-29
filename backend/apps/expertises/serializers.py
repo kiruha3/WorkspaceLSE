@@ -9,7 +9,7 @@ from .models import ComplexGroup, Expertise, ExpertAssignment
 from .policies import work_context
 
 
-class RegistrationInput(VersionedSerializer):
+class RegistrationRowInput(StrictSerializer):
     registration_number = serializers.CharField(max_length=100)
     historical_number = serializers.CharField(max_length=300, allow_blank=True, required=False, default="")
     # Active status is checked under the command lock for NEW registrations.
@@ -19,7 +19,25 @@ class RegistrationInput(VersionedSerializer):
     appointment_nature = serializers.ChoiceField(choices=["primary","repeated","additional"])
     is_commission = serializers.BooleanField()
     decree3214 = serializers.BooleanField(required=False)
+
+
+class RegistrationInput(RegistrationRowInput,VersionedSerializer):
     complex_group_id = serializers.PrimaryKeyRelatedField(source="complex_group",queryset=ComplexGroup.objects.all(),required=False,allow_null=True,default=None)
+
+
+class ComplexRegistrationInput(VersionedSerializer):
+    works = RegistrationRowInput(many=True,min_length=2)
+
+    def validate_works(self,works):
+        from .numbering import parse_current_number
+        numbers=[parse_current_number(work['registration_number']) for work in works]
+        if len({work['specialty'].id for work in works})!=len(works):
+            raise serializers.ValidationError('Каждая специальность указывается один раз; для нескольких экспертов одной специальности используйте комиссионность.')
+        if len({number.sequence for number in numbers})!=len(works):
+            raise serializers.ValidationError('Порядковые номера работ комплекса не должны повторяться.')
+        if len({(number.category_code,number.year) for number in numbers})!=1:
+            raise serializers.ValidationError('У номеров одной комплексной экспертизы должны совпадать категория дела и год.')
+        return works
 
 
 class GroupInput(StrictSerializer):
@@ -104,7 +122,12 @@ class ExpertiseOutput(serializers.ModelSerializer):
     def get_specialty(self,obj): return {"id":str(obj.specialty_id),"code":obj.specialty.code,"name":obj.specialty.name} if obj.specialty_id else None
     def get_receipt(self,obj): return {"id":str(obj.receipt_id),"received_at":obj.receipt.received_at.isoformat(),"status":obj.receipt.status}
     def get_material(self,obj): return {"id":str(obj.material_id),"title":obj.material.title,"is_demo":obj.material.is_demo}
-    def get_complex_group(self,obj): return {"id":str(obj.complex_group_id),"title":obj.complex_group.title} if obj.complex_group_id else None
+    def get_complex_group(self,obj):
+        if not obj.complex_group_id:return None
+        from .policies import expertise_scope_queryset
+        scope=self.context['scopes'].get('expertise.view',AccessScope())
+        works=expertise_scope_queryset(self.context['user'],'expertise.view',self.context['scopes']).filter(complex_group_id=obj.complex_group_id).order_by('sequence','id') if scope.rules else Expertise.objects.none()
+        return {"id":str(obj.complex_group_id),"title":obj.complex_group.title,"expertises":[{"id":str(work.id),"registration_number":work.registration_number} for work in works.only('id','registration_number')]}
     def get_current_assignments(self,obj): return AssignmentOutput([a for a in obj.assignments.all() if a.ended_at is None],many=True).data
     def get_assignment_history(self,obj): return AssignmentOutput(list(obj.assignments.all()),many=True).data
     def get_allowed_actions(self,obj):

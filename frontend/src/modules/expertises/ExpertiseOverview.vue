@@ -25,7 +25,7 @@ const registration = computed(() => {
     ['Характер назначения', work.appointment_nature ? natures[work.appointment_nature] : 'Характер назначения не уточнён'],
     ['Состав', work.is_commission === null ? 'Состав не уточнён' : work.is_commission ? 'Комиссионная · один номер' : 'Единоличная'],
     ['Категория / год', `${work.category_code} / ${work.year}`],
-    ['Комплексная группа', work.complex_group?.title || (work.complex_group ? work.complex_group.id : work.historical && !work.historical.complex_known ? 'Не уточнена' : 'Не включена')],
+    ['Комплексная экспертиза', work.complex_group ? work.complex_group.expertises?.map(item => item.registration_number).join(' · ') || 'Входит в комплекс' : work.historical && !work.historical.complex_known ? 'Не уточнена' : 'Не включена'],
   ]
 })
 const counters = computed(() => [

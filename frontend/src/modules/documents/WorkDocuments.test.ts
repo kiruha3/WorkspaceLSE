@@ -2,7 +2,7 @@ import {afterEach,expect,it,vi} from 'vitest'
 import {enableAutoUnmount,flushPromises,mount} from '@vue/test-utils'
 import {createMemoryHistory,createRouter,RouterView} from 'vue-router'
 import {ApiClient,apiKey} from '../../api/client'
-import {json,sessionWith} from '../../test/fixtures'
+import {json,page,sessionWith} from '../../test/fixtures'
 import {basis,department} from '../../test/intakeFixtures'
 import type {DocumentKind} from '../../api/types'
 import {hasDirtyForms} from '../../shared/ui/useDirtyGuard'
@@ -20,6 +20,26 @@ const context={id:'work1',registration_number:'1/3-1-26',version:3,state:'comple
 const kinds:{code:DocumentKind;name:string}[]=[{code:'case_material',name:'Материалы дела / иные документы'},{code:'decision',name:'Определение'}]
 const library={count:1,next:null,previous:null,context,can_link:true,can_unlink:true,can_create:true,document_kinds:kinds,detached_links:[],results:[{document:doc,origins:[{kind:'closure',id:'closure1',label:'Принятое окончание',accepted_version_id:'f1'}],extra_links:[]}]}
 const sourceProps={workId:'work1',expectedVersion:3,departmentId:department.id,kindOptions:kinds,authorized:true,allowCreate:true}
+
+it('links one selected document to all complex numbers with an explicit checkbox',async()=>{
+  const bodies:Record<string,unknown>[]=[]
+  const complexLibrary={...library,context:{...context,complex_group_id:'complex-1'},can_link_complex:true}
+  const {wrapper}=await open(complexLibrary,async(input,init)=>{
+    const path=String(input)
+    if(path.endsWith('/csrf/'))return json({csrf_token:'token'})
+    if(init?.method==='POST'){bodies.push(JSON.parse(String(init.body)));return json({event:{id:'linked'},library:complexLibrary})}
+    if(path.includes('/options/'))return json(page([doc]))
+    return json(complexLibrary)
+  })
+  await wrapper.get('[data-open-document-source]').trigger('click');await flushPromises()
+  await wrapper.get('[data-source-existing]').trigger('click');await flushPromises()
+  await wrapper.get('[data-use-existing="doc1"]').trigger('click')
+  await wrapper.get('[name="share_with_complex"]').setValue(true)
+  await wrapper.get('[name="archive_reason"]').setValue('Общее заключение')
+  await wrapper.get('[data-archive-source-form]').trigger('submit');await flushPromises()
+  expect(bodies).toHaveLength(1)
+  expect(bodies[0]).toMatchObject({document_id:'doc1',share_with_complex:true})
+})
 type Transport=ConstructorParameters<typeof ApiClient>[0]
 const globals=(client:ApiClient)=>({provide:{[apiKey as symbol]:client}})
 afterEach(()=>vi.restoreAllMocks());enableAutoUnmount(afterEach)

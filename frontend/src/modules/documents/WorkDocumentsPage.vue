@@ -50,7 +50,7 @@ function filter(){page.value=1;void load()}
 function saved(response:WorkDocumentResponse){
   requests.cancel();loading.value=false
   if(value.value&&(search.value.trim()||kind.value||page.value>1)){
-    value.value={...value.value,context:response.library.context,can_link:response.library.can_link,can_unlink:response.library.can_unlink,can_create:response.library.can_create}
+    value.value={...value.value,context:response.library.context,can_link:response.library.can_link,can_unlink:response.library.can_unlink,can_create:response.library.can_create,can_link_complex:response.library.can_link_complex}
     void load()
   }else apply(response.library)
   success.value='Изменение архива сохранено. Основание, принятый итог и факты выдачи не изменены.';if(mode.value==='source')mode.value=null
@@ -86,7 +86,7 @@ onBeforeUnmount(()=>requests.cancel())
     <p v-if="!value.can_link" class="muted">Только просмотр. Для добавления связи требуется отдельное право «Связывать документы с экспертизой»; автоматически оно не выдаётся.</p>
     <form data-archive-filters class="form-columns" @submit.prevent="filter"><label>Поиск по названию<input v-model="search" name="archive_search"/></label><label>Вид документа<select v-model="kind" name="archive_kind"><option value="">Все виды</option><option v-for="option in value.document_kinds" :key="option.code" :value="option.code">{{option.name}}</option></select></label><button type="submit">Применить фильтры</button></form>
     <div v-if="mode" class="inset-form"><div class="section-heading"><h2>{{mode==='batch'?'Пакетная загрузка':'Дополнительная связь'}}</h2><button type="button" :disabled="anyBusy" @click="close">Закрыть форму</button></div>
-      <DocumentSourceForm v-if="mode==='source'" ref="source" :work-id="value.context.id" :expected-version="value.context.version" :department-id="value.context.department.id" :kind-options="value.document_kinds" :authorized="value.can_link" :allow-create="value.can_create" @saved="saved" @refresh="load"/>
+      <DocumentSourceForm v-if="mode==='source'" ref="source" :complex="Boolean(value.context.complex_group_id)" :allow-complex="Boolean(value.can_link_complex)" :work-id="value.context.id" :expected-version="value.context.version" :department-id="value.context.department.id" :kind-options="value.document_kinds" :authorized="value.can_link" :allow-create="value.can_create" @saved="saved" @refresh="load"/>
       <DocumentBatchUpload v-else ref="batch" :work-id="value.context.id" :expected-version="value.context.version" :department-id="value.context.department.id" :kind-options="value.document_kinds" :authorized="value.can_link" :allow-create="value.can_create" @saved="saved" @refresh="load"/>
     </div>
     <div class="archive-layout">

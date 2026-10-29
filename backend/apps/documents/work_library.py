@@ -103,7 +103,10 @@ def library_data(work,user,request):
         history.append({'id':str(link.pk),'document':DocumentOutput(link.document).data if can_document(user,'documents.view',link.document,scopes) else {'id':str(link.document_id),'restricted':True},'note':link.note,'created_at':link.created_at,'detached_at':link.detached_at,'detach_reason':link.detach_reason})
     employee=active_employee(user)
     can_create=scopes.get('documents.upload',AccessScope()).allows(employee_id=employee.pk if employee else None,department_ids=[work.department_id])
-    return {**page_data(rows,request),'context':{'id':str(work.pk),'registration_number':work.registration_number,'version':work.version,'state':work.state,'material':{'id':str(work.material_id)},'department':{'id':str(work.department_id),'code':work.department.code,'name':work.department.name}},
+    complex_works=list(work.complex_group.expertises.prefetch_related('assignments','historical__participants')) if work.complex_group_id else []
+    can_link_complex=bool(complex_works) and all(can_link_work(user,'documents.link',item,scopes) for item in complex_works)
+    return {**page_data(rows,request),'context':{'id':str(work.pk),'registration_number':work.registration_number,'version':work.version,'state':work.state,'complex_group_id':str(work.complex_group_id) if work.complex_group_id else None,'material':{'id':str(work.material_id)},'department':{'id':str(work.department_id),'code':work.department.code,'name':work.department.name}},
+            'can_link_complex':can_link_complex,
             'can_link':can_link_work(user,'documents.link',work,scopes),'can_unlink':can_link_work(user,'documents.unlink',work,scopes),'can_create':can_create,
             'document_kinds':[{'code':code,'name':name} for code,name in kinds.items()],'detached_links':history}
 

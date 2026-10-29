@@ -93,7 +93,7 @@ export interface Receipt {
   id: string; received_at: string; sender_name: string; material: { id: string; title: string; is_demo?: boolean }
   basis_document: DocumentLink; department_id: string | null; status: 'draft' | 'accepted' | 'historical'; version: number
 }
-export interface ComplexGroup { id: string; title: string; material_id?: string }
+export interface ComplexGroup { id: string; title: string; material_id?: string; expertises?: { id: string; registration_number: string }[] }
 export interface ExpertAssignment {
   id: string; employee: { id: string; full_name: string }; started_at: string; ended_at: string | null; reason: string
 }

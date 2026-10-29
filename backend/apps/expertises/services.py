@@ -87,6 +87,10 @@ def register_expertise(*,actor,receipt_id,data,idempotency_key,payload):
         return ExpertiseOutput(work,context={"user":actor,"scopes":permission_scopes(actor)}).data
 
     result=execute_once(actor=actor,action="expertise.register",key=idempotency_key,payload={"receipt_id":str(receipt_id),"data":payload},operation=operation)
+    return project_registration_result(actor,result)
+
+
+def project_registration_result(actor,result):
     # Replay preserves business facts, never yesterday's authority. Do not
     # overwrite the stored result when projecting today's permission fields.
     from apps.documents.models import Document
@@ -95,6 +99,8 @@ def register_expertise(*,actor,receipt_id,data,idempotency_key,payload):
     work=Expertise.objects.prefetch_related("assignments").get(pk=result["id"])
     output=dict(result)
     output["allowed_actions"]=ExpertiseOutput(context={"user":actor,"scopes":permission_scopes(actor)}).get_allowed_actions(work)
+    if work.complex_group_id:
+        output['complex_group']=ExpertiseOutput(context={"user":actor,"scopes":permission_scopes(actor)}).get_complex_group(work)
     if basis:=result.get("basis_document"):
         document=Document.objects.filter(pk=basis["id"]).first()
         if document is None or not can_document(actor,"documents.view",document):

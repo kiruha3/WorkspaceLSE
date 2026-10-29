@@ -37,6 +37,52 @@ def vault(employee_factory, grant, settings, tmp_path):
 def library_url(work): return f'/api/v1/expertises/{work.pk}/documents/'
 
 
+def make_complex(works):
+    from apps.expertises.models import ComplexGroup
+    one,two=works
+    specialty=Specialty.objects.create(code='18.1',name='Оценка транспортных средств')
+    two.specialty=specialty;two.save(update_fields=['specialty'])
+    group=ComplexGroup.objects.create(material=one.material,title='Комплексная экспертиза')
+    Expertise.objects.filter(pk__in=[one.pk,two.pk]).update(complex_group=group)
+    for work in works:work.refresh_from_db()
+
+
+def test_one_document_can_be_linked_to_all_complex_numbers_without_copying_file(vault):
+    from apps.documents.models import WorkDocumentLink,FileVersion
+    client,owner,works,_=vault
+    make_complex(works)
+    doc=Document.objects.create(kind='expert_conclusion',title='Общее заключение',source_kind='uploaded_copy',created_by=owner)
+    saved=upload(client,doc.pk).json()
+    key=str(uuid.uuid4())
+    body={'expected_version':1,'document_id':str(doc.pk),'reason':'Общее заключение комплекса','share_with_complex':True}
+    for _ in range(2):
+        response=client.post(library_url(works[0]),body,content_type='application/json',HTTP_IDEMPOTENCY_KEY=key)
+        assert response.status_code==200,response.content
+    assert WorkDocumentLink.objects.filter(document=doc,detached_at__isnull=True).count()==2
+    assert FileVersion.objects.filter(document=doc).count()==1
+    for work in works:
+        row=entry(client.get(library_url(work)).json(),doc)
+        assert row['document']['versions'][0]['id']==saved['id']
+        work.refresh_from_db();assert work.state=='in_progress'
+
+
+def test_shared_document_link_requires_authority_for_every_work_and_is_atomic(vault,employee_factory,grant):
+    from apps.documents.models import WorkDocumentLink
+    _,owner,works,_=vault
+    make_complex(works)
+    other=Department.objects.create(code='4',name='Отдел 4')
+    works[1].department=other;works[1].save(update_fields=['department'])
+    doc=Document.objects.create(kind='expert_conclusion',title='Общее заключение',source_kind='paper_original',created_by=owner)
+    employee=employee_factory()
+    grant(employee,'expertise.view');grant(employee,'documents.view')
+    grant(employee,'documents.link','departments',departments=[works[0].department])
+    client=Client();client.force_login(employee.user)
+    body={'expected_version':1,'document_id':str(doc.pk),'reason':'Общий документ','share_with_complex':True}
+    response=client.post(library_url(works[0]),body,content_type='application/json',HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()))
+    assert response.status_code==403,response.content
+    assert WorkDocumentLink.objects.count()==0
+
+
 def link(client, work, document, *, version=None, key=None):
     work.refresh_from_db()
     return client.post(library_url(work), {'expected_version': work.version if version is None else version,

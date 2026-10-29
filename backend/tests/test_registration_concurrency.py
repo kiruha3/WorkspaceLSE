@@ -9,6 +9,24 @@ from test_registration import registration_setup
 pytestmark = pytest.mark.django_db(transaction=True)
 
 
+def test_complex_package_concurrent_retry_creates_exactly_two_works(employee_factory,grant):
+    from test_complex_registration import complex_setup,post_complex
+    from apps.expertises.models import Expertise,ComplexGroup
+    _,employee,receipt,_,_,body=complex_setup(employee_factory,grant)
+    barrier=Barrier(2);key=str(uuid.uuid4())
+    def run(_):
+        close_old_connections()
+        try:
+            client=Client();client.force_login(employee.user);barrier.wait(timeout=10)
+            response=post_complex(client,receipt,body,key)
+            return response.status_code,response.json()
+        finally:connection.close()
+    with ThreadPoolExecutor(max_workers=2) as pool:responses=list(pool.map(run,range(2)))
+    assert [status for status,_ in responses]==[201,201]
+    assert [w['id'] for w in responses[0][1]['expertises']]==[w['id'] for w in responses[1][1]['expertises']]
+    assert Expertise.objects.count()==2 and ComplexGroup.objects.count()==1
+
+
 @pytest.mark.parametrize("same_key", [False, True])
 def test_same_number_concurrent_one_success_one_conflict(employee_factory, grant, same_key):
     _, employee, receipt, _, _, data = registration_setup(employee_factory, grant)

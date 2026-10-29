@@ -1,5 +1,5 @@
 from django.urls import path
-from .api import ExpertiseRegisterView, ExpertiseListView, ExpertiseDetailView, NumberHintView, FilterOptionsView, ComplexGroupView, AssignmentCandidatesView, AssignView,HistoryActivationView
+from .api import ExpertiseRegisterView, ComplexExpertiseRegisterView, ExpertiseListView, ExpertiseDetailView, NumberHintView, FilterOptionsView, ComplexGroupView, AssignmentCandidatesView, AssignView,HistoryActivationView
 from .production_api import TransitionView,DeadlineView
 from .result_api import ResultOptionsView,ResultView,ClosureView,ReopenView
 from .historical_report_api import HistoricalReportView
@@ -11,6 +11,7 @@ from .completeness_api import IncompleteExpertisesView
 
 urlpatterns=[
     path("receipts/<uuid:pk>/expertises/",ExpertiseRegisterView.as_view()),
+    path("receipts/<uuid:pk>/complex-expertises/",ComplexExpertiseRegisterView.as_view()),
     path("expertises/",ExpertiseListView.as_view()),
     path("expertises/incomplete/",IncompleteExpertisesView.as_view()),
     path("expertises/export.xlsx",ExpertiseExportView.as_view()),

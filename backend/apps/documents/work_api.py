@@ -13,6 +13,7 @@ class WorkDocumentInput(VersionedSerializer):
     document_id=serializers.UUIDField()
     note=serializers.CharField(allow_blank=True,required=False,default='')
     reason=serializers.CharField()
+    share_with_complex=serializers.BooleanField(required=False,default=False)
 
 
 class WorkDocumentDetachInput(VersionedSerializer):

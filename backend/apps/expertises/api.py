@@ -31,6 +31,14 @@ class ExpertiseRegisterView(GenericAPIView):
         return Response(result,status=201)
 
 
+class ComplexExpertiseRegisterView(GenericAPIView):
+    def post(self,request,pk):
+        from .serializers import ComplexRegistrationInput
+        from .complex_registration import register_complex
+        form=ComplexRegistrationInput(data=request.data);form.is_valid(raise_exception=True)
+        return Response(register_complex(actor=request.user,receipt_id=pk,data=form.validated_data,key=request.headers.get('Idempotency-Key'),payload=request.data),status=201)
+
+
 class ExpertiseListView(GenericAPIView):
     def get(self,request):
         scopes=permission_scopes(request.user)

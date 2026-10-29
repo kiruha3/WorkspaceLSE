@@ -7,6 +7,17 @@ import ExpertisePage from './ExpertisePage.vue'
 afterEach(() => vi.restoreAllMocks())
 
 describe('persisted work card', () => {
+  it('shows the separate linked numbers of a complex expertise', async () => {
+    const work = { ...expertise, complex_group: { id: 'complex-internal', title: '', expertises: [{ id: expertise.id, registration_number: expertise.registration_number }, { id: 'work-2', registration_number: '152/3-1-26' }] } }
+    const router = await testRouter('/expertises/work-1')
+    const wrapper = mount(ExpertisePage, { global: { plugins: [sessionWith('expertise.view'), router], provide: { [apiKey as symbol]: new ApiClient(async () => json(work)) } } })
+    await flushPromises()
+    expect(wrapper.get('[data-complex-numbers]').text()).toContain(expertise.registration_number)
+    expect(wrapper.get('[data-complex-numbers]').text()).toContain('152/3-1-26')
+    expect(wrapper.get('[data-complex-numbers] a[href^="/expertises/work-2"]').attributes('href')).toContain('/expertises/work-2')
+    expect(wrapper.get('[data-complex-numbers]').text()).not.toContain('complex-internal')
+    wrapper.unmount()
+  })
   it('returns to the personal workplace when opened from its missing-data list', async () => {
     const router = await testRouter('/expertises/work-1?return=%2Fworkspace')
     router.addRoute({ path: '/workspace', component: { template: '<div>Рабочее место</div>' } })
