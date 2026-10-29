@@ -1,15 +1,19 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiClient, apiKey } from '../api/client'
 import { json, page, role, sessionWith } from '../test/fixtures'
 import RolesPage from './RolesPage.vue'
+
+enableAutoUnmount(afterEach)
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 const catalog = [
   { code: 'employees.view', label: 'Просмотр сотрудников', module: 'Сотрудники', scopes: ['departments', 'institution'] },
   { code: 'specialties.qualify', label: 'Подтвердить квалификацию', module: 'Специальности', scopes: ['departments', 'institution'] },
 ]
-function setup(conflict = false) {
+function setup(conflict = false, captureErrors = false) {
   const writes: { path: string; body: unknown }[] = []
+  const errors: unknown[] = []
   const client = new ApiClient(async (input, init) => {
     const path = String(input)
     if (path.endsWith('/csrf/')) return json({ csrf_token: 'test-token' })
@@ -20,11 +24,33 @@ function setup(conflict = false) {
     if (path.endsWith('/permissions/')) return json(catalog)
     return json(page([role]))
   })
-  const wrapper = mount(RolesPage, { global: { plugins: [sessionWith('access.roles.view', 'access.roles.manage')], provide: { [apiKey as symbol]: client } } })
-  return { wrapper, writes }
+  const wrapper = mount(RolesPage, { global: { config: captureErrors ? { errorHandler: cause => errors.push(cause) } : {}, plugins: [sessionWith('access.roles.view', 'access.roles.manage')], provide: { [apiKey as symbol]: client } } })
+  return { wrapper, writes, errors }
 }
 
 describe('roles editor', () => {
+  it('opens the selected role when its status cell is clicked, without writing permissions',async()=>{
+    const {wrapper,writes}=setup()
+    await flushPromises()
+    await wrapper.get('tbody tr td:last-child').trigger('click')
+    expect(wrapper.find('[aria-label="Редактор роли"]').exists()).toBe(true)
+    expect(wrapper.get('[name="role_name"]').element).toHaveProperty('value','Руководитель и эксперт')
+    expect(wrapper.find('.editor-empty').exists()).toBe(false)
+    expect(writes).toEqual([])
+  })
+  it('opens and edits roles without structuredClone, preserving the saved permission baseline',async()=>{
+    vi.stubGlobal('structuredClone',undefined)
+    const {wrapper,writes,errors}=setup(false,true)
+    await flushPromises()
+    await wrapper.get('[data-role="role-1"]').trigger('click')
+    expect(wrapper.find('[aria-label="Редактор роли"]').exists()).toBe(true)
+    expect(errors).toEqual([])
+    await wrapper.get('[data-scope="employees.view"]').setValue('institution')
+    expect(wrapper.get('[data-save-permissions]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('.change-preview').text()).toContain('Выбранные отделы → Учреждение')
+    expect(role.permissions).toEqual([{permission_code:'employees.view',scope:'departments'}])
+    expect(writes).toEqual([])
+  })
   it('opens the editor instead of leaving it below a long registry and can return to the list',async()=>{
     const {wrapper}=setup()
     await flushPromises()

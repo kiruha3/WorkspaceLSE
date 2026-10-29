@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, ref, toRaw } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
 import { routerKey } from 'vue-router'
 import { LatestRequest, useApi } from '../api/client'
 import type { Page, PermissionDefinition, Role, RolePermission, Scope } from '../api/types'
@@ -46,7 +46,7 @@ async function load(nextPage = page.value) {
 }
 function edit(role: Role | null) {
   if (saving.value || !confirmLeave()) return
-  selected.value = role ? structuredClone(toRaw(role)) : null
+  selected.value = role ? { ...role, permissions: role.permissions.map(permission => ({ ...permission })) } : null
   name.value = role?.name ?? ''; description.value = role?.description ?? ''; active.value = role?.is_active ?? true
   permissions.value = Object.fromEntries((role?.permissions ?? []).map(p => [p.permission_code, p.scope]))
   error.value = null; success.value = ''; editing.value = true
@@ -100,7 +100,7 @@ onBeforeUnmount(() => listRequest.cancel())
       <ApiMessage :error="listError" />
       <p v-if="loading" class="state" aria-live="polite">Загрузка ролей…</p>
       <div v-else class="table-scroll"><table><thead><tr><th>Роль</th><th>Назначения</th><th>Состояние</th></tr></thead><tbody>
-        <tr v-for="role in list.results" :key="role.id" :class="{ 'row-selected': selected?.id === role.id }"><td><button class="text-button" :data-role="role.id" @click="edit(role)">{{ role.name }}</button><small>{{ role.description || 'Описание не указано' }}</small></td><td>{{ role.assignment_count }}</td><td><span class="badge" :class="role.is_active ? 'badge-green' : ''">{{ role.is_active ? 'Активна' : 'Неактивна' }}</span><small>Версия {{ role.version }}</small></td></tr>
+        <tr v-for="role in list.results" :key="role.id" class="role-select-row" :class="{ 'row-selected': selected?.id === role.id }" @click="edit(role)"><td><button type="button" class="text-button" :data-role="role.id" @click.stop="edit(role)">{{ role.name }}</button><small>{{ role.description || 'Описание не указано' }}</small></td><td>{{ role.assignment_count }}</td><td><span class="badge" :class="role.is_active ? 'badge-green' : ''">{{ role.is_active ? 'Активна' : 'Неактивна' }}</span><small>Версия {{ role.version }}</small></td></tr>
         <tr v-if="!list.results.length"><td colspan="3" class="state">Ролей по этой выборке нет.</td></tr>
       </tbody></table></div>
       <PaginationBar :page="page" :count="list.count" :next="Boolean(list.next)" :previous="Boolean(list.previous)" :busy="loading" @change="load" />
@@ -127,3 +127,4 @@ onBeforeUnmount(() => listRequest.cancel())
     <section v-else class="card editor-empty"><span class="empty-symbol">◇</span><h2>Выберите роль</h2><p class="muted">В редакторе появятся действия, области и число назначений. Изменения применяются после подтверждения сервера.</p></section>
   </div>
 </template>
+<style scoped>.role-select-row{cursor:pointer}.role-select-row:hover{background:var(--surface-soft,#f3f6ef)}</style>
