@@ -38,6 +38,7 @@ it('shows field differences without selecting or writing anything and returns to
 })
 
 it('sends only the explicitly accepted field, not other changes or another new expertise',async()=>{
+ vi.spyOn(window,'confirm').mockReturnValue(true)
  const writes:{body:unknown;key:string|null}[]=[]
  const {wrapper}=await open(async(_input,init)=>{writes.push({body:JSON.parse(String(init?.body)),key:new Headers(init?.headers).get('Idempotency-Key')});return json(protocol,201)})
  await wrapper.get('[data-review-field="row-1:specialty_id"]').setValue(true)
@@ -58,7 +59,91 @@ it('bulk selection excludes manual conflicts while a conflict can be accepted ex
  expect(wrapper.get('[data-review-field="row-1:complexity_level"]').element).toHaveProperty('checked',true)
 })
 
+it('accept-all checks every eligible field and new row without applying or requesting confirmation',async()=>{
+ const writes:unknown[]=[]
+ const confirmation=vi.spyOn(window,'confirm').mockReturnValue(true)
+ const blocked={...changed,row_id:'blocked',eligible:false,blockers:['Нужно сопоставление.']}
+ const {wrapper}=await open(async(_input,init)=>{writes.push(JSON.parse(String(init?.body)));return json(protocol,201)},
+  {...listing,results:[changed,newRow,blocked]})
+ await wrapper.get('[data-select-all-review]').trigger('click');await flushPromises()
+ expect(confirmation).not.toHaveBeenCalled()
+ expect(writes).toEqual([])
+ expect(wrapper.get('[data-review-field="row-1:specialty_id"]').element).toHaveProperty('checked',true)
+ expect(wrapper.get('[data-review-field="row-1:complexity_level"]').element).toHaveProperty('checked',true)
+ expect(wrapper.get('[data-review-create="row-2"]').element).toHaveProperty('checked',true)
+ expect(wrapper.get('[data-apply-review]').attributes('disabled')).toBeUndefined()
+ expect(wrapper.find('[data-review-field="blocked:specialty_id"]').exists()).toBe(false)
+})
+
+it('accept-all permits deselecting fields and new rows before confirming only the remaining changes',async()=>{
+ const writes:unknown[]=[]
+ const confirmation=vi.spyOn(window,'confirm').mockReturnValue(true)
+ const blocked={...changed,row_id:'blocked',eligible:false,blockers:['Нужно сопоставление.']}
+ const {wrapper}=await open(async(_input,init)=>{writes.push(JSON.parse(String(init?.body)));return json(protocol,201)},
+  {...listing,results:[changed,newRow,blocked]})
+ await wrapper.get('[data-select-all-review]').trigger('click')
+ await wrapper.get('[data-review-field="row-1:specialty_id"]').setValue(false)
+ await wrapper.get('[data-review-create="row-2"]').setValue(false)
+ expect(writes).toEqual([])
+ await wrapper.get('[data-apply-review]').trigger('click');await flushPromises()
+ const message=String(confirmation.mock.calls[0]?.[0])
+ expect(message).toContain('Новых экспертиз: 0')
+ expect(message).toContain('Обновляемых экспертиз: 1')
+ expect(message).toContain('Изменяемых полей: 1')
+ expect(message).toContain('Ручных расхождений: 1')
+ expect(message).toContain('будут заменены значениями из таблицы')
+ expect(message).toContain('Заблокированных строк пропущено: 1')
+ expect(writes).toEqual([{selections:[
+  {row_id:'row-1',action:'update',expected_work_version:2,expected_source_row_id:'old-row',expected_selection_version:0,proposal_hash:'a'.repeat(64),accepted_fields:['complexity_level']}
+ ]}])
+ expect(wrapper.text()).toContain('Добавлено: 0 · Обновлено: 1')
+ expect(wrapper.find('[data-select-all-review]').exists()).toBe(false)
+})
+
+it('cancelling final confirmation preserves all checked fields without writing',async()=>{
+ const writes:unknown[]=[]
+ const confirmation=vi.spyOn(window,'confirm').mockReturnValue(false)
+ const {wrapper}=await open(async(_input,init)=>{writes.push(JSON.parse(String(init?.body)));return json(protocol,201)})
+ await wrapper.get('[data-select-all-review]').trigger('click')
+ await wrapper.get('[data-apply-review]').trigger('click');await flushPromises()
+ expect(confirmation).toHaveBeenCalledOnce()
+ expect(writes).toEqual([])
+ expect(wrapper.get('[data-review-field="row-1:specialty_id"]').element).toHaveProperty('checked',true)
+ expect(wrapper.get('[data-review-field="row-1:complexity_level"]').element).toHaveProperty('checked',true)
+ expect(wrapper.get('[data-review-create="row-2"]').element).toHaveProperty('checked',true)
+ expect(wrapper.get('[data-review-field="row-1:specialty_id"]').attributes('disabled')).toBeUndefined()
+})
+
+it('after applying all selected changes a lost response locks selection and retry preserves the packet and key',async()=>{
+ const writes:{body:unknown;key:string|null}[]=[]
+ const confirmation=vi.spyOn(window,'confirm').mockReturnValue(true)
+ const {wrapper}=await open(async(_input,init)=>{writes.push({body:JSON.parse(String(init?.body)),key:new Headers(init?.headers).get('Idempotency-Key')});if(writes.length===1)throw new TypeError('Lost response');return json({...protocol,created_count:1},201)})
+ await wrapper.get('[data-select-all-review]').trigger('click')
+ await wrapper.get('[data-apply-review]').trigger('click');await flushPromises()
+ expect(wrapper.get('[data-select-all-review]').attributes('disabled')).toBeDefined()
+ await wrapper.get('[data-select-all-review]').trigger('click')
+ expect(writes).toHaveLength(1)
+ expect(confirmation).toHaveBeenCalledOnce()
+ await wrapper.get('[data-apply-review]').trigger('click');await flushPromises()
+ expect(writes).toHaveLength(2)
+ expect(writes[1]).toEqual(writes[0])
+ expect(writes[0]!.key).toBeTruthy()
+ expect(confirmation).toHaveBeenCalledOnce()
+})
+
+it('accept-all is disabled when every row is blocked or has no changes to accept',async()=>{
+ const writes:unknown[]=[]
+ const confirmation=vi.spyOn(window,'confirm').mockReturnValue(true)
+ const {wrapper}=await open(async(input)=>{writes.push(input);return json(protocol,201)},
+  {...listing,results:[{...changed,eligible:false,blockers:['Нужно сопоставление.']},{...changed,row_id:'empty',changes:[]}]})
+ expect(wrapper.get('[data-select-all-review]').attributes('disabled')).toBeDefined()
+ await wrapper.get('[data-select-all-review]').trigger('click');await flushPromises()
+ expect(confirmation).not.toHaveBeenCalled()
+ expect(writes).toEqual([])
+})
+
 it('freezes the exact packet and key after a lost response',async()=>{
+ vi.spyOn(window,'confirm').mockReturnValue(true)
  const writes:{body:unknown;key:string|null}[]=[]
  const {wrapper}=await open(async(_input,init)=>{writes.push({body:JSON.parse(String(init?.body)),key:new Headers(init?.headers).get('Idempotency-Key')});if(writes.length===1)throw new TypeError('Lost response');return json(protocol,201)})
  await wrapper.get('[data-review-field="row-1:complexity_level"]').setValue(true)
@@ -76,20 +161,22 @@ it('shows blocked records and read-only differences without granting acceptance 
  expect(wrapper.text()).toContain('Работа продолжена в новом учёте.')
  expect(wrapper.find('[data-review-field]').exists()).toBe(false)
  expect(wrapper.find('[data-apply-review]').exists()).toBe(false)
+ expect(wrapper.find('[data-select-all-review]').exists()).toBe(false)
 })
 
 it('shows no-op source refresh as no changes',async()=>{
  const {wrapper}=await open(async()=>json(protocol,201),{...listing,summary:{new:0,changed:0,unchanged:478,invalid:0},results:[]})
  expect(wrapper.text()).toContain('Изменений нет')
  expect(wrapper.find('[data-apply-review]').exists()).toBe(false)
+ expect(wrapper.find('[data-select-all-review]').exists()).toBe(false)
 })
 
 it('does not display an old application result after switching source',async()=>{
+ vi.spyOn(window,'confirm').mockReturnValue(true)
  let finish!:(value:Response)=>void
  const {wrapper,router}=await open(async()=>new Promise<Response>(resolve=>{finish=resolve}))
  await wrapper.get('[data-review-field="row-1:specialty_id"]').setValue(true)
  await wrapper.get('[data-apply-review]').trigger('click');await flushPromises()
- vi.spyOn(window,'confirm').mockReturnValue(true)
  await router.push('/imports/b2/review');await flushPromises()
  finish(json(protocol,201));await flushPromises()
  expect(wrapper.text()).not.toContain('Обновлено: 1')

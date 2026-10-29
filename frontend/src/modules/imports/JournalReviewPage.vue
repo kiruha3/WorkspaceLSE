@@ -15,6 +15,7 @@ const canApply=computed(()=>enabled.value&&session.can('imports.reconcile')&&ses
 const data=ref<JournalReview|null>(null),selected=ref<Record<string,string[]>>({}),loading=ref(false),error=ref<unknown>(null),writeError=ref<unknown>(null)
 const busy=ref(false),uncertain=ref(false),result=ref<JournalReviewResult|null>(null),attempt=ref<{key:string;batchId:string;body:{selections:JournalReviewChoice[]}}|null>(null)
 const locked=computed(()=>busy.value||uncertain.value||Boolean(result.value)),selectedCount=computed(()=>Object.keys(selected.value).length)
+const allItems=computed(()=>(data.value?.results??[]).filter(item=>item.eligible&&(item.action==='create'||item.changes.length>0)))
 const back=computed(()=>typeof route.query.return==='string'&&/^\/expertises(?:\?|$)/.test(route.query.return)?route.query.return:'/expertises')
 let generation=0
 const confirmLeave=useDirtyGuard(()=>Boolean(selectedCount.value||busy.value||uncertain.value),router)
@@ -46,6 +47,11 @@ function safe(){
  selected.value=choices;attempt.value=null;writeError.value=null
 }
 function clear(){if(!locked.value){selected.value={};attempt.value=null;writeError.value=null}}
+function acceptAll(){
+ if(locked.value||!canApply.value||!allItems.value.length)return
+ selected.value=Object.fromEntries(allItems.value.map(item=>[item.row_id,item.action==='create'?[]:item.changes.map(change=>change.field)]))
+ attempt.value=null;writeError.value=null
+}
 async function refresh(){
  if(busy.value||uncertain.value||!confirmLeave())return
  selected.value={};attempt.value=null;result.value=null;writeError.value=null;await load()
@@ -54,9 +60,22 @@ async function apply(){
  if(busy.value||!selectedCount.value||result.value||!canApply.value)return
  const stamp=generation
  if(!attempt.value){
-  const selections=(data.value?.results??[]).filter(item=>Object.hasOwn(selected.value,item.row_id)).map(item=>({row_id:item.row_id,action:item.action,
+  const items=(data.value?.results??[]).filter(item=>Object.hasOwn(selected.value,item.row_id))
+  const selections=items.map(item=>({row_id:item.row_id,action:item.action,
    expected_work_version:item.expected_work_version,expected_source_row_id:item.expected_source_row_id,expected_selection_version:item.expected_selection_version,
    proposal_hash:item.proposal_hash,accepted_fields:[...selected.value[item.row_id]!].sort()})).sort((a,b)=>a.row_id.localeCompare(b.row_id))
+  const updates=items.filter(item=>item.action==='update'),fields=updates.flatMap(item=>item.changes.filter(change=>selected.value[item.row_id]!.includes(change.field)))
+  const conflicts=fields.filter(change=>change.conflict).length
+  const message=[
+   'Применить выбранные изменения в БД?',
+   `Новых экспертиз: ${items.length-updates.length}`,
+   `Обновляемых экспертиз: ${updates.length}`,
+   `Изменяемых полей: ${fields.length}`,
+   `Ручных расхождений: ${conflicts}.${conflicts?' Эти значения в БД будут заменены значениями из таблицы.':''}`,
+   `Заблокированных строк пропущено: ${(data.value?.results??[]).filter(item=>!item.eligible).length}`,
+   'Неотмеченные поля и записи не затрагиваются. Продолжить?'
+  ].join('\n')
+  if(!window.confirm(message)||stamp!==generation||busy.value||result.value||!canApply.value)return
   attempt.value={key:newCommandKey(),batchId:String(route.params.id),body:{selections}}
  }
  const packet=attempt.value
@@ -81,9 +100,9 @@ onBeforeUnmount(()=>{generation++;requests.cancel()})
   <section v-if="data" class="card stack-card">
    <div class="section-heading"><div class="button-row"><span class="badge">Новые: {{data.summary.new}}</span><span class="badge">Изменены: {{data.summary.changed}}</span><span class="badge">Совпадают: {{data.summary.unchanged}}</span><span class="badge badge-amber">Нужна проверка: {{data.summary.invalid}}</span></div><button :disabled="loading||busy||uncertain" @click="refresh">Обновить перечень</button></div>
    <p class="muted compact">«Обновить перечень» повторяет сравнение сохранённого снимка с БД. Для чтения новых исправлений таблицы запустите обновление из реестра.</p>
-   <div v-if="canApply&&data.results.length&&!result" class="button-row"><button data-select-safe-review :disabled="locked" @click="safe">Выбрать изменения без конфликтов</button><button :disabled="locked||!selectedCount" @click="clear">Снять выбор</button></div>
+   <div v-if="canApply&&data.results.length&&!result" class="button-row"><button data-select-all-review :disabled="locked||!allItems.length" @click="acceptAll">Принять всё</button><button data-select-safe-review :disabled="locked" @click="safe">Выбрать изменения без конфликтов</button><button :disabled="locked||!selectedCount" @click="clear">Снять выбор</button></div>
    <p v-if="!data.results.length" class="state">Изменений нет — источник и рабочая база совпадают.</p>
-   <p v-else-if="!result" class="message">Отметьте только то, что хотите принять. Неотмеченные поля сохранят свои значения в БД. Ручные расхождения не выбираются общей кнопкой.</p>
+   <p v-else-if="!result" class="message">«Принять всё» только отмечает все доступные изменения, включая ручные расхождения. Снимите лишние галочки и нажмите «Применить выбранное в БД»: запись произойдёт после подтверждения. «Выбрать изменения без конфликтов» не отмечает ручные расхождения.</p>
    <template v-if="!result"><article v-for="item in data.results" :key="item.row_id" class="review-item" :class="{'review-blocked':!item.eligible}">
     <div class="section-heading"><div><h2>{{item.number}}</h2><p class="muted compact">Строка {{item.source_row}} · {{item.action==='create'?'Новая экспертиза':'Изменения существующей экспертизы'}}</p></div><label v-if="canApply&&item.action==='create'&&item.eligible" class="check-label"><input :data-review-create="item.row_id" type="checkbox" :checked="Object.hasOwn(selected,item.row_id)" :disabled="locked" @change="choose(item,null,($event.target as HTMLInputElement).checked)"/>Добавить экспертизу целиком</label></div>
     <p v-for="blocker in item.blockers" :key="blocker" class="message message-error">{{blocker}}</p>
