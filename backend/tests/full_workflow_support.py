@@ -232,8 +232,8 @@ def run_journey(base,people,password):
         'materials_description':'ПРИЁМКА · материалы дела, подписка, результат, сопроводительное и уведомление',
         'items':items,'billing':[{'expertise_id':work['id'],'is_paid':True}],'reason':'ПРИЁМКА · платная работа'},status=201)['package']
     pack_path=f"/issue-packages/{package['id']}"
-    assert any(row.get('field')=='invoice' and row['code']=='item_missing' for row in package['readiness']['blockers'])
-    assert clerk.request(pack_path+'/check/','POST',{'expected_version':package['version'],'reason':'ПРИЁМКА · нет счёта'})[0]==400
+    assert any(row.get('field')=='invoice' and row['code']=='item_missing' for row in package['readiness']['warnings'])
+    assert package['readiness']['can_check']
     invoice=document(clerk,'invoice','ПРИЁМКА · счёт, не документ для оплаты',upload=True)
     items.append({'kind':'invoice','expertise_id':work['id'],'document_id':invoice['id'],'note':''})
     package=clerk.ok(pack_path+'/draft/','POST',{'expected_version':package['version'],'materials_description':'ПРИЁМКА · полный комплект и один том',

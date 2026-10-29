@@ -77,8 +77,6 @@ def issue_material(*, actor, package_id, data, key, payload):
             evidence = Document.objects.get(pk=evidence.pk)
             require_document(actor, "documents.view", evidence)
             accepted = evidence.versions.order_by("-number").first()
-            if evidence.source_kind != "paper_original" and accepted is None:
-                raise ValidationError({"evidence_document_id": "У копии подтверждения нет сохранённого файла."})
         method = IssueMethod.objects.select_for_update().get(pk=data["method"].pk)
         if not method.is_active: raise ValidationError({"method_id": "Способ выдачи неактивен."})
         check = package.checks.order_by("-created_at", "-pk").first()

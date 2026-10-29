@@ -28,6 +28,14 @@ async function open(value: IssuePackage = pkg, transport?: Transport, url = '/is
 }
 afterEach(() => vi.restoreAllMocks()); enableAutoUnmount(afterEach)
 describe('material issuance workplace', () => {
+  it('shows document warnings separately while allowing the package check', async () => {
+    const value = { ...pkg, readiness: { ...pkg.readiness, blockers: [], warnings: [{ code: 'item_missing', field: 'cover_letter', message: 'Не приложено сопроводительное.', expertise_id: work.id }], can_check: true } }
+    const { wrapper } = await open(value)
+    expect(wrapper.get('[data-issue-warnings]').text()).toContain('Не приложено сопроводительное')
+    expect(wrapper.get('[data-issue-warnings]').text()).toContain('не запрещают')
+    expect(wrapper.get('[data-start-package-check]').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
   it('edits independent nullable payability for every work and sends explicit revision facts', async () => {
     const writes: Record<string, unknown>[] = []
     const value = { ...pkg, works: [work, { ...work, id: 'work-2', registration_number: '152/4-6-26', is_paid: null }] }

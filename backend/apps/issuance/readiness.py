@@ -11,12 +11,19 @@ DOCUMENT_KINDS = {
 
 def required_items(work, closure, is_paid=None):
     if not closure: return []
-    if work.is_commission or closure.kind != "completed" or not closure.result_id: return []
-    expected_result = "research_act" if work.category_code == "6" else "expert_conclusion"
-    if work.category_code not in ("1", "2", "3", "4", "5", "6") or closure.result.kind != expected_result: return []
+    return expected_items(work.category_code, closure.kind, closure.result.kind if closure.result_id else None, is_paid)
+
+
+def expected_items(category_code, closure_kind, result_kind, is_paid=None):
+    if closure_kind == "without_execution":
+        return ["cover_letter"] + (["invoice"] if is_paid is True else [])
+    if not result_kind: return []
+    expected_result = "research_act" if category_code == "6" else "expert_conclusion"
+    sndz = result_kind == "sndz" and category_code != "6"
+    if category_code not in ("1", "2", "3", "4", "5", "6") or not (sndz or result_kind == expected_result): return []
     kinds = ["expert_subscription", "cover_letter"]
-    if work.category_code in ("1", "5"): kinds.append("notification")
-    if work.category_code in ("2", "3") or is_paid is True: kinds.append("invoice")
+    if not sndz and category_code in ("1", "5"): kinds.append("notification")
+    if category_code in ("2", "3") or is_paid is True: kinds.append("invoice")
     return kinds
 
 
@@ -53,11 +60,15 @@ def check_matches(package, facts=None):
 
 def readiness(package, user, scopes=None):
     scopes = permission_scopes(user) if scopes is None else scopes
-    blockers = []
+    blockers = []; warnings = []
     def add(code, field, message, work=None):
         item = {"code": code, "field": field, "message": message}
         if work: item["expertise_id"] = str(work.pk)
         blockers.append(item)
+    def warn(code, field, message, work=None):
+        item = {"code": code, "field": field, "message": message}
+        if work: item["expertise_id"] = str(work.pk)
+        warnings.append(item)
     facts = current_facts(package)
     works, closures, items, files = facts
     billing = billing_values(package)
@@ -71,20 +82,31 @@ def readiness(package, user, scopes=None):
             add("work_open", "works", "Работа ещё не завершена.", work); continue
         required = required_items(work, closure, billing.get(work.pk))
         if work.is_commission:
-            add("commission_policy_unconfirmed", "items", "Нужно подтвердить комплект подписок комиссии.", work)
-        elif not required:
-            add("policy_unconfirmed", "items", "Состав выдачи для этого вида результата или категории пока не утверждён.", work)
-        elif billing.get(work.pk) is None:
-            add("billing_unknown", "billing", "Уточните платность работы перед проверкой и выдачей комплекта.", work)
+            warn("commission_subscriptions_unverified", "items", "Проверьте отдельную подписку каждого участника комиссии.", work)
+        if not required:
+            if closure.result_id and work.category_code in ("1", "2", "3", "4", "5", "6"):
+                add("result_category_mismatch", "result", "Вид результата не соответствует категории работы.", work)
+            else:
+                warn("policy_unconfirmed", "items", "Проверьте состав документов для этого вида работы.", work)
+        if billing.get(work.pk) is None:
+            warn("billing_unknown", "billing", "Платность работы пока не уточнена; это не означает отсутствие оплаты.", work)
         for kind in required:
             if not any(item.kind == kind and item.expertise_id == work.pk for item in items):
-                add("item_missing", kind, "Нет обязательного документа комплекта.", work)
-        if not closure.accepted_version_id: add("file_missing", "result", "У подтверждённого итога нет принятого файла.", work)
+                name = {"expert_subscription": "подписка эксперта", "cover_letter": "сопроводительное письмо", "notification": "уведомление", "invoice": "счёт"}[kind]
+                warn("item_missing", kind, f"Не добавлено: {name}. Можно дополнить позднее.", work)
+        if closure.document is None or not (closure.document.source_url or closure.document.versions.exists()):
+            warn("file_missing", "result", "Не прикреплён итоговый документ или документ решения.", work)
     for item_id, closure_id, document, version_id in files:
         if not can_document(user, "documents.view", document):
             add("document_unavailable", "items" if item_id else "result", "Документ недоступен для проверки.")
-        elif not version_id and document.source_kind != "paper_original":
-            add("file_missing", "items" if item_id else "result", "У загружаемой копии нет сохранённого файла.")
+        elif not version_id and document.source_kind != "paper_original" and not (document.source_url or document.versions.exists()):
+            if item_id:
+                item = next(item for item in items if item.pk == item_id)
+                warn("file_missing", "items", "У добавленной копии приложения нет сохранённого файла.", next(work for work in works if work.pk == item.expertise_id))
     current = check_matches(package, facts)
     issued = getattr(package, "issuance", None)
-    return {"blockers": blockers, "can_check": not blockers and not issued, "can_issue": not blockers and current and not issued, "check_current": current}
+    if issued and issued.evidence_document_id:
+        evidence = issued.evidence_document
+        if evidence.source_kind != "paper_original" and not (evidence.source_url or evidence.versions.exists()):
+            warn("file_missing", "evidence_document_id", "У документа подтверждения выдачи ещё нет файла или ссылки.")
+    return {"blockers": blockers, "warnings": warnings, "can_check": not blockers and not issued, "can_issue": not blockers and current and not issued, "check_current": current}

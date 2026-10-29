@@ -125,11 +125,12 @@ def test_readiness_requires_correct_category_documents_without_payment_assumptio
     assert package["works"][0]["closure"]["document"]["accepted_version_id"] == work["closure"]["document"]["accepted_version_id"]
     assert not package["readiness"]["can_issue"]
     missing = save_package(client, package, materials_description="Два тома", items=items[:-1]).json()["package"]
-    assert any(item["code"] == "item_missing" and item["field"] == extra for item in missing["readiness"]["blockers"])
+    assert any(item["code"] == "item_missing" and item["field"] == extra for item in missing["readiness"]["warnings"])
+    assert missing["readiness"]["can_check"]
 
 
 @pytest.mark.parametrize("variant", ["sndz", "commission", "return"])
-def test_unconfirmed_issue_policy_is_explicit_not_ordinary_conclusion_default(employee_factory, grant, settings, tmp_path, variant):
+def test_sndz_commission_and_return_remind_without_blocking_check(employee_factory, grant, settings, tmp_path, variant):
     settings.MEDIA_ROOT = tmp_path
     category = variant if variant in ("4", "6") else "1"
     kind = "research_act" if variant == "6" else "sndz" if variant == "sndz" else "expert_conclusion"
@@ -144,8 +145,10 @@ def test_unconfirmed_issue_policy_is_explicit_not_ordinary_conclusion_default(em
     response = create_package(client, work["material"]["id"], materials_description="Два тома")
     assert response.status_code == 201
     readiness = response.json()["package"]["readiness"]
-    assert not readiness["can_check"]
-    assert any(item["code"] == ("commission_policy_unconfirmed" if variant == "commission" else "policy_unconfirmed") for item in readiness["blockers"])
+    assert readiness["can_check"]
+    assert readiness["warnings"] and not readiness["blockers"]
+    if variant == "commission":
+        assert any(item["code"] == "commission_subscriptions_unverified" for item in readiness["warnings"])
 
 
 def test_uploaded_supplement_needs_bytes_while_paper_original_does_not(employee_factory, grant, settings, tmp_path):
@@ -155,7 +158,8 @@ def test_uploaded_supplement_needs_bytes_while_paper_original_does_not(employee_
     response = create_package(client, work["material"]["id"], materials_description="Материалы", items=items)
     assert response.status_code == 201
     package = response.json()["package"]
-    assert any(item["code"] == "file_missing" for item in package["readiness"]["blockers"])
+    assert any(item["code"] == "file_missing" for item in package["readiness"]["warnings"])
+    assert package["readiness"]["can_check"]
     from test_basis_documents import upload
     for item in items: assert upload(client, item["document_id"]).status_code == 201
     path = f"/api/v1/issue-packages/{package['id']}/"

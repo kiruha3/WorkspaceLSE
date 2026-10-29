@@ -48,18 +48,18 @@ def test_approved_pack_and_paid_invoice_are_enforced(employee_factory, grant, ca
         # Check incremented the package version; use the current response.
         current = client.get(f"/api/v1/issue-packages/{package['id']}/").json()
         missing = save_package(client, current, materials_description="Два тома", items=items).json()["package"]
-        assert any(item["code"] == "item_missing" and item["field"] == "invoice" for item in missing["readiness"]["blockers"])
-        assert not missing["readiness"]["can_check"]
+        assert any(item["code"] == "item_missing" and item["field"] == "invoice" for item in missing["readiness"]["warnings"])
+        assert missing["readiness"]["can_check"]
 
 
 @pytest.mark.parametrize("paid", [None, "omitted", "empty"])
 def test_unknown_payability_is_not_free_even_if_all_documents_exist(employee_factory, grant, paid):
     client, _, _, package, *_ = prepare(employee_factory, grant, paid=paid, kinds=["expert_subscription", "cover_letter", "invoice"])
     assert package["works"][0]["is_paid"] is None
-    assert any(item["code"] == "billing_unknown" for item in package["readiness"]["blockers"])
-    assert package_command(client, package, "check").status_code == 400
-    assert not package["readiness"]["can_check"] and not package["readiness"]["can_issue"]
-    assert not AuditEvent.objects.filter(action="issue.check").exists()
+    assert any(item["code"] == "billing_unknown" for item in package["readiness"]["warnings"])
+    assert package_command(client, package, "check").status_code == 200
+    assert package["readiness"]["can_check"] and not package["readiness"]["can_issue"]
+    assert AuditEvent.objects.filter(action="issue.check").exists()
 
 
 def test_billing_revisions_preserve_omitted_values_and_explicit_null_clears(employee_factory, grant):
@@ -158,7 +158,7 @@ def test_paid_draft_replay_rechecks_current_prepare_right(employee_factory, gran
     assert PackageRevision.objects.count() == before
 
 
-@pytest.mark.parametrize("category,kind", [("6", "expert_conclusion"), ("4", "research_act"), ("4", "sndz")])
+@pytest.mark.parametrize("category,kind", [("6", "expert_conclusion"), ("4", "research_act")])
 def test_unsupported_result_category_pair_is_not_opened_by_a_paid_flag(employee_factory, grant, category, kind):
     # The result command already rejects mismatched category/kind. Deliberately
     # seed an inconsistent legacy pair to verify readiness also refuses it.
@@ -168,5 +168,5 @@ def test_unsupported_result_category_pair_is_not_opened_by_a_paid_flag(employee_
     from apps.expertises.models import Expertise
     Expertise.objects.filter(pk=work["id"]).update(category_code=category)
     package = client.get(f"/api/v1/issue-packages/{package['id']}/").json()
-    assert any(item["code"] == "policy_unconfirmed" for item in package["readiness"]["blockers"])
+    assert any(item["code"] == "result_category_mismatch" for item in package["readiness"]["blockers"])
     assert package_command(client, package, "check").status_code == 400
