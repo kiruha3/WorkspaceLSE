@@ -43,7 +43,7 @@ onBeforeUnmount(() => requests.cancel())
       <template v-if="!busy && !error">
       <article v-for="work in value.results" :key="work.id" :data-incomplete-work="work.id" class="assignment-line">
         <RouterLink :to="{ path: `/expertises/${work.id}`, query: { return: route.fullPath } }"><strong>{{ work.registration_number }}</strong> → Открыть карточку</RouterLink>
-        <ul><li v-for="gap in work.missing" :key="gap.code">{{ gap.message }}</li></ul>
+        <details class="work-reminder-details"><summary>Не заполнено: {{ work.missing.length }}</summary><ul><li v-for="gap in work.missing" :key="gap.code">{{ gap.message }}</li></ul></details>
       </article>
       <p v-if="!value.results.length" class="muted">Нет незаполненных сведений по доступным экспертизам.</p>
       <PaginationBar v-if="value.count" :page="currentPage" :count="value.count" :next="Boolean(value.next)" :previous="Boolean(value.previous)" :busy="busy" @change="load" />
@@ -51,4 +51,11 @@ onBeforeUnmount(() => requests.cancel())
     </div>
   </section>
 </template>
-<style scoped>.incomplete-expertises{margin-bottom:24px}.incomplete-heading{flex-wrap:wrap;margin-bottom:0}.incomplete-title{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.incomplete-expertises h2{margin:0}.incomplete-expertises ul{margin:10px 0 0;padding-left:22px}.incomplete-expertises li{margin:5px 0}</style>
+<style scoped>
+.incomplete-expertises{margin-bottom:14px}.incomplete-heading{flex-wrap:wrap;margin-bottom:0}.incomplete-title{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.incomplete-expertises h2{margin:0}
+.incomplete-expertises .assignment-line{display:grid;grid-template-columns:minmax(180px,.7fr) minmax(0,1.3fr);gap:8px 16px;font-size:12px}
+.work-reminder-details{min-width:0}.work-reminder-details summary{cursor:pointer;color:var(--muted);width:fit-content}.work-reminder-details summary:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+.incomplete-expertises ul{margin:8px 0 0;padding-left:18px}.incomplete-expertises li{margin:3px 0;overflow-wrap:anywhere}
+@media(max-width:600px){.incomplete-expertises .assignment-line{grid-template-columns:1fr;gap:5px}}
+@media(pointer:coarse){.work-reminder-details summary{min-height:36px;padding-block:7px}}
+</style>

@@ -8,6 +8,7 @@ import {documentPath,originKey,type WorkDocumentLibrary,type WorkDocumentRespons
 import {useSessionStore} from '../../stores/session'
 import {useDirtyGuard} from '../../shared/ui/useDirtyGuard'
 import ApiMessage from '../../shared/ui/ApiMessage.vue'
+import HelpTip from '../../shared/ui/HelpTip.vue'
 import BasisPreview from '../../shared/BasisPreview.vue'
 import DocumentSourceForm from './DocumentSourceForm.vue'
 import DocumentBatchUpload from './DocumentBatchUpload.vue'
@@ -79,13 +80,15 @@ watch(()=>route.params.id,()=>{mode.value=null;value.value=null;retainedSelectio
 onBeforeUnmount(()=>requests.cancel())
 </script>
 <template>
-  <div class="page-heading"><div><p class="eyebrow">Единый архив документов</p><h1>{{value?.context.registration_number||'Документы экспертизы'}}</h1><p class="muted">Основания, результаты, переписка и дополнительные файлы — без копий на каждый номер.</p></div><RouterLink data-archive-back :to="back">← К карточке экспертизы</RouterLink></div>
+  <div class="work-documents-page">
+  <RouterLink data-archive-back class="archive-back" :to="back">← К карточке экспертизы</RouterLink>
+  <div class="page-heading"><div><p class="eyebrow">Единый архив документов</p><div class="archive-title"><h1>{{value?.context.registration_number||'Документы экспертизы'}}</h1><HelpTip label="Архив экспертизы">Основания, результаты, переписка и дополнительные файлы — без копий на каждый номер.</HelpTip></div></div></div>
   <ApiMessage :error="error"/><p v-if="loading" class="state" role="status">Загрузка архива…</p><p v-if="success" class="message message-success" role="status">{{success}}</p>
   <section v-if="value" class="card">
     <div class="section-heading"><div><h2>Документы и связи</h2><p class="muted compact">Версия работы {{value.context.version}} · {{value.count}} документов по текущему фильтру</p></div><div class="button-row"><button type="button" @click="load">Обновить архив</button><button v-if="value.can_link" data-open-document-source class="button-primary" type="button" :disabled="anyBusy" @click="openMode('source')">Добавить документ</button><button v-if="value.can_link&&value.can_create" type="button" :disabled="anyBusy" @click="openMode('batch')">Загрузить файлы / папку</button></div></div>
     <p v-if="!value.can_link" class="muted">Только просмотр. Для добавления связи требуется отдельное право «Связывать документы с экспертизой»; автоматически оно не выдаётся.</p>
-    <form data-archive-filters class="form-columns" @submit.prevent="filter"><label>Поиск по названию<input v-model="search" name="archive_search"/></label><label>Вид документа<select v-model="kind" name="archive_kind"><option value="">Все виды</option><option v-for="option in value.document_kinds" :key="option.code" :value="option.code">{{option.name}}</option></select></label><button type="submit">Применить фильтры</button></form>
-    <div v-if="mode" class="inset-form"><div class="section-heading"><h2>{{mode==='batch'?'Пакетная загрузка':'Дополнительная связь'}}</h2><button type="button" :disabled="anyBusy" @click="close">Закрыть форму</button></div>
+    <form data-archive-filters class="form-columns archive-filters" @submit.prevent="filter"><label>Поиск по названию<input v-model="search" name="archive_search"/></label><label>Вид документа<select v-model="kind" name="archive_kind"><option value="">Все виды</option><option v-for="option in value.document_kinds" :key="option.code" :value="option.code">{{option.name}}</option></select></label><button type="submit">Применить фильтры</button></form>
+    <div v-if="mode" class="inset-form"><div class="section-heading"><h2>{{mode==='batch'?'Пакетная загрузка':'Добавить документ'}}</h2><button type="button" :disabled="anyBusy" @click="close">Закрыть форму</button></div>
       <DocumentSourceForm v-if="mode==='source'" ref="source" :complex="Boolean(value.context.complex_group_id)" :allow-complex="Boolean(value.can_link_complex)" :work-id="value.context.id" :expected-version="value.context.version" :department-id="value.context.department.id" :kind-options="value.document_kinds" :authorized="value.can_link" :allow-create="value.can_create" @saved="saved" @refresh="load"/>
       <DocumentBatchUpload v-else ref="batch" :work-id="value.context.id" :expected-version="value.context.version" :department-id="value.context.department.id" :kind-options="value.document_kinds" :authorized="value.can_link" :allow-create="value.can_create" @saved="saved" @refresh="load"/>
     </div>
@@ -104,7 +107,28 @@ onBeforeUnmount(()=>requests.cancel())
     <details v-if="value.detached_links.length" class="inset-form"><summary>История снятых связей · {{value.detached_links.length}}</summary><article v-for="item in value.detached_links" :key="item.id"><strong>{{item.document&&'title' in item.document?item.document.title:'Документ ограниченного доступа'}}</strong><p>{{item.detach_reason}}</p><small>{{new Date(item.detached_at).toLocaleString('ru-RU')}}</small><button v-if="item.document&& !('restricted' in item.document)" type="button" :data-history-preview="item.id" @click="historyPreview=historyPreview===item.id?'':item.id">{{historyPreview===item.id?'Закрыть просмотр':'Просмотреть документ из истории'}}</button><BasisPreview v-if="historyPreview===item.id" :document="item.document" heading="Документ снятой дополнительной связи"/></article></details>
   </section>
   <p v-else-if="!loading" class="state"><button type="button" @click="load">Повторить загрузку архива</button></p>
+  </div>
 </template>
 <style scoped>
-.archive-layout{display:grid;grid-template-columns:minmax(230px,.72fr) minmax(0,1.6fr);gap:28px;margin-top:28px;align-items:start}.archive-list,.archive-preview{min-width:0}.archive-document{display:flex;flex-direction:column;gap:7px;text-align:left;width:100%;margin-bottom:10px;padding:16px;white-space:normal;overflow-wrap:anywhere;background:#fafbf8}.archive-document-selected{border-color:var(--green,#547244);background:#edf3e7;box-shadow:inset 3px 0 #547244}.archive-document small{font-size:11px}.archive-document span{font-size:11px}.archive-preview :deep(iframe){margin-top:16px}.archive-picker{display:grid;gap:8px}.archive-preview :deep(p),.archive-preview :deep(strong){overflow-wrap:anywhere}@media(max-width:1100px){.archive-layout{grid-template-columns:1fr}.archive-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.archive-list .pagination{grid-column:1/-1}}@media(max-width:600px){.archive-list{grid-template-columns:1fr}.archive-layout{gap:16px}.archive-document{margin:0}}
+.archive-back { display: inline-block; margin-bottom: 8px; font-size: 12px; }
+.archive-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.archive-filters { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto; align-items: end; }
+.archive-layout { display: grid; grid-template-columns: minmax(210px, .65fr) minmax(0, 1.7fr); gap: 14px; margin-top: 16px; align-items: start; }
+.archive-list, .archive-preview { min-width: 0; }
+.archive-document { display: flex; flex-direction: column; gap: 4px; text-align: left; width: 100%; margin-bottom: 8px; padding: 10px; white-space: normal; overflow-wrap: anywhere; background: #fafbf8; border-radius: 5px; font-size: 12px; }
+.archive-document-selected { border-color: var(--green, #547244); background: #edf3e7; box-shadow: inset 3px 0 #547244; }
+.archive-document small, .archive-document span { font-size: 11px; }
+.archive-preview :deep(iframe) { margin-top: 10px; }
+.archive-preview :deep(.document-preview > h3) { margin-top: 10px; margin-bottom: 6px; }
+.archive-preview :deep([data-version-upload] > button) { justify-self: start; }
+.archive-picker { display: grid; gap: 8px; }
+.archive-preview :deep(p), .archive-preview :deep(strong) { overflow-wrap: anywhere; }
+@media (max-width: 1000px) {
+  .archive-layout { grid-template-columns: 1fr; }
+  .archive-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .archive-list .pagination { grid-column: 1 / -1; }
+}
+@media (max-width: 720px) { .archive-filters { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .archive-list { grid-template-columns: 1fr; } .archive-document { margin: 0; } }
+@media (pointer: coarse) { .archive-document { min-height: 44px; } }
 </style>

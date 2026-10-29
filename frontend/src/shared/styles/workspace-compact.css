@@ -1,0 +1,119 @@
+/* Shared density for authenticated work screens; login and document contents keep their own layout. */
+.app-layout { font-size: 13px; }
+.app-layout .sidebar { width: 224px; flex-basis: 224px; padding: 20px 14px 16px; }
+.app-layout .workspace { width: calc(100% - 224px); margin-left: 224px; }
+.app-layout .sidebar-caption { margin: 26px 10px 10px; }
+.app-layout .sidebar nav { gap: 4px; }
+.app-layout .sidebar nav a { padding: 9px 10px; min-height: 38px; border-radius: 5px; }
+.app-layout .sidebar-bottom { padding-top: 24px; }
+.app-layout .topbar { min-height: 64px; height: auto; padding: 10px 24px; }
+.app-layout .main-content { padding: 20px 24px 28px; }
+.app-layout .workspace-footer { padding: 12px 24px; }
+.app-layout .main-content h1 { font-size: 26px; margin: 3px 0 6px; overflow-wrap: anywhere; }
+.app-layout .main-content h2 { font-size: 16px; }
+.app-layout .main-content h3 { font-size: 14px; margin-bottom: 9px; }
+.app-layout .main-content h4 { font-size: 13px; }
+.app-layout .main-content .page-heading { gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.app-layout .main-content .page-heading > div { min-width: 0; }
+.app-layout .main-content .card { padding: 14px; border-radius: 6px; }
+.app-layout .main-content .section-heading { gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.app-layout .main-content .section-heading h3 { margin: 0; }
+.app-layout .main-content .section-heading > div { min-width: 0; }
+.app-layout .main-content .form-grid { gap: 11px; }
+.app-layout .main-content :where(.form-columns, .detail-columns) { gap: 10px 14px; }
+.app-layout .main-content label { gap: 5px; }
+.app-layout .main-content :where(input:not([type=checkbox]):not([type=radio]), select:not([multiple])) { min-height: 34px; padding: 6px 8px; font-size: 13px; }
+.app-layout .main-content textarea { padding: 7px 9px; font-size: 13px; line-height: 1.45; }
+.app-layout .main-content :where(button:not(.help-trigger):not(.rule-help):not(.report-number):not(.text-button):not(.icon-button):not(.archive-document)) { min-height: 32px; padding: 6px 10px; font-size: 12px; }
+.app-layout .main-content :where(a.button-primary) { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 6px 10px; border: 1px solid var(--green); border-radius: 5px; font-size: 12px; font-weight: 600; }
+.app-layout .main-content .button-row { gap: 7px; }
+.app-layout .main-content .toolbar { gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.app-layout .main-content .work-filters { grid-template-columns: repeat(auto-fit, minmax(min(100%, 185px), 1fr)); align-items: end; }
+.app-layout .main-content th { padding: 8px 10px; }
+.app-layout .main-content td { padding: 10px; }
+.app-layout .main-content td small { margin-top: 3px; }
+.app-layout .main-content .cell-line + .cell-line { margin-top: 7px; }
+.app-layout .main-content .pagination { gap: 10px; padding-top: 10px; }
+.app-layout .main-content .split-layout { gap: 14px; }
+.app-layout .main-content .registry-pane td { padding: 10px 8px; }
+.app-layout .main-content .editor-empty { min-height: 220px; padding: 24px; }
+.app-layout .main-content .empty-symbol { margin-bottom: 12px; font-size: 38px; }
+.app-layout .main-content .editor-pane > h3 { margin-top: 16px; }
+.app-layout .main-content .editor-pane > .compact { margin-bottom: 12px; }
+.app-layout .main-content .permission-group { margin-bottom: 10px; border-radius: 5px; }
+.app-layout .main-content .permission-group h4 { padding: 8px 10px; }
+.app-layout .main-content .permission-row { padding: 9px 10px; }
+.app-layout .main-content .change-preview { padding: 10px 12px; margin: 12px 0; }
+.app-layout .main-content .message { padding: 9px 11px; margin-bottom: 12px; border-radius: 5px; }
+.app-layout .main-content .state { padding: 22px 12px; }
+.app-layout .main-content .subsection { margin-top: 16px; padding-top: 14px; }
+.app-layout .main-content .inset-form { padding: 12px; margin-top: 12px; border-radius: 5px; }
+.app-layout .main-content .inset-form fieldset.form-grid > label { margin-top: 0; }
+.app-layout .main-content .inset-form .compact { margin: 8px 0; }
+.app-layout .main-content :where(.stack-card, .employee-card, .narrow-card) { margin-top: 14px; }
+.app-layout .main-content .work-facts { gap: 10px 16px; margin: 12px 0; }
+.app-layout .main-content .work-facts dt { margin-bottom: 3px; }
+.app-layout .main-content .number-hint { padding: 9px 11px; gap: 10px 14px; }
+.app-layout .main-content .assignment-line { padding: 10px 0; }
+.app-layout .main-content .document-meta { gap: 7px 12px; margin: 10px 0; }
+.app-layout .main-content .version-select { margin-top: 10px; }
+.app-layout .main-content .document-frame { height: clamp(340px, 60vh, 620px); }
+.app-layout .main-content .document-image { max-height: 620px; margin: 10px auto; }
+.app-layout .main-content .org-line { padding: 9px 0; }
+.app-layout .main-content .account-summary { padding: 10px 0; }
+.app-layout .main-content .profile-facts { margin: 12px 0; }
+.app-layout .main-content .profile-facts > div { padding: 7px 0; }
+.app-layout .main-content .home-grid { gap: 14px; margin-bottom: 14px; }
+.app-layout .main-content .welcome-banner { padding: 20px 24px; gap: 16px; margin-bottom: 16px; border-radius: 6px; }
+.app-layout .main-content .welcome-banner h2 { font-size: 23px; margin: 6px 0 9px; }
+.app-layout .main-content .welcome-banner p:not(.eyebrow) { line-height: 1.5; }
+.app-layout .main-content .banner-symbol { width: 80px; height: 80px; }
+.app-layout .main-content .module-link { padding: 12px 0; gap: 11px; }
+.app-layout .main-content .module-icon { width: 34px; height: 34px; border-radius: 6px; }
+.app-layout .main-content .next-stage { gap: 16px; }
+.app-layout .main-content .next-stage h2 { margin: 5px 0 8px; }
+.app-layout .main-content .settings-grid { gap: 14px; }
+.app-layout .main-content .settings-tile { gap: 8px; }
+.app-layout .main-content .settings-tile h2 { font-size: 16px; }
+.app-layout .main-content .settings-tile p { font-size: 12px; line-height: 1.5; }
+.app-layout .main-content .settings-tile > span:last-child { font-size: 12px; }
+.app-layout .main-content .storage-mode { padding: 10px 12px; gap: 10px; border-radius: 5px; }
+.app-layout .main-content .year-picker { gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.app-layout .main-content .report-form { gap: 11px 14px; }
+.app-layout .main-content .report-totals { gap: 12px; margin: 14px 0; }
+.app-layout .main-content .report-totals strong { font-size: 25px; margin-top: 5px; }
+.app-layout .main-content .report-summary { gap: 14px; }
+.app-layout .main-content .report-gap { padding: 10px 0; }
+.app-layout .main-content .rule-panel { padding: 12px; margin: 12px 0; border-radius: 6px; }
+.app-layout .main-content .rule-help { width: 24px; height: 24px; min-height: 24px; margin-top: 5px; font-size: 13px; }
+.app-layout .main-content .help-trigger { width: 24px; height: 24px; min-height: 24px; padding: 0; }
+.app-layout .main-content [data-report-result] > .card { margin-bottom: 14px; }
+@media (min-width: 1700px) {
+  .app-layout .main-content { padding: 24px 32px 32px; }
+  .app-layout .topbar { padding-inline: 32px; }
+}
+@media (max-width: 1250px) {
+  .app-layout .sidebar { width: 216px; flex-basis: 216px; }
+  .app-layout .workspace { width: calc(100% - 216px); margin-left: 216px; }
+  .app-layout .main-content { padding: 18px 20px 24px; }
+  .app-layout .topbar { padding-inline: 20px; }
+}
+@media (max-width: 720px) {
+  .app-layout .sidebar { width: 242px; }
+  .app-layout .workspace { width: 100%; margin-left: 0; }
+  .app-layout .topbar { min-height: 60px; padding: 10px 14px; }
+  .app-layout .main-content { padding: 16px 14px 24px; }
+  .app-layout .workspace-footer { padding: 12px 14px; }
+  .app-layout .main-content h1 { font-size: 23px; }
+  .app-layout .main-content .card { padding: 12px; }
+  .app-layout .main-content .work-filters { grid-template-columns: 1fr; }
+  .app-layout .main-content :where(.form-columns, .detail-columns) { grid-template-columns: 1fr; }
+  .app-layout .main-content .welcome-banner { padding: 16px; }
+}
+@media (pointer: coarse) {
+  .app-layout .main-content :where(button:not(.help-trigger):not(.rule-help):not(.report-number):not(.text-button):not(.icon-button):not(.archive-document), a.button-primary) { min-height: 40px; }
+  .app-layout .main-content :where(input:not([type=checkbox]):not([type=radio]), select:not([multiple]), textarea) { font-size: 16px; }
+  .app-layout .main-content .rule-help { width: 28px; height: 28px; min-height: 28px; }
+  .app-layout .main-content .help-trigger { width: 28px; height: 28px; min-height: 28px; }
+  .app-layout .sidebar nav a { min-height: 40px; }
+}
