@@ -71,13 +71,24 @@ def create_revision(work,actor,data,reason,*,retained_references=None):
     return revision
 
 
+def has_result_reference(work, document, kind):
+    def supplied(value):
+        return value is not None and bool(value.source_url or list(value.versions.all()))
+    if supplied(document):return True
+    if kind is None:return False
+    links=getattr(work,'active_document_links',None)
+    if links is None:
+        links=work.document_links.filter(detached_at__isnull=True,document__kind=kind).select_related('document').prefetch_related('document__versions')
+    return any(link.document.kind==kind and supplied(link.document) for link in links)
+
+
 def result_readiness(work,result=None):
     result=result if result is not None else latest_result(work)
     blockers=[];gaps=[];documents=[]
     def issue(target,code,field,message):target.append({"code":code,"field":field,"message":message})
     closure=latest_closure(work)
     if work.state=="without_execution" and closure:
-        if closure.document is None or not (closure.document.source_url or closure.document.versions.exists()):
+        if not has_result_reference(work,closure.document,'return_decision'):
             issue(documents,"file_missing","document_id","Не прикреплён документ решения без исполнения. Можно добавить позднее.")
         if closure.return_reason_id is None:issue(gaps,"return_reason_missing","return_reason_id","Не определена причина решения без исполнения.")
         return {"completion_blockers":blockers,"report_gaps":gaps,"document_gaps":documents}
@@ -89,7 +100,7 @@ def result_readiness(work,result=None):
     else:
         try:validate_ending(work,result.completed_on,"completed_on")
         except ValidationError:issue(blockers,"date_invalid","completed_on","Проверьте дату окончания относительно поступления и текущей даты.")
-    if result.document_id is None or not (result.document.source_url or result.document.versions.exists()):
+    if not has_result_reference(work,result.document,result.kind):
         issue(documents,"file_missing","document_id","Не прикреплён итоговый документ. Можно завершить работу и добавить документ позднее.")
     if result.document_id is not None and result.kind!=result.document.kind:
         issue(blockers,"document_kind","document_id","Вид документа не соответствует результату.")

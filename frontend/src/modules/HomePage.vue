@@ -3,12 +3,14 @@ import { useRoute, RouterLink } from 'vue-router'
 import { useSessionStore } from '../stores/session'
 import UiIcon from '../shared/ui/UiIcon.vue'
 import {canReadReportPlans} from '../api/reportPlans'
+import IncompleteExpertises from './expertises/IncompleteExpertises.vue'
 const session = useSessionStore(), route = useRoute()
 </script>
 <template>
   <div class="page-heading"><div><p class="eyebrow">Персональное рабочее пространство</p><h1>Рабочее место</h1><p class="muted">{{ session.user?.employee?.full_name ?? session.user?.username }}, здесь доступны действия вашей учётной записи.</p></div><span class="badge badge-green">Персональная сессия</span></div>
   <p v-if="route.query.denied" class="message message-error" role="alert">Нет права на просмотр запрошенного раздела. Доступные разделы указаны в меню.</p>
   <section class="welcome-banner"><div><p class="eyebrow">АИС ФГБУ Абаканская ЛСЭ</p><h2>От поступления материалов<br />к назначению эксперта.</h2><p>Основание, ручной номер и квалифицированный состав сохраняются в рабочих карточках. Доступ определяется персональными правами.</p></div><div class="banner-symbol"><UiIcon name="folder" /></div></section>
+  <IncompleteExpertises v-if="session.can('expertise.view') && session.user?.supported_modules?.includes('expertise_completeness')" />
   <div class="home-grid"><section class="card"><div class="section-heading"><h2>Доступные разделы</h2><span class="subtle-label">По правам сессии</span></div>
     <RouterLink v-if="session.can('receipts.view')" class="module-link" to="/intake"><span class="module-icon"><UiIcon name="file" /></span><span><strong>Приёмка материалов</strong><small>Поступление, основание и ручная регистрация</small></span><UiIcon name="arrow" /></RouterLink>
     <RouterLink v-if="session.can('expertise.view')" class="module-link" to="/expertises"><span class="module-icon"><UiIcon name="folder" /></span><span><strong>Экспертизы</strong><small>Реестр, назначения и рабочие карточки</small></span><UiIcon name="arrow" /></RouterLink>

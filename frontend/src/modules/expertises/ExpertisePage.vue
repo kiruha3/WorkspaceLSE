@@ -46,7 +46,7 @@ async function moveTab(event: KeyboardEvent, index: number) {
   await nextTick()
   tabList.value?.querySelector<HTMLButtonElement>(`[data-card-tab="${selectedTab.value}"]`)?.focus()
 }
-const returnTo = computed(() => typeof route.query.return === 'string' && /^\/expertises(?:\?|$)/.test(route.query.return) ? route.query.return : '/expertises')
+const returnTo = computed(() => typeof route.query.return === 'string' && /^\/(?:expertises|workspace)(?:\?|$)/.test(route.query.return) ? route.query.return : '/expertises')
 function time(value: string | null) { return value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Krasnoyarsk', dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : 'Не указано' }
 async function load() {
   loading.value = true; error.value = null
@@ -64,7 +64,7 @@ onBeforeUnmount(() => requests.cancel())
 <template>
  <div class="expertise-card">
   <p v-if="expertise?.material.is_demo" class="message">Учебный материал. Эта работа не включается в отчёт 15.1 по рабочей базе.</p>
-  <RouterLink class="card-back" data-back-to-expertises :to="returnTo">← К реестру экспертиз</RouterLink>
+  <RouterLink class="card-back" data-back-to-expertises :to="returnTo">{{ returnTo.startsWith('/workspace') ? '← К личному кабинету' : '← К реестру экспертиз' }}</RouterLink>
   <div class="expertise-heading"><div><p class="eyebrow">Рабочая карточка экспертизы</p><div class="expertise-title"><h1>{{ expertise?.registration_number || 'Экспертиза' }}</h1><span v-if="expertise" class="badge badge-green">{{ stateLabels[expertise.state] }}</span></div><p class="muted">{{ expertise?.material.title || 'Серверные данные работы' }}</p><p v-if="expertise?.historical_number" class="muted">Исторический номер: {{ expertise.historical_number }}</p></div><div v-if="expertise" class="expertise-tools"><button :disabled="loading" @click="load">Обновить серверные сведения</button><RouterLink v-if="session.workDocumentsEnabled&&session.can('documents.view')" data-work-document-archive :to="{path:`/expertises/${expertise.id}/documents`,query:{return:route.fullPath}}">Открыть единый архив документов →</RouterLink></div></div>
   <ApiMessage :error="error" /><p v-if="loading" class="state">Загрузка рабочей карточки…</p>
   <template v-if="expertise">

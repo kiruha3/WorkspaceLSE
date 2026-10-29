@@ -7,6 +7,15 @@ import ExpertisePage from './ExpertisePage.vue'
 afterEach(() => vi.restoreAllMocks())
 
 describe('persisted work card', () => {
+  it('returns to the personal workplace when opened from its missing-data list', async () => {
+    const router = await testRouter('/expertises/work-1?return=%2Fworkspace')
+    router.addRoute({ path: '/workspace', component: { template: '<div>Рабочее место</div>' } })
+    const wrapper = mount(ExpertisePage, { global: { plugins: [sessionWith('expertise.view'), router], provide: { [apiKey as symbol]: new ApiClient(async () => json(expertise)) } } })
+    await flushPromises()
+    expect(wrapper.get('[data-back-to-expertises]').attributes('href')).toBe('/workspace')
+    expect(wrapper.get('[data-back-to-expertises]').text()).toContain('личному кабинету')
+    wrapper.unmount()
+  })
   it('clearly marks training work excluded from the registry report',async()=>{
     const client=new ApiClient(async()=>json({...expertise,material:{...expertise.material,is_demo:true}}))
     const router=await testRouter('/expertises/work-1')

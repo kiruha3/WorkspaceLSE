@@ -7,10 +7,12 @@ from .case_api import CaseDetailsView
 from .classification_api import ClassificationView
 from .timing_api import TimingView
 from .export_api import ExpertiseExportView
+from .completeness_api import IncompleteExpertisesView
 
 urlpatterns=[
     path("receipts/<uuid:pk>/expertises/",ExpertiseRegisterView.as_view()),
     path("expertises/",ExpertiseListView.as_view()),
+    path("expertises/incomplete/",IncompleteExpertisesView.as_view()),
     path("expertises/export.xlsx",ExpertiseExportView.as_view()),
     path("expertises/number-hint/",NumberHintView.as_view()),
     path("expertises/filter-options/",FilterOptionsView.as_view()),
