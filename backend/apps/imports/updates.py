@@ -46,14 +46,14 @@ def source_values(row,selection,*,as_of=None):
         'employee_ids':sorted(selection['employee_ids'])})
 
 
-def update_preview(row,work):
+def update_preview(row,work,*,selective=False,proposed_selection=None):
     blockers=[]
     result={'eligible':False,'blockers':blockers,'changes':[],
         'expected_work_version':work.version,'expected_source_row_id':None,'previous_selection':None}
     history=getattr(work,'historical',None)
     if work.origin_kind!='historical' or history is None:
         blockers.append('Это не перенесённая историческая работа.');return result
-    if history.corrections.exists():blockers.append('Есть ручное уточнение исторических сведений. Источник его не перезаписывает.')
+    if not selective and history.corrections.exists():blockers.append('Есть ручное уточнение исторических сведений. Источник его не перезаписывает.')
     if getattr(work,'case_details',None) is not None:blockers.append('Есть ручные сведения дела в рабочей карточке. Источник их не перезаписывает.')
     if getattr(work,'classification',None) is not None:blockers.append('Есть ручная классификация работы. Источник её не перезаписывает.')
     if getattr(work,'timing',None) is not None:blockers.append('Есть ручные сведения о сроках. Источник их не перезаписывает.')
@@ -75,18 +75,22 @@ def update_preview(row,work):
     baseline_link=next((link for link in item.application.links if link['row_id']==str(previous.pk) and 'after' in link),None)
     baseline=baseline_link['after'] if baseline_link else source_values(previous,choice,as_of=timezone.localtime(history.created_at).date())
     current=current_values(work)
-    if current!=baseline:blockers.append('Есть ручная правка относительно прежнего переноса. Автоматическое слияние не выполняется.')
+    if not selective and current!=baseline:blockers.append('Есть ручная правка относительно прежнего переноса. Автоматическое слияние не выполняется.')
     for field in ('registration_number','sequence','year','category_code','department_code'):
         if row.facts.get(field)!=previous.facts.get(field):blockers.append('Номер, категория и фактический отдел этим действием не меняются.');break
     if identity_blockers(row):return result
     selected=getattr(row,'selection',None)
-    target_choice=selection_data(selected) if selected else {**choice,
+    target_choice=proposed_selection if proposed_selection is not None else selection_data(selected) if selected else {**choice,
         'specialty_id':str(ref.pk) if (ref:=Specialty.objects.filter(code=row.facts.get('specialty_code')).first()) else None,
         'employee_ids':[] if row.facts.get('executor_raw')!=previous.facts.get('executor_raw') else choice['employee_ids']}
     for field in ('appointment_nature','is_commission','complex_known','complex_group_key'):
         if target_choice[field]!=choice[field]:blockers.append('Состав и комплексность обновлением источника не меняются.');break
     target=source_values(row,target_choice)
     result['changes']=[{'field':key,'before':current[key],'after':value} for key,value in target.items() if current[key]!=value]
+    if selective:
+        previous_target=source_values(previous,choice,as_of=timezone.localtime(history.created_at).date())
+        result['changes']=[{**change,'conflict':current[change['field']]!=baseline[change['field']]}
+            for change in result['changes'] if target[change['field']]!=previous_target[change['field']]]
     # Source/apply readers need the meaning of selected references, not the
     # entire personnel editing catalogue. Expose only names used by this diff.
     reference_changes={c['field']:c for c in result['changes'] if c['field'] in ('specialty_id','employee_ids')}
@@ -129,32 +133,45 @@ def _apply_updates(*,actor,batch_id,updates,reason,key,payload):
                 work=works.get(source.facts.get('registration_number'));choice=choices.get(source.pk);entry=expected[source.pk]
                 if work is None or choice is None:raise CommandConflict('Нужны существующая работа и новое сохранённое сопоставление.')
                 check_version(work,entry['expected_work_version']);check_version(choice,entry['expected_selection_version'])
-                info=update_preview(source,work)
+                accepted=entry.get('accepted_fields')
+                info=update_preview(source,work,selective=accepted is not None,proposed_selection=selection_data(choice))
                 if info['expected_source_row_id']!=str(entry['expected_source_row_id']):raise CommandConflict('Применённый источник уже изменился. Обновите сверку.')
                 if not info['eligible']:raise CommandConflict(' '.join(info['blockers']))
+                if accepted is not None and (not accepted or len(set(accepted))!=len(accepted) or not set(accepted)<={c['field'] for c in info['changes']}):
+                    raise CommandConflict('Выберите только показанные изменённые поля; обновите перечень.')
                 department=departments[choice.department_id]
                 specialty=specialties.get(choice.specialty_id)
                 validate_mapping(source,department,specialty,choice.statistics_confirmed)
                 people=[locked_people[pk] for pk in choice.employees.values_list('pk',flat=True)]
                 target=source_values(source,selection_data(choice))
-                plans.append((source,work,choice,target,people,current_values(work)))
+                plans.append((source,work,choice,target,people,current_values(work),set(accepted) if accepted is not None else None))
             application=ImportApplication.objects.create(batch=batch,actor=actor,reason=reason);links=[]
-            for source,work,choice,target,people,before in plans:
+            for source,work,choice,target,people,before,accepted in plans:
                 previous_id=work.historical.source_row_id
                 history=work.historical
-                for field,value in source_facts(source).items():setattr(history,field,value)
-                history.statistics_confirmed=choice.statistics_confirmed;history.source_row=source;history.save()
+                for field,value in source_facts(source).items():
+                    if accepted is None or field in accepted:setattr(history,field,value)
+                if accepted is None or 'statistics_confirmed' in accepted:history.statistics_confirmed=choice.statistics_confirmed
+                history.source_row=source;history.save()
                 wanted={p.pk for p in people};present={p.employee_id for p in history.participants.all()}
-                history.participants.filter(employee_id__in=present-wanted).delete()
-                HistoricalParticipant.objects.bulk_create([HistoricalParticipant(history=history,employee=p) for p in people if p.pk not in present])
-                work.state=target['state'];work.specialty_id=choice.specialty_id;work.historical_number=target['historical_number'];work.version+=1
+                if accepted is None or 'employee_ids' in accepted:
+                    history.participants.filter(employee_id__in=present-wanted).delete()
+                    HistoricalParticipant.objects.bulk_create([HistoricalParticipant(history=history,employee=p) for p in people if p.pk not in present])
+                if accepted is None or 'state' in accepted:work.state=target['state']
+                if accepted is None or 'specialty_id' in accepted:work.specialty_id=choice.specialty_id
+                if accepted is None or 'historical_number' in accepted:work.historical_number=target['historical_number']
+                work.version+=1
                 work.save(update_fields=['state','specialty','historical_number','version'])
-                receipt=work.receipt;receipt.received_at=source.facts['received_on'];receipt.sender_name=target['sender_name'];receipt.version+=1
-                receipt.save(update_fields=['received_at','sender_name','version'])
+                receipt=work.receipt
+                if accepted is None or accepted & {'received_on','sender_name'}:
+                    if accepted is None or 'received_on' in accepted:receipt.received_at=source.facts['received_on']
+                    if accepted is None or 'sender_name' in accepted:receipt.sender_name=target['sender_name']
+                    receipt.version+=1;receipt.save(update_fields=['received_at','sender_name','version'])
                 # Read-back serializer supplies JSON dates/decimals consistently.
                 receipt.refresh_from_db();after=current_values(work)
                 links.append({'row_id':str(source.pk),'expertise_id':str(work.pk),'action':'updated',
-                    'previous_source_row_id':str(previous_id),'before':before,'after':after,'version':work.version})
+                    'previous_source_row_id':str(previous_id),'before':before,'after':after,'version':work.version,
+                    **({'accepted_fields':sorted(accepted)} if accepted is not None else {})})
                 ImportApplicationItem.objects.create(application=application,row=source,work=work,action='updated')
             application.links=links;application.save(update_fields=['links'])
             event=audit(actor,'imports.update',application,{'batch_id':str(batch.pk),'items':links},reason)
