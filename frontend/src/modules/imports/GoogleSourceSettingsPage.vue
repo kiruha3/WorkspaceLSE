@@ -3,16 +3,19 @@ import {computed,onBeforeUnmount,ref,watch} from 'vue'
 import {RouterLink,useRoute,useRouter} from 'vue-router'
 import {ApiError,LatestRequest,useApi} from '../../api/client'
 import {newCommandKey} from '../../api/commandKey'
+import {institutionPermission} from '../../api/reportPlans'
 import type {GoogleSourceSettings,GoogleSourceSettingsResult} from '../../api/imports'
 import {useSessionStore} from '../../stores/session'
 import {useDirtyGuard} from '../../shared/ui/useDirtyGuard'
 import ApiMessage from '../../shared/ui/ApiMessage.vue'
 
 const api=useApi(),session=useSessionStore(),route=useRoute(),router=useRouter(),requests=new LatestRequest()
-const enabled=computed(()=>session.can('imports.source.manage')&&Boolean(session.user?.supported_modules?.includes('journal_source_settings')))
+const enabled=computed(()=>institutionPermission(session.user,'imports.source.manage')&&Boolean(session.user?.supported_modules?.includes('journal_source_settings')))
 const source=ref<GoogleSourceSettings|null>(null),url=ref(''),gid=ref('0'),sheetName=ref('Лист1')
 const loading=ref(false),busy=ref(false),dirty=ref(false),uncertain=ref(false),error=ref<unknown>(null),writeError=ref<unknown>(null),saved=ref(false)
-const attempt=ref<{key:string;body:{url:string;gid:string;sheet_name:string;expected_version:number}}|null>(null)
+type SourceAttempt={key:string;body:{url:string;gid:string;sheet_name:string;expected_version:number}}
+const attempt=ref<SourceAttempt|null>(null)
+const storageKey=computed(()=>`ais:journal-source-settings:${session.user?.id??''}`)
 const locked=computed(()=>busy.value||uncertain.value)
 const back=computed(()=>typeof route.query.return==='string'&&/^\/(?:expertises|imports)(?:\?|$)/.test(route.query.return)?route.query.return:'/expertises')
 let generation=0
@@ -22,6 +25,17 @@ watch(url,value=>{
 },{flush:'sync'})
 function fill(value:GoogleSourceSettings){source.value=value;url.value=value.url;gid.value=value.gid;sheetName.value=value.sheet_name;dirty.value=false}
 function valid(value:GoogleSourceSettings){return typeof value?.url==='string'&&typeof value.gid==='string'&&typeof value.sheet_name==='string'&&Number.isInteger(value.version)&&value.version>=0}
+function forgetAttempt(){try{window.sessionStorage.removeItem(storageKey.value)}catch{/* The completed command no longer needs a retry. */}}
+function restoreAttempt(){
+ try{
+  const raw=window.sessionStorage.getItem(storageKey.value)
+  if(!raw)return false
+  const packet=JSON.parse(raw) as SourceAttempt
+  if(!packet||typeof packet.key!=='string'||!packet.key||packet.key.length>100||!valid({...packet.body,version:packet.body?.expected_version}))throw new Error('Invalid stored source attempt')
+  attempt.value=packet;fill({...packet.body,version:packet.body.expected_version});dirty.value=true;uncertain.value=true;saved.value=false
+  return true
+ }catch{forgetAttempt();return false}
+}
 async function load(){
  if(!enabled.value||locked.value||!confirmLeave())return
  loading.value=true;error.value=null;saved.value=false
@@ -36,14 +50,19 @@ async function submit(){
  const packet=attempt.value
  busy.value=true;writeError.value=null;saved.value=false
  try{
+  try{window.sessionStorage.setItem(storageKey.value,JSON.stringify(packet))}catch{throw new ApiError(400,'retry_storage_unavailable','Не удалось сохранить попытку в этой вкладке. Разрешите хранилище браузера и повторите; запрос не отправлен.')}
   const value=await api.request<GoogleSourceSettingsResult>('/imports/google-source/settings/',{method:'PUT',body:packet.body,headers:{'Idempotency-Key':packet.key}})
   if(stamp!==generation)return
   if(!valid(value)||value.version<1||!value.event?.id)throw new ApiError(200,'invalid_response','Не получено подтверждение сохранения. Повторите ту же попытку.')
-  fill(value);attempt.value=null;uncertain.value=false;saved.value=true
- }catch(cause){if(stamp===generation){writeError.value=cause;uncertain.value=!(cause instanceof ApiError)||cause.status>=500||cause.code==='invalid_response';if(!uncertain.value)attempt.value=null}}
+  fill(value);forgetAttempt();attempt.value=null;uncertain.value=false;saved.value=true
+ }catch(cause){if(stamp===generation){writeError.value=cause;uncertain.value=!(cause instanceof ApiError)||cause.status>=500||cause.code==='invalid_response';if(!uncertain.value){forgetAttempt();attempt.value=null}}}
  finally{if(stamp===generation)busy.value=false}
 }
-watch(enabled,()=>{generation++;requests.cancel();busy.value=false;loading.value=false;if(enabled.value&&!dirty.value&&!attempt.value)void load()},{immediate:true})
+watch([enabled,()=>session.user?.id],([allowed,userId],previous)=>{
+ generation++;requests.cancel();busy.value=false;loading.value=false
+ if(previous&&previous[1]!==userId){source.value=null;attempt.value=null;dirty.value=false;uncertain.value=false;saved.value=false;writeError.value=null}
+ if(allowed&&!restoreAttempt()&&!dirty.value&&!attempt.value)void load()
+},{immediate:true})
 onBeforeUnmount(()=>{generation++;requests.cancel()})
 </script>
 <template>

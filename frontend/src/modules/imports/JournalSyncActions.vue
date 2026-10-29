@@ -3,6 +3,7 @@ import { computed,onBeforeUnmount,ref,shallowRef } from 'vue'
 import { RouterLink,useRoute,useRouter } from 'vue-router'
 import { ApiError,useApi } from '../../api/client'
 import { newCommandKey } from '../../api/commandKey'
+import { institutionPermission } from '../../api/reportPlans'
 import type { GoogleSourceInfo,ImportPreviewResponse } from '../../api/imports'
 import { useSessionStore } from '../../stores/session'
 import { useDirtyGuard } from '../../shared/ui/useDirtyGuard'
@@ -10,7 +11,7 @@ import ApiMessage from '../../shared/ui/ApiMessage.vue'
 
 const api=useApi(),session=useSessionStore(),route=useRoute(),router=useRouter()
 const enabled=computed(()=>session.importPreviewEnabled&&session.journalApplicationEnabled&&session.can('imports.results.view')&&session.can('imports.preview'))
-const canConfigure=computed(()=>session.can('imports.source.manage')&&Boolean(session.user?.supported_modules?.includes('journal_source_settings')))
+const canConfigure=computed(()=>institutionPermission(session.user,'imports.source.manage')&&Boolean(session.user?.supported_modules?.includes('journal_source_settings')))
 const busy=ref(false),uncertain=ref(false),error=ref<unknown>(null),upload=ref(false),file=ref<File|null>(null),saved=ref(false)
 const attempt=shallowRef<{path:string;body:unknown;key:string;returnTo:string}|null>(null)
 let active=true
