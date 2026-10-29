@@ -57,3 +57,14 @@ class WorkDocumentLink(models.Model):
     class Meta:
         ordering=["created_at","id"]
         constraints=[models.UniqueConstraint(fields=["expertise","document"],condition=Q(detached_at__isnull=True),name="unique_active_work_document")]
+
+
+class StorageRoot(models.Model):
+    year = models.PositiveSmallIntegerField(primary_key=True)
+    path = models.CharField(max_length=2000)
+    version = models.PositiveIntegerField(default=0)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=Q(year__gte=1900, year__lte=9999), name='storage_root_year_range')]

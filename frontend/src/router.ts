@@ -23,6 +23,9 @@ import ReportsPage from './modules/reports/ReportsPage.vue'
 import ReportPlansPage from './modules/reports/ReportPlansPage.vue'
 import {reportPlanReadActions,institutionPermission} from './api/reportPlans'
 import ReferencesPage from './modules/references/ReferencesPage.vue'
+import SettingsPage from './modules/settings/SettingsPage.vue'
+import StorageSettingsPage from './modules/settings/StorageSettingsPage.vue'
+import {settingsActions,storagePermission} from './api/storage'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -30,6 +33,8 @@ export const router = createRouter({
     { path: '/', redirect: '/workspace' },
     { path: '/login', component: LoginPage, meta: { title: 'Вход' } },
     { path: '/workspace', component: HomePage, meta: { title: 'Рабочее место' } },
+    { path: '/settings', component: SettingsPage, meta: { permissionsAny: settingsActions, title: 'Настройки' } },
+    { path: '/settings/storage', component: StorageSettingsPage, meta: { institutionPermissionsAny:[storagePermission], supportedModule:'document_storage_settings', title:'Папки документов' } },
     { path: '/references', component: ReferencesPage, meta: { permissionsAny: ['references.view','references.manage'], title: 'Справочники' } },
     { path: '/reports', component: ReportsPage, meta: { permissionsAny: ['reports.form151.run'], title: 'Отчёт 15.1' } },
     { path:'/report-plans',component:ReportPlansPage,meta:{institutionPermissionsAny:reportPlanReadActions,title:'Годовые планы'} },
@@ -65,6 +70,7 @@ router.beforeEach(async to => {
   if (to.meta.supportedModule === 'journal_import_preview' && !session.importPreviewEnabled) return { path: '/workspace', query: { denied: '1' } }
   if (to.meta.supportedModule === 'journal_application' && (!session.journalApplicationEnabled || !session.importPreviewEnabled)) return { path: '/workspace', query: { denied: '1' } }
   if (to.meta.supportedModule === 'journal_source_settings' && !session.user?.supported_modules?.includes('journal_source_settings')) return { path: '/workspace', query: { denied: '1' } }
+  if (to.meta.supportedModule === 'document_storage_settings' && !session.user?.supported_modules?.includes('document_storage_settings')) return { path: '/workspace', query: { denied: '1' } }
   if (to.meta.permission && !session.can(String(to.meta.permission))) return { path: '/workspace', query: { denied: '1' } }
   if (Array.isArray(to.meta.permissionsAny) && !session.canAny(...to.meta.permissionsAny)) return {path:'/workspace',query:{denied:'1'}}
   return true

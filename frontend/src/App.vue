@@ -6,6 +6,7 @@ import UiIcon from './shared/ui/UiIcon.vue'
 import ApiMessage from './shared/ui/ApiMessage.vue'
 import { hasDirtyForms } from './shared/ui/useDirtyGuard'
 import {canReadReportPlans} from './api/reportPlans'
+import {settingsActions} from './api/storage'
 const session = useSessionStore(), route = useRoute(), router = useRouter()
 const logoutError = ref<unknown>(null), signingOut = ref(false), menuOpen = ref(false)
 async function logout() {
@@ -37,6 +38,7 @@ watch(() => route.path, () => { menuOpen.value = false })
         <RouterLink v-if="session.can('employees.view')" to="/people"><UiIcon name="people" />Сотрудники</RouterLink>
         <RouterLink v-if="session.canAccessDirectory" to="/access"><UiIcon name="shield" />Учётные записи</RouterLink>
         <RouterLink v-if="session.canAny('access.roles.view','access.roles.manage')" to="/roles"><UiIcon name="shield" />Роли и права</RouterLink>
+        <RouterLink v-if="session.canAny(...settingsActions)" to="/settings"><UiIcon name="folder" />Настройки</RouterLink>
       </nav>
       <div class="sidebar-bottom"><span class="status-dot" /><span>Персональное рабочее место<small>Приёмка · регистрация · назначения</small></span></div>
     </aside>

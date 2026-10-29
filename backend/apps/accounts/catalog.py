@@ -70,6 +70,7 @@ PERMISSIONS = {item.code: item for item in [
     Permission("imports.preview", "Проверять источник журнала", "Перенос журнала", ("institution",)),
     Permission("imports.results.view", "Просматривать снимки переноса", "Перенос журнала", ("institution",)),
     Permission("imports.source.manage", "Настраивать источник Google-таблицы", "Перенос журнала", ("institution",)),
+    Permission("documents.storage.manage", "Настраивать папки документов", "Документы", ("institution",)),
     Permission("imports.reconcile", "Сопоставлять строки переноса", "Перенос журнала", ("institution",)),
     Permission("imports.apply", "Применять подтверждённый пакет переноса", "Перенос журнала", ("institution",)),
     Permission("imports.history.activate", "Подтверждать продолжение исторической работы", "Перенос журнала", ("institution",)),
