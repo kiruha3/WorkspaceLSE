@@ -8,11 +8,13 @@ from .classification_api import ClassificationView
 from .timing_api import TimingView
 from .export_api import ExpertiseExportView
 from .completeness_api import IncompleteExpertisesView
+from .registry_api import ExpertiseRegistryView
 
 urlpatterns=[
     path("receipts/<uuid:pk>/expertises/",ExpertiseRegisterView.as_view()),
     path("receipts/<uuid:pk>/complex-expertises/",ComplexExpertiseRegisterView.as_view()),
     path("expertises/",ExpertiseListView.as_view()),
+    path("expertises/registry/",ExpertiseRegistryView.as_view()),
     path("expertises/incomplete/",IncompleteExpertisesView.as_view()),
     path("expertises/export.xlsx",ExpertiseExportView.as_view()),
     path("expertises/number-hint/",NumberHintView.as_view()),

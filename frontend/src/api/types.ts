@@ -178,3 +178,14 @@ export interface Expertise {
   reopening_history?: WorkReopening[]
   result_readiness: { completion_blockers: ResultIssue[]; report_gaps: ResultIssue[]; document_gaps?: ResultIssue[] }
 }
+
+export interface ExpertiseRegistryRow extends Pick<Expertise,'id'|'origin_kind'|'registration_number'|'historical_number'|'appointment_nature'|'is_commission'|'state'> {
+  receipt: Pick<Expertise['receipt'],'received_at'>
+  material: Pick<Expertise['material'],'title'|'is_demo'>
+  department: Pick<NonNullable<Expertise['department']>,'code'|'name'>
+  specialty: Pick<NonNullable<Expertise['specialty']>,'code'|'name'> | null
+  current_assignments: Pick<ExpertAssignment,'id'|'employee'>[]
+  historical: Pick<HistoricalWork,'current_participants'> | null
+  complex_group: Pick<ComplexGroup,'id'|'title'> | null
+}
+export interface ExpertiseRegistry { count:number; results:ExpertiseRegistryRow[] }

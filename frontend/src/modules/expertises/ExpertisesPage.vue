@@ -5,29 +5,30 @@ import {useRouteTableSort} from '../../shared/ui/useRouteTableSort'
 
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { LatestRequest, useApi } from '../../api/client'
-import type { Expertise, Page, Reference } from '../../api/types'
+import { ApiError, LatestRequest, useApi } from '../../api/client'
+import type { ExpertiseRegistry, Reference } from '../../api/types'
 import ApiMessage from '../../shared/ui/ApiMessage.vue'
-import PaginationBar from '../../shared/ui/PaginationBar.vue'
 import JournalSyncActions from '../imports/JournalSyncActions.vue'
 import { useSessionStore } from '../../stores/session'
-const {ordering,sortTable}=useRouteTableSort()
+const {ordering,sortTable}=useRouteTableSort({paginated:false})
 const api = useApi(), route = useRoute(), router = useRouter(), session = useSessionStore(), requests = new LatestRequest(), optionsRequests = new LatestRequest(), downloads = new LatestRequest()
 const filterKeys = ['search', 'department_id', 'specialty_id', 'employee_id', 'received_from', 'received_to', 'state', 'calendar_days_min', 'calendar_days_max'] as const
 const filters = reactive(Object.fromEntries(filterKeys.map(key => [key, String(route.query[key] ?? '')])) as Record<typeof filterKeys[number], string>)
-const list = ref<Page<Expertise>>({ count: 0, next: null, previous: null, results: [] }), loading = ref(false), error = ref<unknown>(null), refsError = ref<unknown>(null)
+const list = ref<ExpertiseRegistry>({ count: 0, results: [] }), loading = ref(false), error = ref<unknown>(null), refsError = ref<unknown>(null)
 const downloading = ref(false), downloadError = ref<unknown>(null)
 const canExport = computed(() => session.can('expertise.view') && session.can('expertise.export'))
 const departments = ref<Reference[]>([]), specialties = ref<Reference[]>([]), employees = ref<{ id: string; full_name: string }[]>([])
-const page = computed(() => Math.max(1, Number(route.query.page) || 1))
 const stateLabels = { in_progress: 'В производстве', suspended: 'Приостановлена', completed: 'Завершена', without_execution: 'Без исполнения' }
 async function load() {
-  loading.value = true; error.value = null
-  const query = new URLSearchParams({...orderingParams(ordering.value), ...Object.fromEntries(filterKeys.filter(key => route.query[key]).map(key => [key, String(route.query[key])])), page: String(page.value) })
-  try { await requests.run(signal => api.request<Page<Expertise>>(`/expertises/?${query}`, { signal }), result => { list.value = result; loading.value = false }) }
+  loading.value = true; error.value = null; list.value = {count:0,results:[]}
+  const query = new URLSearchParams({...orderingParams(ordering.value), ...Object.fromEntries(filterKeys.filter(key => route.query[key]).map(key => [key, String(route.query[key])])) })
+  try { await requests.run(signal => api.request<ExpertiseRegistry>(`/expertises/registry/?${query}`, { signal }), result => {
+    if(!result||!Number.isInteger(result.count)||result.count<0||!Array.isArray(result.results)||result.results.length!==result.count)throw new ApiError(502,'incomplete_registry','Сервер вернул неполный список экспертиз. Повторите загрузку.')
+    list.value = result; loading.value = false
+  }) }
   catch (cause) { error.value = cause; loading.value = false }
 }
-async function filter(nextPage = 1) { await router.replace({ path: '/expertises', query: {...orderingParams(ordering.value), ...Object.fromEntries(filterKeys.filter(key => filters[key]).map(key => [key, filters[key]])), page: String(nextPage) } }) }
+async function filter() { await router.replace({ path: '/expertises', query: {...orderingParams(ordering.value), ...Object.fromEntries(filterKeys.filter(key => filters[key]).map(key => [key, filters[key]])) } }) }
 async function download() {
   if (downloading.value || !canExport.value) return
   downloading.value = true; downloadError.value = null
@@ -71,7 +72,8 @@ onBeforeUnmount(() => { requests.cancel(); optionsRequests.cancel(); downloads.c
       <button :disabled="loading">Применить</button>
     </form>
     <ApiMessage :error="refsError" /><ApiMessage :error="error" /><p v-if="loading" class="state">Загрузка экспертиз…</p>
-    <div v-else class="table-scroll"><SortableTable :rows="list.results" :columns='[{"key": "registration_number", "label": "Номер / материал"}, {"key": "received_at", "label": "Поступление"}, {"key": "department", "label": "Отдел / специальность"}, {"key": "executors", "label": "Текущие исполнители"}, {"key": "composition", "label": "Характер / состав"}, {"key": "state", "label": "Состояние"}]' :ordering="ordering" @update:ordering="sortTable" v-slot="{rows:tableRows}">
+    <div v-if="!loading && !error" class="registry-summary"><span data-registry-count>Найдено экспертиз: <strong>{{list.count}}</strong></span><span class="muted">Все записи по выбранным фильтрам</span></div>
+    <div v-if="!loading && !error" class="table-scroll registry-scroll" tabindex="0" role="region" aria-label="Список экспертиз"><SortableTable :rows="list.results" :columns='[{"key": "registration_number", "label": "Номер / материал"}, {"key": "received_at", "label": "Поступление"}, {"key": "department", "label": "Отдел / специальность"}, {"key": "executors", "label": "Текущие исполнители"}, {"key": "composition", "label": "Характер / состав"}, {"key": "state", "label": "Состояние"}]' :ordering="ordering" @update:ordering="sortTable" v-slot="{rows:tableRows}">
       <tr v-for="item in tableRows" :key="item.id">
         <td><RouterLink data-open-expertise :to="{ path: `/expertises/${item.id}`, query: { return: route.fullPath } }"><strong>{{ item.registration_number }}</strong></RouterLink><small v-if="item.material.is_demo" class="badge badge-amber">Учебная запись</small><small>{{ item.material.title || 'Без названия' }}</small><small v-if="item.historical_number">Исторический: {{ item.historical_number }}</small><small v-if="item.origin_kind === 'historical'">Перенос журнала</small></td>
         <td>{{ item.receipt.received_at }}</td>
@@ -82,10 +84,13 @@ onBeforeUnmount(() => { requests.cancel(); optionsRequests.cancel(); downloads.c
       </tr>
       <tr v-if="!list.results.length"><td colspan="6" class="state">Экспертиз по этой выборке нет.</td></tr>
     </SortableTable></div>
-    <PaginationBar :page="page" :count="list.count" :next="Boolean(list.next)" :previous="Boolean(list.previous)" :busy="loading" @change="filter" />
+    <button v-if="error && !loading" data-retry-registry :disabled="loading" @click="load">Повторить загрузку списка</button>
   </section>
 </template>
 <style scoped>
 .export-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+.registry-summary { display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px 14px;margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid var(--border);font-size:12px; }
+.registry-scroll { max-height:72vh;overflow:auto; }
+.registry-scroll :deep(thead) { position:sticky;top:0;z-index:2;background:#f5f7f1; }
 @media (max-width: 720px) { .export-actions { align-items: flex-start; } }
 </style>

@@ -7,7 +7,33 @@ import ExpertisesPage from './ExpertisesPage.vue'
 import { useSessionStore } from '../../stores/session'
 
 describe('expertise registry', () => {
-  it('cycles server sorting, resets page and preserves applied filters and return links',async()=>{
+  it('renders the complete lightweight collection including rows beyond the old page boundary',async()=>{
+    const records=Array.from({length:41},(_,index)=>({...expertise,id:`record-${index+1}`,registration_number:`${index+1}/4-1-26`}))
+    const paths:string[]=[]
+    const client=new ApiClient(async input=>{const path=String(input);paths.push(path);if(path.includes('/references/'))return json(page([]));if(path.includes('filter-options'))return json({employees:[]});return json({count:records.length,results:records})})
+    const router=await testRouter('/expertises?page=2&page_size=1')
+    const wrapper=mount(ExpertisesPage,{global:{plugins:[sessionWith('expertise.view'),router],provide:{[apiKey as symbol]:client}}})
+    await flushPromises()
+    expect(wrapper.findAll('[data-open-expertise]')).toHaveLength(41)
+    expect(wrapper.findAll('[data-open-expertise]').at(-1)?.text()).toBe('41/4-1-26')
+    expect(wrapper.get('[data-registry-count]').text()).toContain('41')
+    expect(wrapper.find('.pagination').exists()).toBe(false)
+    expect(paths.some(path=>path.startsWith('/api/v1/expertises/registry/')&&!path.includes('page='))).toBe(true)
+    wrapper.unmount()
+  })
+  it('rejects a truncated collection and offers retry instead of showing it as the complete list',async()=>{
+    let complete=false
+    const client=new ApiClient(async input=>String(input).includes('/references/')?json(page([])):String(input).includes('filter-options')?json({employees:[]}):json({count:complete?1:2,results:[expertise]}))
+    const router=await testRouter('/expertises')
+    const wrapper=mount(ExpertisesPage,{global:{plugins:[sessionWith('expertise.view'),router],provide:{[apiKey as symbol]:client}}})
+    await flushPromises()
+    expect(wrapper.find('[data-open-expertise]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('неполный список')
+    complete=true;await wrapper.get('[data-retry-registry]').trigger('click');await flushPromises()
+    expect(wrapper.findAll('[data-open-expertise]')).toHaveLength(1)
+    wrapper.unmount()
+  })
+  it('cycles server sorting without page parameters and preserves filters and return links',async()=>{
     const paths:string[]=[]
     const client=new ApiClient(async input=>{const path=String(input);paths.push(path);if(path.includes('filter-options'))return json({employees:[]});return json(page(path.includes('/references/')?[]:[expertise]))})
     const router=await testRouter('/expertises?page=2&state=in_progress')
@@ -15,9 +41,10 @@ describe('expertise registry', () => {
     await flushPromises()
     for(const expected of ['registration_number','-registration_number','']){
       await wrapper.get('[data-sort-column="registration_number"]').trigger('click');await flushPromises()
-      expect(router.currentRoute.value.query.page).toBe('1')
+      expect(router.currentRoute.value.query.page).toBeUndefined()
       expect(router.currentRoute.value.query.ordering??'').toBe(expected)
-      const query=new URL(paths.filter(path=>path.startsWith('/api/v1/expertises/?')).at(-1)!,'http://localhost').searchParams
+      const query=new URL(paths.filter(path=>path.startsWith('/api/v1/expertises/registry/?')).at(-1)!,'http://localhost').searchParams
+      expect(query.has('page')).toBe(false)
       expect(query.get('state')).toBe('in_progress');expect(query.get('ordering')??'').toBe(expected)
       expect(new URL(wrapper.get('[data-open-expertise]').attributes('href')!,'http://localhost').searchParams.get('return')).toBe(router.currentRoute.value.fullPath)
     }
@@ -124,7 +151,7 @@ describe('expertise registry', () => {
     expect(link.searchParams.get('return')).toBe('/expertises?state=suspended&calendar_days_min=0&calendar_days_max=12&page=1')
     await wrapper.get('[name="calendar_days_min"]').setValue('3')
     await wrapper.get('form.toolbar').trigger('submit'); await flushPromises()
-    expect(router.currentRoute.value.query).toEqual({ state: 'suspended', calendar_days_min: '3', calendar_days_max: '12', page: '1' })
+    expect(router.currentRoute.value.query).toEqual({ state: 'suspended', calendar_days_min: '3', calendar_days_max: '12' })
     wrapper.unmount()
   })
   it('uses URL filters and keeps them in the detail return link', async () => {
@@ -132,19 +159,20 @@ describe('expertise registry', () => {
     const client = new ApiClient(async input => {
       const path = String(input); paths.push(path)
       if (path.includes('/references/')) return json(page(path.includes('departments') ? [department] : [specialty]))
-      return json({ ...page([expertise]), count: 30, previous: '?page=1' })
+      return json(page([expertise]))
     })
     const router = await testRouter('/expertises?search=151&department_id=d-4&page=2')
     const wrapper = mount(ExpertisesPage, { global: { plugins: [sessionWith('expertise.view'), router], provide: { [apiKey as symbol]: client } } })
     await flushPromises()
-    expect(paths.some(path => path.includes('search=151') && path.includes('department_id=d-4') && path.includes('page=2'))).toBe(true)
-    expect(wrapper.get('.pagination').text()).toContain('Страница 2')
+    expect(paths.some(path => path.includes('/expertises/registry/?') && path.includes('search=151') && path.includes('department_id=d-4') && !path.includes('page='))).toBe(true)
+    expect(wrapper.find('.pagination').exists()).toBe(false)
+    expect(wrapper.get('[data-registry-count]').text()).toContain('1')
     const detail = new URL(wrapper.get('[data-open-expertise]').attributes('href')!, 'http://localhost')
     expect(detail.pathname).toBe('/expertises/work-1')
     expect(detail.searchParams.get('return')).toBe('/expertises?search=151&department_id=d-4&page=2')
     await wrapper.get('[name="search"]').setValue('152')
     await wrapper.get('form.toolbar').trigger('submit'); await flushPromises()
-    expect(router.currentRoute.value.query).toEqual({ search: '152', department_id: 'd-4', page: '1' })
+    expect(router.currentRoute.value.query).toEqual({ search: '152', department_id: 'd-4' })
     wrapper.unmount()
   })
 })
