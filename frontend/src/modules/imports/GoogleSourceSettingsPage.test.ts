@@ -114,7 +114,7 @@ it('restores the same unresolved packet after confirmed navigation away and back
  expect(writes).toHaveLength(2);expect(writes[1]).toEqual(writes[0])
 })
 
-it.each(['own','departments'])('hides settings and skips reads when a role is limited to %s',async limit=>{
+it.each(['own','departments'] as const)('hides settings and skips reads when a role is limited to %s',async limit=>{
  const reads:string[]=[]
  const {wrapper,session}=await open(async input=>{reads.push(String(input));return json(initial)},[])
  session.user!.access={'imports.source.manage':[{scope:'institution',scope_limit:limit,department_ids:[],role_id:'r1',role_name:'Источник',assignment_id:'a1'}]}
