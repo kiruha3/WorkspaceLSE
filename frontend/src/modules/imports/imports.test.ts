@@ -9,6 +9,7 @@ import ImportPreviewPage from './ImportPreviewPage.vue'
 import App from '../../App.vue'
 import HomePage from '../HomePage.vue'
 import { router as applicationRouter } from '../../router'
+import SettingsPage from '../settings/SettingsPage.vue'
 
 const summary={row_count:466,error_rows:10,warning_rows:7,diagnostic_counts:{registration_invalid:6},state_counts:{completed:411,in_progress:34,suspended:4,without_execution:17}}
 const batch={id:'batch-1',source_name:'ДЕМО.csv',source_kind:'csv',date_system:'1900' as const,source_sha256:'abc',sheet_name:'Лист1',parser_version:'journal-2026-v1',created_at:'2026-10-28T00:00:00Z',actor:{id:'person-1',full_name:'Делопроизводитель'},row_count:466,summary,version:1,apply_available:false as const,source_url:'/api/v1/imports/batch-1/source/'}
@@ -88,10 +89,13 @@ it('never follows an external source URL or an external return target',async()=>
   const {wrapper}=await open('/imports/batch-1?return=https://other.invalid',async input=>json(String(input).includes('/rows/')?page([]):{...batch,source_url:'https://other.invalid/source'}));expect(wrapper.find('a[download]').exists()).toBe(false);expect(wrapper.get('[data-back-to-imports]').attributes('href')).toBe('/imports')
 })
 
-it('advertises the enabled results workplace in navigation and the home page',async()=>{
+it('advertises journal sources through Settings while preserving the home shortcut',async()=>{
   const {pinia,router,client}=await open()
+  router.addRoute({path:'/settings',component:SettingsPage})
   const app=mount(App,{global:{plugins:[pinia,router],provide:{[apiKey as symbol]:client}}}),home=mount(HomePage,{global:{plugins:[pinia,router]}})
-  expect(app.find('nav a[href="/imports"]').exists()).toBe(true);expect(home.find('a[href="/imports"]').exists()).toBe(true)
+  expect(app.find('nav a[href="/imports"]').exists()).toBe(false);expect(home.find('a[href="/imports"]').exists()).toBe(true)
+  await app.get('nav a[href="/settings"]').trigger('click');await flushPromises()
+  expect(app.get('[data-setting="imports"]').attributes('href')).toBe('/imports')
 })
 it('requires both the module and results permission on real import routes',async()=>{
   sessionWith('imports.results.view');await applicationRouter.push('/imports');expect(applicationRouter.currentRoute.value.path).toBe('/workspace')

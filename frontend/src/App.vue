@@ -6,10 +6,10 @@ import UiIcon from './shared/ui/UiIcon.vue'
 import ApiMessage from './shared/ui/ApiMessage.vue'
 import { hasBusyForms, hasDirtyForms } from './shared/ui/useDirtyGuard'
 import {canReadReportPlans} from './api/reportPlans'
-import {settingsActions} from './api/storage'
+import {canOpenSettings} from './api/storage'
 const session = useSessionStore(), route = useRoute(), router = useRouter()
 const logoutError = ref<unknown>(null), signingOut = ref(false), menuOpen = ref(false)
-const settingsSection = computed(() => ['/settings','/references','/people','/access','/roles','/imports/source-settings'].some(path => route.path === path || route.path.startsWith(`${path}/`)))
+const settingsSection = computed(() => ['/settings','/references','/people','/access','/roles','/imports'].some(path => route.path === path || route.path.startsWith(`${path}/`)))
 async function logout() {
   if (signingOut.value || hasBusyForms() || (hasDirtyForms() && !window.confirm('Есть несохранённые изменения. Выйти из системы?'))) return
   signingOut.value = true; logoutError.value = null
@@ -32,10 +32,9 @@ watch(() => route.path, () => { menuOpen.value = false })
         <RouterLink v-if="session.can('expertise.view')" to="/expertises"><UiIcon name="folder" />Экспертизы</RouterLink>
         <RouterLink v-if="session.correspondenceEnabled && session.can('letters.view')" to="/letters"><UiIcon name="file" />Переписка</RouterLink>
         <RouterLink v-if="session.issuanceEnabled && session.can('issue.view')" to="/issue-packages"><UiIcon name="folder" />Выдача материалов</RouterLink>
-        <RouterLink v-if="session.importPreviewEnabled && session.can('imports.results.view')" to="/imports"><UiIcon name="file" />Источники журнала</RouterLink>
         <RouterLink v-if="session.can('reports.form151.run') && session.canAny('imports.results.view','expertise.view')" to="/reports"><UiIcon name="chart" />Отчёт 15.1</RouterLink>
         <RouterLink v-if="canReadReportPlans(session.user)" to="/report-plans"><UiIcon name="chart" />Годовые планы</RouterLink>
-        <RouterLink v-if="session.canAny(...settingsActions)" to="/settings" :class="{'router-link-active':settingsSection}" :aria-current="settingsSection?'location':undefined"><UiIcon name="folder" />Настройки</RouterLink>
+        <RouterLink v-if="canOpenSettings(session.user)" to="/settings" :class="{'router-link-active':settingsSection}" :aria-current="settingsSection?'location':undefined"><UiIcon name="folder" />Настройки</RouterLink>
       </nav>
       <div class="sidebar-bottom"><span class="status-dot" /><span>Персональное рабочее место<small>Приёмка · регистрация · назначения</small></span></div>
     </aside>

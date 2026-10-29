@@ -6,6 +6,7 @@ import App from './App.vue'
 import { sessionWith, json } from './test/fixtures'
 import { useDirtyGuard } from './shared/ui/useDirtyGuard'
 import SettingsPage from './modules/settings/SettingsPage.vue'
+import { useSessionStore } from './stores/session'
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('session exit', () => {
@@ -36,11 +37,30 @@ describe('session exit', () => {
     expect(wrapper.get('[data-setting="people"]').attributes('href')).toBe('/people')
     wrapper.unmount()
   })
-  it.each(['/references','/people','/access','/roles','/settings/storage','/imports/source-settings'])('marks Settings for the administrative route %s', async path => {
+  it.each(['/references','/people','/access','/roles','/settings/storage','/imports','/imports/batch-1','/imports/batch-1/review','/imports/batch-1/reconciliation','/imports/source-settings'])('marks Settings for the administrative route %s', async path => {
     const router = createRouter({ history: createMemoryHistory(), routes: [...new Set(['/workspace','/settings',path])].map(value => ({ path: value, component: { template: '<p>Раздел</p>' } })) })
     await router.push(path)
     const wrapper = mount(App, { global: { plugins: [sessionWith('access.roles.view'), router] } })
     expect(wrapper.get('nav a[href="/settings"]').classes()).toContain('router-link-active')
+    wrapper.unmount()
+  })
+  it('moves journal sources under Settings for an import-only reader and keeps the capability gate', async () => {
+    const pinia = sessionWith('imports.results.view'), session = useSessionStore(pinia)
+    session.user!.supported_modules = ['journal_import_preview']
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/settings', component: SettingsPage }, { path: '/imports', component: { template: '<p>Источники журнала</p>' } }, { path: '/workspace', component: { template: '<p>Работа</p>' } }] })
+    await router.push('/settings')
+    const wrapper = mount(App, { global: { plugins: [pinia, router] } })
+    await flushPromises()
+    expect(wrapper.find('nav a[href="/imports"]').exists()).toBe(false)
+    expect(wrapper.get('nav a[href="/settings"]').isVisible()).toBe(true)
+    expect(wrapper.findAll('[data-setting]')).toHaveLength(1)
+    await wrapper.get('[data-setting="imports"]').trigger('click'); await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/imports')
+    expect(wrapper.get('nav a[href="/settings"]').classes()).toContain('router-link-active')
+    session.user!.supported_modules = []
+    await router.push('/settings'); await flushPromises()
+    expect(wrapper.find('[data-setting="imports"]').exists()).toBe(false)
+    expect(wrapper.find('nav a[href="/settings"]').exists()).toBe(false)
     wrapper.unmount()
   })
   it('does not expose settings navigation or administrative cards to an expertise-only reader', async () => {

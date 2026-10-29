@@ -25,7 +25,7 @@ import {reportPlanReadActions,institutionPermission} from './api/reportPlans'
 import ReferencesPage from './modules/references/ReferencesPage.vue'
 import SettingsPage from './modules/settings/SettingsPage.vue'
 import StorageSettingsPage from './modules/settings/StorageSettingsPage.vue'
-import {settingsActions,storagePermission} from './api/storage'
+import {settingsActions,storagePermission,canOpenSettings} from './api/storage'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -63,6 +63,7 @@ router.beforeEach(async to => {
   const session = useSessionStore()
   if (!session.ready) { try { await session.refresh() } catch { return to.path === '/login' ? true : '/login' } }
   if (!session.authenticated && to.path !== '/login') return '/login'
+  if (to.matched.some(record=>record.path==='/settings')&&!canOpenSettings(session.user)) return {path:'/workspace',query:{denied:'1'}}
   if(Array.isArray(to.meta.institutionPermissionsAny)&&!to.meta.institutionPermissionsAny.some(action=>institutionPermission(session.user,String(action))))return {path:'/workspace',query:{denied:'1'}}
   if (to.meta.supportedModule === 'correspondence' && !session.correspondenceEnabled) return { path: '/workspace', query: { denied: '1' } }
   if (to.meta.supportedModule === 'issuance' && !session.issuanceEnabled) return { path: '/workspace', query: { denied: '1' } }

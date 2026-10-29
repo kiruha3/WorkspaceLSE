@@ -4,6 +4,24 @@ import { setActivePinia } from 'pinia'
 import { sessionWith } from './test/fixtures'
 import { useSessionStore } from './stores/session'
 describe('business routes', () => {
+  it('keeps journal source access via Settings for the same import permission and capability', async () => {
+    const pinia = sessionWith('imports.results.view'), session = useSessionStore(pinia)
+    setActivePinia(pinia)
+    session.user!.supported_modules = ['journal_import_preview']
+    await router.push('/settings')
+    expect(router.currentRoute.value.path).toBe('/settings')
+    await router.push('/imports')
+    expect(router.currentRoute.value.path).toBe('/imports')
+    session.user!.supported_modules = []
+    await router.push('/settings')
+    expect(router.currentRoute.value.path).toBe('/workspace')
+    await router.push('/settings/')
+    expect(router.currentRoute.value.path).toBe('/workspace')
+    await router.push('/Settings')
+    expect(router.currentRoute.value.path).toBe('/workspace')
+    await router.push('/imports')
+    expect(router.currentRoute.value.path).toBe('/workspace')
+  })
   it('allows an employee reader into Settings without granting other administrative access', async () => {
     const pinia = sessionWith('employees.view')
     setActivePinia(pinia)
