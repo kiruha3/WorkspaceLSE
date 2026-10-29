@@ -1,6 +1,6 @@
 # Развёртывание и запуск АИС
 
-Инструкция для текущего проекта Django + Vue 3 + PostgreSQL, опубликованного в `kiruha3/WorkspaceLSE`, ветка `implementation`. Основной проверенный вариант — Windows x64, без виртуальной машины и Docker. Команды выполняются в PowerShell из корня клонированного репозитория, если явно не указано другое.
+Инструкция для текущего проекта Django + Vue 3 + PostgreSQL, опубликованного в `kiruha3/WorkspaceLSE`, основная ветка `master`. Основной проверенный вариант — Windows x64, без виртуальной машины и Docker. Команды выполняются в PowerShell из корня клонированного репозитория, если явно не указано другое.
 
 Это запуск существующего окружения разработки для просмотра и проверки. Постоянная служба, автоматический старт после перезагрузки, HTTPS и промышленный веб-сервер в этом варианте не настроены. Не следует считать запуск `runserver`/Vite готовым промышленным развёртыванием.
 
@@ -14,7 +14,7 @@
 - Windows `tar.exe` для распаковки PostgreSQL.
 
 ```powershell
-git clone --branch implementation https://github.com/kiruha3/WorkspaceLSE.git
+git clone --branch master https://github.com/kiruha3/WorkspaceLSE.git
 Set-Location WorkspaceLSE
 uv python install 3.13
 uv sync --directory backend --python 3.13 --locked
@@ -167,7 +167,7 @@ npm.cmd --prefix frontend run dev
 **Обновление существующей установки**: сохраните резервную копию БД и `media/`, остановите Django/Vite, проверьте `git status`, затем:
 
 ```powershell
-git pull --ff-only origin implementation
+git pull --ff-only origin master
 uv sync --directory backend --python 3.13 --locked
 npm.cmd --prefix frontend ci
 & ./backend/.venv/Scripts/python.exe infra/local.py backend manage.py migrate --noinput
