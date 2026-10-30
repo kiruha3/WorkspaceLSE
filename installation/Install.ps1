@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $runtime = Join-Path $root '.runtime'
 $packageDir = Join-Path $PSScriptRoot 'packages'
+. (Join-Path $PSScriptRoot 'Offline-Assets.ps1')
 if (-not [Environment]::Is64BitOperatingSystem -or $env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {
     throw 'This kit requires Windows x64.'
 }
@@ -13,6 +14,7 @@ foreach ($required in @('backend/pyproject.toml','backend/uv.lock','frontend/pac
 }
 if ($CheckOnly) {
     & (Join-Path $PSScriptRoot 'Get-Packages.ps1') -VerifyOnly
+    if (-not $ToolsOnly) { Assert-OfflineAssets $root }
     Write-Host 'Check passed. No installers, database commands or dependency changes were run.'
     return
 }
@@ -39,7 +41,8 @@ function Install-SystemPackage([string]$File, [string[]]$Arguments) {
     Refresh-ProcessPath
 }
 
-& (Join-Path $PSScriptRoot 'Get-Packages.ps1')
+& (Join-Path $PSScriptRoot 'Get-Packages.ps1') -VerifyOnly
+if (-not $ToolsOnly) { Assert-OfflineAssets $root }
 New-Item -ItemType Directory -Path $runtime -Force | Out-Null
 $uvDir = Join-Path $runtime 'installation-tools/uv'
 Expand-Archive -LiteralPath (Join-Path $packageDir 'uv-x86_64-pc-windows-msvc.zip') -DestinationPath $uvDir -Force
@@ -58,7 +61,7 @@ if (-not $nodeReady) {
 
 $python = ''
 try {
-    $python = [string](& $uv python find 3.13 --no-python-downloads 2>$null)
+    $python = [string](& $uv python find 3.13 --offline --no-python-downloads 2>$null)
     if ($LASTEXITCODE -ne 0) { $python = '' }
 } catch { $python = '' }
 if (-not $python) {
@@ -83,9 +86,17 @@ if ($ToolsOnly) { Write-Host 'Tools prepared. No project dependencies or databas
 
 Push-Location $root
 try {
-    Invoke-Checked $uv @('sync','--directory','backend','--python',$python,'--no-python-downloads','--locked')
-    Invoke-Checked 'npm.cmd' @('--prefix','frontend','ci','--no-fund','--no-audit')
     $backendPython = Join-Path $root 'backend/.venv/Scripts/python.exe'
+    $offline = Join-Path $PSScriptRoot 'offline'
+    Invoke-Checked $uv @('venv','--offline','--no-cache','--python',$python,'--no-python-downloads',(Join-Path $root 'backend/.venv'))
+    Invoke-Checked $uv @('pip','sync','--python',$backendPython,'--offline','--no-cache','--no-index','--find-links',(Join-Path $offline 'python/wheels'),'--require-hashes',(Join-Path $offline 'python/requirements.txt'))
+    $offlineManifest = Get-Content -LiteralPath (Join-Path $offline 'manifest.json') -Raw | ConvertFrom-Json
+    foreach ($file in ($offlineManifest.files | Where-Object { $_.path -like 'npm-cache/*' })) {
+        $target = Join-Path $runtime $file.path
+        New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $offline $file.path) -Destination $target -Force
+    }
+    Invoke-Checked 'npm.cmd' @('--prefix','frontend','ci','--offline','--cache',(Join-Path $runtime 'npm-cache'),'--ignore-scripts','--no-fund','--no-audit','--update-notifier=false')
     Invoke-Checked $backendPython @('infra/local.py','db-start')
     foreach ($command in @('migrate','seed_result_catalogs','seed_issue_catalogs','seed_correspondence_catalogs')) {
         $arguments = @('infra/local.py','backend','manage.py',$command)

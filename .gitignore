@@ -16,5 +16,6 @@ backups/
 /.superpowers/
 /outputs/
 /installation/packages/
+/installation/offline/
 *.sqlite3
 *.sqlite3-journal
