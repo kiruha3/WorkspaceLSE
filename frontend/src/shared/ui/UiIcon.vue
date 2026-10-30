@@ -9,6 +9,10 @@ const paths: Record<string, string> = {
   chart: 'M3 3v18h18M7 16v-4M12 16V6M17 16V9',
   logout: 'M9 4H4v16h5M14 8l4 4-4 4M8 12h13',
   arrow: 'M5 12h14M13 6l6 6-6 6',
+  user: 'M20 21v-2a5 5 0 0 0-5-5H9a5 5 0 0 0-5 5v2M16 6a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z',
+  book: 'M12 5C9 3 5 3 2 4v16c3-1 7-1 10 1 3-2 7-2 10-1V4c-3-1-7-1-10 1Zm0 0v16',
+  table: 'M3 3h18v18H3ZM3 8h18M3 14h18M9 3v18M15 8v13',
+  'chevron-right': 'm9 5 7 7-7 7',
 }
 </script>
 <template><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="paths[name] ?? paths.file" /></svg></template>

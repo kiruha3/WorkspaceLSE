@@ -20,7 +20,7 @@ describe('session exit', () => {
     expect(nav.find('a[href="/settings"]').exists()).toBe(true)
     for (const path of ['/people','/references','/access','/roles']) {
       expect(nav.find(`a[href="${path}"]`).exists()).toBe(false)
-      expect(wrapper.get(`.settings-grid a[href="${path}"]`).isVisible()).toBe(true)
+      expect(wrapper.get(`nav[aria-label="Разделы настроек"] a[href="${path}"]`).isVisible()).toBe(true)
     }
     await wrapper.get('[data-setting="people"]').trigger('click'); await flushPromises()
     expect(router.currentRoute.value.path).toBe('/people')
@@ -51,7 +51,7 @@ describe('session exit', () => {
     await router.push('/settings')
     const wrapper = mount(App, { global: { plugins: [pinia, router] } })
     await flushPromises()
-    expect(wrapper.find('nav a[href="/imports"]').exists()).toBe(false)
+    expect(wrapper.find('nav[aria-label="Основное меню"] a[href="/imports"]').exists()).toBe(false)
     expect(wrapper.get('nav a[href="/settings"]').isVisible()).toBe(true)
     expect(wrapper.findAll('[data-setting]')).toHaveLength(1)
     await wrapper.get('[data-setting="imports"]').trigger('click'); await flushPromises()

@@ -72,11 +72,6 @@
 .app-layout .main-content .module-icon { width: 34px; height: 34px; border-radius: 6px; }
 .app-layout .main-content .next-stage { gap: 16px; }
 .app-layout .main-content .next-stage h2 { margin: 5px 0 8px; }
-.app-layout .main-content .settings-grid { gap: 14px; }
-.app-layout .main-content .settings-tile { gap: 8px; }
-.app-layout .main-content .settings-tile h2 { font-size: 16px; }
-.app-layout .main-content .settings-tile p { font-size: 12px; line-height: 1.5; }
-.app-layout .main-content .settings-tile > span:last-child { font-size: 12px; }
 .app-layout .main-content .storage-mode { padding: 10px 12px; gap: 10px; border-radius: 5px; }
 .app-layout .main-content .year-picker { gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 .app-layout .main-content .report-form { gap: 11px 14px; }
