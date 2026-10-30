@@ -100,6 +100,9 @@ class Command(BaseCommand):
             except ValidationError as exc:
                 raise CommandError("; ".join(exc.messages)) from exc
         departments = {code:Department.objects.get_or_create(code=code,defaults={"name":name})[0] for code,name in [("aup","АУП"),("3","Отдел 3"),("4","Отдел 4") ]}
+        # The old journal retains department 1 independently of staff's current
+        # departments. Keep it available for import, outside new registrations.
+        Department.objects.get_or_create(code="1",defaults={"name":"Отдел 1 (исторический код)","is_active":False})
         positions = {code:Position.objects.get_or_create(code=code,defaults={"name":name})[0] for code,name in [("expert","Эксперт"),("head","Начальник отдела"),("deputy","Заместитель начальника отдела"),("clerk","Делопроизводитель"),("director","Руководитель учреждения")]}
         specialties = {code:Specialty.objects.get_or_create(code=code,defaults={"name":name})[0] for code,name in [
             ("1.1","Исследование почерка и подписей"),
