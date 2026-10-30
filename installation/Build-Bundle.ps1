@@ -18,7 +18,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'git archive failed.' }
     Expand-Archive -LiteralPath $sourceZip -DestinationPath $project
     Remove-Item -LiteralPath $sourceZip
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'packages') -Destination (Join-Path $project 'installation/packages') -Recurse
+    $bundlePackages = Join-Path $project 'installation/packages'
+    New-Item -ItemType Directory -Path $bundlePackages -Force | Out-Null
+    $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'packages.json') -Raw | ConvertFrom-Json
+    foreach ($package in $manifest) {
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('packages/' + $package.file)) -Destination $bundlePackages
+    }
     @("Revision: $($revision.Trim())", 'Windows x64 installer kit; see installation/README.md.') | Set-Content -LiteralPath (Join-Path $project 'BUNDLE.txt') -Encoding UTF8
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [IO.Compression.ZipFile]::CreateFromDirectory($staging,$output,[IO.Compression.CompressionLevel]::Fastest,$false)

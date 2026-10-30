@@ -25,8 +25,10 @@
 - [x] Download all five packages into the installer folder and verify hashes.
 - [x] Check PowerShell syntax and nonmutating mode.
 - [x] Exercise dependency preparation, migrations, seed commands and bootstrap in a separate disposable workspace/database, then stop its PostgreSQL.
-- [ ] Update deployment instructions, commit, fast-forward master and push.
-- [ ] Build ZIP from the committed source plus installer packages and report its path and exact command.
+- [x] Update deployment instructions and commit the source for publication to master.
+- [x] Build and inspect ZIP from the committed source plus the five installer packages.
+
+Publication: fast-forward and push to master are explicitly authorized by the user. The final commit, archive path and installation command are reported in the completion message.
 
 ## Verification
 
