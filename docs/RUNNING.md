@@ -1,6 +1,6 @@
 # Развёртывание и запуск АИС
 
-Инструкция для текущего проекта Django + Vue 3 + PostgreSQL, опубликованного в `kiruha3/WorkspaceLSE`, основная ветка `master`. Основной проверенный вариант — Windows x64, без виртуальной машины и Docker. Команды выполняются в PowerShell из корня клонированного репозитория, если явно не указано другое.
+Инструкция для текущего проекта Django + Vue 3 + PostgreSQL, опубликованного в `kiruha3/WorkspaceLSE`, основная ветка `master`. Основной проверенный вариант — Windows x64, без виртуальной машины и Docker. Команды выполняются в PowerShell из корня проекта — Git-клона либо распакованной папки `WorkspaceLSE`, если явно не указано другое.
 
 Это запуск существующего окружения разработки для просмотра и проверки. Постоянная служба, автоматический старт после перезагрузки, HTTPS и промышленный веб-сервер в этом варианте не настроены. Не следует считать запуск `runserver`/Vite готовым промышленным развёртыванием.
 
@@ -30,7 +30,9 @@ PHP, старая виртуальная машина, Docker, Java и стар�
 
 В полном ZIP-комплекте есть папка `installation/packages/` с установщиками Git, Python, Node.js и архивами uv/PostgreSQL, а также `installation/offline/` со всеми библиотеками Python/npm. Полный состав и параметры: [installation/README.md](../installation/README.md).
 
-Распакуйте комплект в постоянную папку. Откройте PowerShell **от администратора** в корне проекта:
+Распакуйте **весь** ZIP-комплект в постоянную папку. Откройте вложенную папку `WorkspaceLSE`: непосредственно в ней должны находиться `backend`, `frontend`, `infra` и `installation`. Например, для набора `62b2ad4` это `E:\ais-lse\WorkspaceLSE-windows-x64-offline-62b2ad4\WorkspaceLSE`. Не запускайте установку из окна просмотра ZIP и не распаковывайте новый комплект поверх уже работающей установки.
+
+Откройте PowerShell **от администратора** в этом корне проекта:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\installation\Install.ps1
@@ -116,7 +118,7 @@ Test-Path .runtime/postgresql/bin/postgres.exe
 & ./backend/.venv/Scripts/python.exe infra/local.py backend manage.py check
 ```
 
-`bootstrap` создаёт пользователя `setup`, начальные роли, отделы, должности и специальности. `--seed-staff` дополнительно создаёт десять сотрудников начального состава без персональных логинов и без выдуманного подтверждения квалификаций. Если эти сотрудники не нужны, уберите только `--seed-staff`. Демо-экспертизы эти команды не создают.
+`bootstrap` создаёт пользователя `setup`, начальные роли, отделы, должности и специальности. Помимо АУП и текущих отделов 3/4 подготавливается неактивный «Отдел 1 (исторический код)» для старых номеров журнала. Нынешний отдел сотрудника хранится отдельно; импорт не подменяет им код номера. `--seed-staff` дополнительно создаёт десять сотрудников начального состава без персональных логинов и без выдуманного подтверждения квалификаций. Если эти сотрудники не нужны, уберите только `--seed-staff`. Демо-экспертизы эти команды не создают.
 
 Пароль первого входа хранится **только локально**:
 
@@ -133,6 +135,7 @@ Get-Content .runtime/local-login.json
 Первое окно PowerShell, корень проекта:
 
 ```powershell
+& ./backend/.venv/Scripts/python.exe infra/local.py db-start
 & ./backend/.venv/Scripts/python.exe infra/local.py backend manage.py runserver 127.0.0.1:8000 --noreload
 ```
 
@@ -191,6 +194,10 @@ npm.cmd --prefix frontend run dev
 
 Вместо Google можно выгрузить из него XLSX и загрузить файл той же кнопкой импорта. Результат также проходит предпросмотр и подтверждение.
 
+Кнопка «Обновить перечень» повторно сравнивает уже сохранённый снимок с БД; она полезна после исправления справочника или сопоставления. Для чтения новых строк/исправлений Google-таблицы снова нажмите «Обновить из таблицы» в реестре. «Принять все» отмечает доступные пункты; непосредственно записывает их кнопка «Применить выбранное в БД» после подтверждения.
+
+В старых комплектах исторический отдел 1 мог отсутствовать. При сообщении «Фактический отдел номера отсутствует в справочнике» создайте в справочнике отделов код `1`, имя «Отдел 1 (исторический код)», затем переведите его в неактивное состояние и обновите перечень. Неактивная справочная запись доступна историческому импорту; для новой регистрации она не предлагается. Уже существующую запись отдела 1 повторно создавать или переименовывать не нужно.
+
 ### Выгрузка
 
 На `/expertises` примените фильтры и нажмите «Скачать Excel». Выгружаются **все доступные записи по фильтру**, не одна текущая страница. Первый лист повторяет исходный журнал: 28 колонок A–AB. [Описание соответствия полей](api-journal-export.md).
@@ -240,20 +247,68 @@ npm.cmd --prefix frontend run dev
 
 **Повторный запуск**: `db-start`, затем Django и Vite из раздела 4. Установку PostgreSQL и первичное наполнение каждый раз повторять не нужно.
 
-**Обновление существующей установки**: сохраните резервную копию БД и `media/`, остановите Django/Vite, проверьте `git status`, затем:
+### Подготовка к обновлению
+
+Остановите Django и Vite через `Ctrl+C` в их окнах. PostgreSQL оставьте запущенным: он понадобится миграциям. Сохраните резервную копию БД и `media/`, если на этой установке уже есть рабочие данные; команды дампа приведены в разделе 10. Обновление исходников не является переносом или очисткой базы.
+
+ZIP-комплект не содержит `.git`. Если проект распакован из ZIP и Git ещё не подключался, выполните разовую настройку ниже. Для существующего Git-клона сразу переходите к «Обычному обновлению».
+
+### Разово подключить уже установленный ZIP к Git
+
+Выполняется в существующей папке `WorkspaceLSE`, рядом с `backend` и `.runtime`. Версия исходного комплекта читается из `BUNDLE.txt`, например `62b2ad4`. Если файла нет, не угадывайте коммит по названию каталога: сначала установите исходную версию комплекта.
+
+```powershell
+if (Test-Path -LiteralPath .git) { throw 'Git is already configured. Use the normal update section.' }
+$aisBase = ((Get-Content -LiteralPath BUNDLE.txt | Where-Object { $_ -match '^Revision: ' }) -replace '^Revision: ', '').Trim()
+if ($aisBase -notmatch '^[0-9a-f]{7,40}$') { throw 'Cannot determine the original bundle revision.' }
+function Invoke-AisGit {
+    & git @args
+    if ($LASTEXITCODE -ne 0) { throw 'Git failed. Stop here and inspect the error.' }
+}
+Invoke-AisGit init --initial-branch=master
+Invoke-AisGit remote add origin https://github.com/kiruha3/WorkspaceLSE.git
+Invoke-AisGit fetch origin
+Invoke-AisGit reset --mixed $aisBase
+foreach ($aisPath in @('.runtime/','media/','backups/','backend/.venv/','frontend/node_modules/','installation/packages/','installation/offline/','.env')) {
+    Invoke-AisGit check-ignore -q -- $aisPath
+}
+Invoke-AisGit -c 'user.name=WorkspaceLSE local snapshot' -c 'user.email=local-snapshot@localhost' stash push --include-untracked -m 'Before enabling Git updates'
+Invoke-AisGit pull --ff-only origin master
+Invoke-AisGit status --short
+```
+
+`reset --mixed` здесь только связывает индекс/историю с версией исходного ZIP; он не переписывает файлы проекта. Затем изменения исходников и отдельные скачанные файлы, например `Complete-AIS-Setup.ps1` и `BUNDLE.txt`, сохраняются локально в Git stash. Игнорируемые `.runtime/`, `media/`, установщики и зависимости не убираются и не добавляются в Git. Параметры `user.name/email` заданы только для служебного локального снимка, глобальная настройка Git не меняется.
+
+После этого исходники обновлены до `origin/master`. Выполните шаги зависимостей и миграций из следующего подраздела. Сохранённые старые исправления не применяйте поверх новой версии автоматически: их список можно посмотреть через `git stash list` и `git stash show --stat --include-untracked`. При любой ошибке блока дальнейшее выполнение останавливается; повторно запускайте только нужный шаг после выяснения причины. Если GitHub требует вход, используйте свою учётную запись GitHub через установленный Git Credential Manager.
+
+### Обычное обновление из Git
+
+Сначала `git status --short`. При локальных изменениях исходников сохраните и разберите их перед обновлением. Эти команды рассчитаны на чистый Git-клон или на папку после разового подключения выше. `--ff-only` отказывается переписывать расходящуюся историю.
 
 ```powershell
 git pull --ff-only origin master
-uv sync --directory backend --python 3.13 --locked
+if ($LASTEXITCODE -ne 0) { throw 'Git update failed.' }
+$aisUv = '.\.runtime\installation-tools\uv\uv.exe'
+if (-not (Test-Path -LiteralPath $aisUv)) { $aisUv = (Get-Command uv.exe -ErrorAction Stop).Source }
+& $aisUv sync --directory backend --python 3.13 --locked --no-python-downloads
+if ($LASTEXITCODE -ne 0) { throw 'Python dependency update failed.' }
 npm.cmd --prefix frontend ci
+if ($LASTEXITCODE -ne 0) { throw 'JavaScript dependency update failed.' }
+& ./backend/.venv/Scripts/python.exe infra/local.py db-start
+if ($LASTEXITCODE -ne 0) { throw 'Database start failed.' }
 & ./backend/.venv/Scripts/python.exe infra/local.py backend manage.py migrate --noinput
+if ($LASTEXITCODE -ne 0) { throw 'Database migration failed.' }
 & ./backend/.venv/Scripts/python.exe infra/local.py backend manage.py check
+if ($LASTEXITCODE -ne 0) { throw 'Django check failed.' }
 npm.cmd --prefix frontend run build
+if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed.' }
 ```
 
-При локальных изменениях или отказе `--ff-only` сначала разберитесь с расхождением; не используйте `reset --hard`. После обновления запустите серверы снова. `build` проверяет TypeScript и собирает `frontend/dist`; сам по себе он не запускает web-сервер и не создаёт промышленную конфигурацию.
+При обычном обновлении `Install.ps1` и начальный `bootstrap` повторно не запускаются. Экспертизы, пользователи, роли и история остаются в существующей PostgreSQL. Пути документов и Google-источник в БД, файлы `media/`, пароль `setup` и разрешённые сетевые адреса в `.runtime/` сохраняются. Новые права автоматически сотрудникам не назначаются. Если конкретный релиз требует дополнительной seed-команды, её выполняют по описанию этого релиза.
 
-Если установка выполнялась комплектом и глобальной команды `uv` нет, для обновления используйте локальный исполняемый файл `.runtime/installation-tools/uv/uv.exe` вместо `uv`. ZIP-комплект не содержит `.git`; для обновления через `git pull` нужен Git-клон. Данные, `media/` и параметры существующей установки сохраняются отдельно от нового кода.
+Для GitHub и загрузки новых версий зависимостей нужен Интернет. Автономный установочный кэш старого ZIP не является источником для произвольного нового `uv.lock`/`package-lock.json`: при изменении зависимостей нужен новый подготовленный комплект. Не запускайте свежий `Install.ps1` поверх рабочей БД для обновления.
+
+После успешной сборки снова запустите Django и Vite по разделу 4 и обновите страницу браузера. На сервере `10.10.0.2` по-прежнему используется `http://10.10.0.2:5173/`. Отдельно повторять `web-hosts` и правило Windows для 5173 после каждого обновления не нужно. `build` проверяет TypeScript и собирает `frontend/dist`; он сам не запускает веб-сервер.
 
 **Остановка**: `Ctrl+C` в каждом из двух окон, затем при необходимости:
 
@@ -278,7 +333,7 @@ Backend-тесты создают отдельную **тестовую** Postgr
 | Симптом | Что проверить |
 |---|---|
 | Нет `postgres.exe` | Структуру `.runtime/postgresql/bin`, раздел 2 |
-| `tar.exe` требует `xz -d -qq` | Обновите два файла установщика по разделу исправления в `installation/README.md`, затем повторите установку |
+| `tar.exe` требует `xz -d -qq` | Обновите файлы установщика по разделу исправления в `installation/README.md`, затем повторите установку |
 | `initdb: Permission denied` на `.runtime/postgresql-data` | После установки зависимостей запустите `installation/Complete-Setup.ps1`: он выдаст текущему SID доступ к `.runtime/` и продолжит установку без удаления БД |
 | `db-start` завершился без текста нативной ошибки | Обновлённый `infra/local.py` печатает вывод и сохраняет `.runtime/postgresql-initdb.log`; файл продолжения показывает вывод также на старой версии |
 | Нет настроек подключения / connection refused | Сначала `db-start`, затем `db-status`; запускать команды из корня |
