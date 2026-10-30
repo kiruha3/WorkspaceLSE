@@ -90,12 +90,9 @@ try {
     $offline = Join-Path $PSScriptRoot 'offline'
     Invoke-Checked $uv @('venv','--offline','--no-cache','--python',$python,'--no-python-downloads',(Join-Path $root 'backend/.venv'))
     Invoke-Checked $uv @('pip','sync','--python',$backendPython,'--offline','--no-cache','--no-index','--find-links',(Join-Path $offline 'python/wheels'),'--require-hashes',(Join-Path $offline 'python/requirements.txt'))
-    $offlineManifest = Get-Content -LiteralPath (Join-Path $offline 'manifest.json') -Raw | ConvertFrom-Json
-    foreach ($file in ($offlineManifest.files | Where-Object { $_.path -like 'npm-cache/*' })) {
-        $target = Join-Path $runtime $file.path
-        New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force | Out-Null
-        Copy-Item -LiteralPath (Join-Path $offline $file.path) -Destination $target -Force
-    }
+    $npmCache = Join-Path $runtime 'npm-cache'
+    New-Item -ItemType Directory -Path $npmCache -Force | Out-Null
+    Invoke-Checked 'tar.exe' @('-xf',(Join-Path $offline 'npm-cache.tgz'),'-C',$npmCache)
     Invoke-Checked 'npm.cmd' @('--prefix','frontend','ci','--offline','--cache',(Join-Path $runtime 'npm-cache'),'--ignore-scripts','--no-fund','--no-audit','--update-notifier=false')
     Invoke-Checked $backendPython @('infra/local.py','db-start')
     foreach ($command in @('migrate','seed_result_catalogs','seed_issue_catalogs','seed_correspondence_catalogs')) {

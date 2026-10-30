@@ -10,19 +10,19 @@ function Expect-Failure([string]$Expected) {
     if ($message -notlike "*$Expected*") { throw "Expected '$Expected', received '$message'" }
 }
 try {
-    foreach ($directory in @('backend','frontend','installation/offline/python/wheels','installation/offline/npm-cache/_cacache')) {
+    foreach ($directory in @('backend','frontend','installation/offline/python/wheels')) {
         New-Item -ItemType Directory -Path (Join-Path $fixture $directory) -Force | Out-Null
     }
     [IO.File]::WriteAllText((Join-Path $fixture 'backend/uv.lock'),"version = 1`n")
     [IO.File]::WriteAllText((Join-Path $fixture 'frontend/package-lock.json'),"{}`n")
     Expect-Failure 'Offline dependencies are missing'
     $offline = Join-Path $fixture 'installation/offline'
-    $paths = @('python/requirements.txt','python/wheels/example-1.0-py3-none-any.whl','npm-cache/_cacache/example')
+    $paths = @('python/requirements.txt','python/wheels/example-1.0-py3-none-any.whl','npm-cache.tgz')
     foreach ($relative in $paths) { [IO.File]::WriteAllText((Join-Path $offline $relative),'fixture') }
     $files = @($paths | ForEach-Object { @{path=$_;sha256=(Get-FileHash -LiteralPath (Join-Path $offline $_) -Algorithm SHA256).Hash} })
     $locks = @{}
     foreach ($relative in @('backend/uv.lock','frontend/package-lock.json')) { $locks[$relative] = Get-LockDigest (Join-Path $fixture $relative) }
-    @{format=1;target='windows-x64-cp313';locks=$locks;files=$files} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $offline 'manifest.json') -Encoding UTF8
+    @{format=2;target='windows-x64-cp313';locks=$locks;files=$files} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $offline 'manifest.json') -Encoding UTF8
     Assert-OfflineAssets $fixture
     [IO.File]::WriteAllText((Join-Path $fixture 'backend/uv.lock'),"version = 1`r`n")
     Assert-OfflineAssets $fixture

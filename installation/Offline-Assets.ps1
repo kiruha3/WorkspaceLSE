@@ -12,7 +12,7 @@ function Assert-OfflineAssets([string]$Root) {
         throw 'Offline dependencies are missing. Use the complete offline ZIP or run installation/Prepare-Offline.ps1 on a connected build machine.'
     }
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-    if ($manifest.format -ne 1 -or $manifest.target -ne 'windows-x64-cp313' -or -not $manifest.files) {
+    if ($manifest.format -ne 2 -or $manifest.target -ne 'windows-x64-cp313' -or -not $manifest.files) {
         throw 'Unsupported or empty offline dependency manifest.'
     }
     foreach ($relative in @('backend/uv.lock','frontend/package-lock.json')) {
@@ -33,7 +33,7 @@ function Assert-OfflineAssets([string]$Root) {
         }
         $paths += $file.path
     }
-    if ('python/requirements.txt' -notin $paths -or -not ($paths -like 'python/wheels/*.whl') -or -not ($paths -like 'npm-cache/_cacache/*')) {
+    if ('python/requirements.txt' -notin $paths -or -not ($paths -like 'python/wheels/*.whl') -or 'npm-cache.tgz' -notin $paths) {
         throw 'The offline kit is incomplete: Python wheels or npm content cache is missing.'
     }
     Write-Host "Verified offline dependencies: $($manifest.files.Count) files."

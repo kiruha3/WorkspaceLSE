@@ -46,18 +46,20 @@ try {
     foreach ($name in @('package.json','package-lock.json')) { Copy-Item -LiteralPath (Join-Path $root ('frontend/' + $name)) -Destination $frontend }
     $npmCache = Join-Path $assets 'npm-cache'
     Invoke-Preparation 'npm.cmd' @('--prefix',$frontend,'ci','--cache',$npmCache,'--ignore-scripts','--no-fund','--no-audit')
+    $npmArchive = Join-Path $assets 'npm-cache.tgz'
+    Invoke-Preparation 'tar.exe' @('-czf',$npmArchive,'-C',$npmCache,'_cacache')
     foreach ($relative in $locks.Keys) {
         if ((Get-LockDigest (Join-Path $root $relative)) -ne $locks[$relative]) { throw "Lock file changed during preparation: $relative" }
     }
 
     # Only wheels, requirements and npm content-addressed data enter the distribution.
     $files = @()
-    $selected = @((Get-Item -LiteralPath $requirements)) + @(Get-ChildItem -LiteralPath $wheelhouse -File) + @(Get-ChildItem -LiteralPath (Join-Path $npmCache '_cacache') -File -Recurse)
+    $selected = @((Get-Item -LiteralPath $requirements)) + @(Get-ChildItem -LiteralPath $wheelhouse -File) + @((Get-Item -LiteralPath $npmArchive))
     foreach ($file in ($selected | Sort-Object FullName)) {
         $relative = $file.FullName.Substring($assets.Length + 1).Replace('\','/')
         $files += [ordered]@{path=$relative;sha256=(Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant();size=$file.Length}
     }
-    $manifest = [ordered]@{format=1;target='windows-x64-cp313';locks=$locks;files=$files}
+    $manifest = [ordered]@{format=2;target='windows-x64-cp313';locks=$locks;files=$files}
     $destination = Join-Path $PSScriptRoot 'offline'
     Remove-PreparationDirectory $destination $PSScriptRoot
     New-Item -ItemType Directory -Path $destination -Force | Out-Null
