@@ -9,7 +9,7 @@
 | Компонент | Что нужно |
 |---|---|
 | Машина | Windows x64; браузер; доступ к GitHub и серверам зависимостей при установке |
-| Инструменты | Git, uv, Node.js 22 с npm, штатный `tar.exe` |
+| Инструменты | Git, uv, Node.js 22 с npm, Windows PowerShell |
 | Python | Ветка 3.13, устанавливается командой uv ниже |
 | База | PostgreSQL 17; локальный вариант ниже работает без установленной службы PostgreSQL |
 | Код | Ветка `master`, включая `backend/uv.lock` и `frontend/package-lock.json` |
@@ -57,7 +57,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\installation\Install.p
 - [Git](https://git-scm.com/downloads).
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) для Python и зависимостей.
 - [Node.js](https://nodejs.org/en/download) с npm. Здесь проверен Node.js **22.20.0**; Python — **3.13.12**, PostgreSQL — **17.11**. Проект ограничивает Python веткой **3.13**, а JS-зависимости фиксируются `package-lock.json`.
-- Windows `tar.exe` для распаковки PostgreSQL.
+- Windows PowerShell. Архивы PostgreSQL распаковывает стандартная библиотека Python; внешние `tar`/`xz` не требуются.
 
 ```powershell
 git clone --branch master https://github.com/kiruha3/WorkspaceLSE.git
@@ -81,8 +81,7 @@ npm.cmd --prefix frontend ci
 New-Item -ItemType Directory -Path .runtime/pg-install -Force | Out-Null
 New-Item -ItemType Directory -Path .runtime/postgresql -Force | Out-Null
 Invoke-WebRequest -Uri 'https://repo.maven.apache.org/maven2/io/zonky/test/postgres/embedded-postgres-binaries-windows-amd64/17.11.0/embedded-postgres-binaries-windows-amd64-17.11.0.jar' -OutFile .runtime/pg-install/postgresql.jar
-tar -xf .runtime/pg-install/postgresql.jar -C .runtime/pg-install postgres-windows-x86_64.txz
-tar -xf .runtime/pg-install/postgres-windows-x86_64.txz -C .runtime/postgresql
+& ./backend/.venv/Scripts/python.exe installation/archive_tools.py postgres .runtime/pg-install/postgresql.jar .runtime/postgresql
 Test-Path .runtime/postgresql/bin/postgres.exe
 & ./.runtime/postgresql/bin/postgres.exe --version
 ```
@@ -271,6 +270,7 @@ Backend-тесты создают отдельную **тестовую** Postgr
 | Симптом | Что проверить |
 |---|---|
 | Нет `postgres.exe` | Структуру `.runtime/postgresql/bin`, раздел 2 |
+| `tar.exe` требует `xz -d -qq` | Обновите два файла установщика по разделу исправления в `installation/README.md`, затем повторите установку |
 | Нет настроек подключения / connection refused | Сначала `db-start`, затем `db-status`; запускать команды из корня |
 | Нет таблиц | `migrate --noinput` через `infra/local.py backend` |
 | Фронт открылся, API недоступен | Django должен работать на `127.0.0.1:8000` |

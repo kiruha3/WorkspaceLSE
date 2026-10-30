@@ -9,7 +9,7 @@ $packageDir = Join-Path $PSScriptRoot 'packages'
 if (-not [Environment]::Is64BitOperatingSystem -or $env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {
     throw 'This kit requires Windows x64.'
 }
-foreach ($required in @('backend/pyproject.toml','backend/uv.lock','frontend/package-lock.json','infra/local.py')) {
+foreach ($required in @('backend/pyproject.toml','backend/uv.lock','frontend/package-lock.json','infra/local.py','installation/archive_tools.py')) {
     if (-not (Test-Path -LiteralPath (Join-Path $root $required))) { throw "Missing project file: $required" }
 }
 if ($CheckOnly) {
@@ -75,11 +75,8 @@ Invoke-Checked 'node.exe' @('--version')
 
 $pgDir = Join-Path $runtime 'postgresql'
 if (-not (Test-Path -LiteralPath (Join-Path $pgDir 'bin/postgres.exe'))) {
-    $unpack = Join-Path $runtime 'installation-tools/postgresql'
-    New-Item -ItemType Directory -Path $unpack -Force | Out-Null
     New-Item -ItemType Directory -Path $pgDir -Force | Out-Null
-    Invoke-Checked 'tar.exe' @('-xf',(Join-Path $packageDir 'embedded-postgres-binaries-windows-amd64-17.11.0.jar'),'-C',$unpack,'postgres-windows-x86_64.txz')
-    Invoke-Checked 'tar.exe' @('-xf',(Join-Path $unpack 'postgres-windows-x86_64.txz'),'-C',$pgDir)
+    Invoke-Checked $python @((Join-Path $PSScriptRoot 'archive_tools.py'),'postgres',(Join-Path $packageDir 'embedded-postgres-binaries-windows-amd64-17.11.0.jar'),$pgDir)
 }
 Invoke-Checked (Join-Path $pgDir 'bin/postgres.exe') @('--version')
 if ($ToolsOnly) { Write-Host 'Tools prepared. No project dependencies or database were changed.'; return }
@@ -92,7 +89,7 @@ try {
     Invoke-Checked $uv @('pip','sync','--python',$backendPython,'--offline','--no-cache','--no-index','--find-links',(Join-Path $offline 'python/wheels'),'--require-hashes',(Join-Path $offline 'python/requirements.txt'))
     $npmCache = Join-Path $runtime 'npm-cache'
     New-Item -ItemType Directory -Path $npmCache -Force | Out-Null
-    Invoke-Checked 'tar.exe' @('-xf',(Join-Path $offline 'npm-cache.tgz'),'-C',$npmCache)
+    Invoke-Checked $backendPython @((Join-Path $PSScriptRoot 'archive_tools.py'),'extract',(Join-Path $offline 'npm-cache.tgz'),$npmCache)
     Invoke-Checked 'npm.cmd' @('--prefix','frontend','ci','--offline','--cache',(Join-Path $runtime 'npm-cache'),'--ignore-scripts','--no-fund','--no-audit','--update-notifier=false')
     Invoke-Checked $backendPython @('infra/local.py','db-start')
     foreach ($command in @('migrate','seed_result_catalogs','seed_issue_catalogs','seed_correspondence_catalogs')) {

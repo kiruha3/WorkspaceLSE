@@ -47,7 +47,7 @@ try {
     $npmCache = Join-Path $assets 'npm-cache'
     Invoke-Preparation 'npm.cmd' @('--prefix',$frontend,'ci','--cache',$npmCache,'--ignore-scripts','--no-fund','--no-audit')
     $npmArchive = Join-Path $assets 'npm-cache.tgz'
-    Invoke-Preparation 'tar.exe' @('-czf',$npmArchive,'-C',$npmCache,'_cacache')
+    Invoke-Preparation (Join-Path $builder 'Scripts/python.exe') @((Join-Path $PSScriptRoot 'archive_tools.py'),'pack-cache',$npmCache,$npmArchive)
     foreach ($relative in $locks.Keys) {
         if ((Get-LockDigest (Join-Path $root $relative)) -ne $locks[$relative]) { throw "Lock file changed during preparation: $relative" }
     }
