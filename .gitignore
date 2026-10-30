@@ -15,5 +15,6 @@ backups/
 .runtime/
 /.superpowers/
 /outputs/
+/installation/packages/
 *.sqlite3
 *.sqlite3-journal

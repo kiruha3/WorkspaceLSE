@@ -1,0 +1,37 @@
+[
+  {
+    "id": "git",
+    "version": "2.51.2.windows.1",
+    "file": "Git-2.51.2-64-bit.exe",
+    "url": "https://github.com/git-for-windows/git/releases/download/v2.51.2.windows.1/Git-2.51.2-64-bit.exe",
+    "sha256": "ebd318e1d3ee0cc1ac8ead026f1edf8678dcb42c7d74d757b8e2fa8a1be0b25f"
+  },
+  {
+    "id": "python",
+    "version": "3.13.12",
+    "file": "python-3.13.12-amd64.exe",
+    "url": "https://www.python.org/ftp/python/3.13.12/python-3.13.12-amd64.exe",
+    "sha256": "96159fcb523ae404b707186a75b4104ee23851e476a5e838e14584cf1e03f981"
+  },
+  {
+    "id": "node",
+    "version": "22.20.0",
+    "file": "node-v22.20.0-x64.msi",
+    "url": "https://nodejs.org/dist/v22.20.0/node-v22.20.0-x64.msi",
+    "sha256": "d6429513d63a6fba90428d6508a194212ecd7c5fd76923de91306879d28cc3e1"
+  },
+  {
+    "id": "uv",
+    "version": "0.10.6",
+    "file": "uv-x86_64-pc-windows-msvc.zip",
+    "url": "https://github.com/astral-sh/uv/releases/download/0.10.6/uv-x86_64-pc-windows-msvc.zip",
+    "sha256": "b27eb789f281e398a82197477de727fc8faf08605152115686da2c3cba0d25f7"
+  },
+  {
+    "id": "postgresql",
+    "version": "17.11",
+    "file": "embedded-postgres-binaries-windows-amd64-17.11.0.jar",
+    "url": "https://repo.maven.apache.org/maven2/io/zonky/test/postgres/embedded-postgres-binaries-windows-amd64/17.11.0/embedded-postgres-binaries-windows-amd64-17.11.0.jar",
+    "sha256": "98040fae18dd9633ff95932125b0cecf0a45a1a9312e216e2a33ad03a31d4251"
+  }
+]
