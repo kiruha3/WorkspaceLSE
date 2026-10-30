@@ -9,7 +9,7 @@ $packageDir = Join-Path $PSScriptRoot 'packages'
 if (-not [Environment]::Is64BitOperatingSystem -or $env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {
     throw 'This kit requires Windows x64.'
 }
-foreach ($required in @('backend/pyproject.toml','backend/uv.lock','frontend/package-lock.json','infra/local.py','installation/archive_tools.py')) {
+foreach ($required in @('backend/pyproject.toml','backend/uv.lock','frontend/package-lock.json','infra/local.py','installation/archive_tools.py','installation/Complete-Setup.ps1')) {
     if (-not (Test-Path -LiteralPath (Join-Path $root $required))) { throw "Missing project file: $required" }
 }
 if ($CheckOnly) {
@@ -86,23 +86,10 @@ try {
     $backendPython = Join-Path $root 'backend/.venv/Scripts/python.exe'
     $offline = Join-Path $PSScriptRoot 'offline'
     Invoke-Checked $uv @('venv','--offline','--no-cache','--python',$python,'--no-python-downloads',(Join-Path $root 'backend/.venv'))
-    Invoke-Checked $uv @('pip','sync','--python',$backendPython,'--offline','--no-cache','--no-index','--find-links',(Join-Path $offline 'python/wheels'),'--require-hashes',(Join-Path $offline 'python/requirements.txt'))
+    Invoke-Checked $uv @('pip','sync','--python',$backendPython,'--offline','--no-cache','--link-mode=copy','--no-index','--find-links',(Join-Path $offline 'python/wheels'),'--require-hashes',(Join-Path $offline 'python/requirements.txt'))
     $npmCache = Join-Path $runtime 'npm-cache'
     New-Item -ItemType Directory -Path $npmCache -Force | Out-Null
     Invoke-Checked $backendPython @((Join-Path $PSScriptRoot 'archive_tools.py'),'extract',(Join-Path $offline 'npm-cache.tgz'),$npmCache)
     Invoke-Checked 'npm.cmd' @('--prefix','frontend','ci','--offline','--cache',(Join-Path $runtime 'npm-cache'),'--ignore-scripts','--no-fund','--no-audit','--update-notifier=false')
-    Invoke-Checked $backendPython @('infra/local.py','db-start')
-    foreach ($command in @('migrate','seed_result_catalogs','seed_issue_catalogs','seed_correspondence_catalogs')) {
-        $arguments = @('infra/local.py','backend','manage.py',$command)
-        if ($command -eq 'migrate') { $arguments += '--noinput' }
-        Invoke-Checked $backendPython $arguments
-    }
-    Invoke-Checked $backendPython @('infra/local.py','bootstrap','--seed-staff','--with-personnel-role')
-    Invoke-Checked $backendPython @('infra/local.py','backend','manage.py','check')
-    Invoke-Checked 'npm.cmd' @('--prefix','frontend','run','build')
+    & (Join-Path $PSScriptRoot 'Complete-Setup.ps1') -ProjectRoot $root
 } finally { Pop-Location }
-Write-Host ''
-Write-Host 'Installation completed. No demo expertises were created.'
-Write-Host 'Initial login: .runtime/local-login.json (local file; do not publish).'
-Write-Host 'Start Django and Vite using docs/RUNNING.md, section 4.'
-Write-Host 'Then configure roles and import Google Sheets through the web UI.'

@@ -4,6 +4,7 @@ Run with backend/.venv/Scripts/python.exe. PostgreSQL binaries belong in
 .runtime/postgresql (Windows portable distribution); all state stays ignored.
 """
 import json
+import locale
 import os
 from pathlib import Path
 import secrets
@@ -26,10 +27,29 @@ def connection():
 
 def run_pg(program, *args, check=True):
     executable = BIN / (program + (".exe" if os.name == "nt" else ""))
-    return subprocess.run(
-        [str(executable), *map(str, args)], check=check,
-        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
-    )
+    # A server started by pg_ctl may retain inherited handles. Real files avoid
+    # waiting for pipe EOF after pg_ctl has already exited.
+    log = RUNTIME / f"postgresql-{program}.log"
+    with log.open("wb") as stream:
+        result = subprocess.run(
+            [str(executable), *map(str, args)], check=False,
+            stdout=stream, stderr=subprocess.STDOUT,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        )
+    def decode(value):
+        try:
+            return value.decode("utf-8")
+        except UnicodeDecodeError:
+            return value.decode(locale.getencoding(), errors="replace")
+
+    output = decode(log.read_bytes())
+    if output:
+        print(output, end="", file=sys.stderr if result.returncode else sys.stdout, flush=True)
+    # Keep native log bytes unchanged while a server may still hold the file.
+    # Only native output is logged; arguments may contain private values.
+    if check and result.returncode:
+        raise SystemExit(f"PostgreSQL {program} failed ({result.returncode}). See the error above and {log}.")
+    return result
 
 
 def db_start():
