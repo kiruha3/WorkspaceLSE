@@ -1,15 +1,24 @@
 [CmdletBinding()]
 param(
-    [string]$ProjectRoot = (Get-Location).Path,
+    [string]$ProjectRoot = '',
     [switch]$CheckOnly
 )
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
+    $aisCandidates = @($PSScriptRoot, (Join-Path $PSScriptRoot 'WorkspaceLSE'), (Split-Path $PSScriptRoot -Parent), (Get-Location).Path)
+    $ProjectRoot = $aisCandidates | Select-Object -Unique | Where-Object {
+        (Test-Path -LiteralPath (Join-Path $_ 'backend\.venv\Scripts\python.exe') -PathType Leaf) -and
+        (Test-Path -LiteralPath (Join-Path $_ '.runtime\postgresql-data\PG_VERSION') -PathType Leaf)
+    } | Select-Object -First 1
+    if (-not $ProjectRoot) { throw 'Cannot locate the installed WorkspaceLSE folder. Pass -ProjectRoot with its full path.' }
+}
 $aisRoot = (Resolve-Path -LiteralPath $ProjectRoot).Path
 $aisPython = Join-Path $aisRoot 'backend\.venv\Scripts\python.exe'
 $aisData = Join-Path $aisRoot '.runtime\postgresql-data'
 $aisConnection = Join-Path $aisRoot '.runtime\postgresql-connection.json'
 $aisDumpTool = Join-Path $aisRoot '.runtime\postgresql\bin\pg_dump.exe'
-foreach ($aisRequired in @($aisPython, $aisConnection, $aisDumpTool, (Join-Path $aisData 'PG_VERSION'), (Join-Path $aisRoot 'frontend\package-lock.json'))) {
+$aisControlTool = Join-Path $aisRoot '.runtime\postgresql\bin\pg_ctl.exe'
+foreach ($aisRequired in @($aisPython, $aisConnection, $aisControlTool, (Join-Path $aisData 'PG_VERSION'), (Join-Path $aisRoot 'frontend\package-lock.json'))) {
     if (-not (Test-Path -LiteralPath $aisRequired -PathType Leaf)) {
         throw "Not an installed WorkspaceLSE project: missing $aisRequired. No changes made."
     }
@@ -51,6 +60,8 @@ if ($aisNeedsBaseline) {
 }
 if ($CheckOnly) {
     Write-Host "Installed project verified. Git setup required: $aisNewGit. No changes made."
+    if (Test-Path -LiteralPath $aisDumpTool) { Write-Host 'Backup method: pg_dump.' }
+    else { Write-Host 'Backup method: cold cluster copy with PostgreSQL stopped, then restarted.' }
     return
 }
 if (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue) {
@@ -61,6 +72,53 @@ function Invoke-AisChecked {
     param([string]$File, [string[]]$Arguments, [string]$Step)
     & $File @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$Step failed (exit $LASTEXITCODE). Stop here; do not restart installation or restore old source automatically." }
+}
+function Backup-AisDatabase {
+    param([string]$Root, [string]$Python)
+    $aisDataPath = Join-Path $Root '.runtime\postgresql-data'
+    $aisConfigPath = Join-Path $Root '.runtime\postgresql-connection.json'
+    $aisDumpPath = Join-Path $Root '.runtime\postgresql\bin\pg_dump.exe'
+    $aisBackupDir = Join-Path $Root 'backups'
+    New-Item -ItemType Directory -Path $aisBackupDir -Force | Out-Null
+    $aisBackupName = 'before-git-update-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8)
+    if (Test-Path -LiteralPath $aisDumpPath) {
+        $aisBackup = Join-Path $aisBackupDir ($aisBackupName + '.dump')
+        $aisConfig = Get-Content -LiteralPath $aisConfigPath -Raw | ConvertFrom-Json
+        $aisPreviousPassword = [Environment]::GetEnvironmentVariable('PGPASSWORD', 'Process')
+        try {
+            $env:PGPASSWORD = $aisConfig.password
+            Invoke-AisChecked -File $aisDumpPath -Arguments @('--host',[string]$aisConfig.host,'--port',[string]$aisConfig.port,'--username',[string]$aisConfig.user,'--dbname',[string]$aisConfig.dbname,'--format=custom','--file',$aisBackup) -Step 'Database backup'
+        } finally {
+            if ($null -eq $aisPreviousPassword) { Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue }
+            else { $env:PGPASSWORD = $aisPreviousPassword }
+        }
+    } else {
+        # The original embedded PostgreSQL package contains only postgres, initdb and pg_ctl.
+        # A complete cluster copy is valid only while this cluster is cleanly stopped.
+        if (-not (Test-Path -LiteralPath (Join-Path $aisDataPath 'global\pg_control'))) { throw 'Cannot back up an incomplete PostgreSQL cluster.' }
+        $aisDataEntries = @(Get-Item -LiteralPath $aisDataPath) + @(Get-ChildItem -LiteralPath $aisDataPath -Force -Recurse)
+        $aisLinks = @($aisDataEntries | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint })
+        if ($aisLinks) { throw 'Cold backup does not support linked PostgreSQL data directories or external tablespaces. Source data was not changed.' }
+        $aisBackup = Join-Path $aisBackupDir $aisBackupName
+        Write-Host 'pg_dump is not bundled. Creating a cold backup; PostgreSQL will stop briefly.'
+        try {
+            Invoke-AisChecked -File $Python -Arguments @((Join-Path $Root 'infra\local.py'),'db-stop') -Step 'Stop database for cold backup'
+            if (Test-Path -LiteralPath (Join-Path $aisDataPath 'postmaster.pid')) { throw 'PostgreSQL still has a process lock; refusing to copy live database files.' }
+            New-Item -ItemType Directory -Path $aisBackup -ErrorAction Stop | Out-Null
+            Copy-Item -LiteralPath $aisDataPath -Destination (Join-Path $aisBackup 'postgresql-data') -Recurse -Force -ErrorAction Stop
+            Copy-Item -LiteralPath $aisConfigPath -Destination (Join-Path $aisBackup 'postgresql-connection.json') -ErrorAction Stop
+            if (Test-Path -LiteralPath (Join-Path $aisDataPath 'postmaster.pid')) { throw 'PostgreSQL restarted during the copy; this backup is incomplete.' }
+            @{
+                kind = 'cold-postgresql-cluster'
+                complete = $true
+                postgresql_major = ([IO.File]::ReadAllText((Join-Path $aisDataPath 'PG_VERSION'))).Trim()
+                created_at_utc = [DateTime]::UtcNow.ToString('o')
+            } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $aisBackup 'BACKUP-COMPLETE.json') -Encoding UTF8
+        } finally {
+            Invoke-AisChecked -File $Python -Arguments @((Join-Path $Root 'infra\local.py'),'db-start') -Step 'Restart database after cold backup'
+        }
+    }
+    Write-Host "Database backup: $aisBackup"
 }
 Push-Location -LiteralPath $aisRoot
 try {
@@ -78,19 +136,7 @@ try {
     Invoke-AisChecked -File $aisGit -Arguments @('-c','user.name=WorkspaceLSE local snapshot','-c','user.email=local-snapshot@localhost','stash','push','-m','Before AIS Git update') -Step 'Local source snapshot'
     Invoke-AisChecked -File $aisGit -Arguments @('pull','--ff-only','origin','master') -Step 'Source update'
     Invoke-AisChecked -File $aisPython -Arguments @('infra/local.py','db-start') -Step 'Database start'
-    $aisBackupDir = Join-Path $aisRoot 'backups'
-    New-Item -ItemType Directory -Path $aisBackupDir -Force | Out-Null
-    $aisBackup = Join-Path $aisBackupDir ('before-git-update-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8) + '.dump')
-    $aisConfig = Get-Content -LiteralPath $aisConnection -Raw | ConvertFrom-Json
-    $aisPreviousPassword = [Environment]::GetEnvironmentVariable('PGPASSWORD', 'Process')
-    try {
-        $env:PGPASSWORD = $aisConfig.password
-        Invoke-AisChecked -File $aisDumpTool -Arguments @('--host',[string]$aisConfig.host,'--port',[string]$aisConfig.port,'--username',[string]$aisConfig.user,'--dbname',[string]$aisConfig.dbname,'--format=custom','--file',$aisBackup) -Step 'Database backup'
-    } finally {
-        if ($null -eq $aisPreviousPassword) { Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue }
-        else { $env:PGPASSWORD = $aisPreviousPassword }
-    }
-    Write-Host "Database backup: $aisBackup"
+    Backup-AisDatabase -Root $aisRoot -Python $aisPython
     Invoke-AisChecked -File $aisUv -Arguments @('sync','--directory','backend','--python','3.13','--locked','--no-python-downloads') -Step 'Python dependency update'
     Invoke-AisChecked -File $aisNpm -Arguments @('--prefix','frontend','ci') -Step 'Frontend dependency update'
     Invoke-AisChecked -File $aisPython -Arguments @('infra/local.py','backend','manage.py','migrate','--noinput') -Step 'Database migration'
