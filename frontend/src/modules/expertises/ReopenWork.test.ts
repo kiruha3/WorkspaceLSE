@@ -34,15 +34,15 @@ describe('return a completed expertise to work', () => {
       wrapper.unmount()
     }
   })
-  it('requires a reason and explicit submission; sends the version and preserves the server response', async () => {
+  it.each(['', '  Ошибка завершения  '])('requires explicit submission and accepts an optional reason (%s)', async reason => {
     const { wrapper, writes } = await open()
     await wrapper.get('[data-reopen-start]').trigger('click')
-    expect(wrapper.get('[data-reopen-confirm]').attributes('disabled')).toBeDefined()
-    await wrapper.get('[data-reopen-form]').trigger('submit'); expect(writes).toHaveLength(0)
-    await wrapper.get('[name="reopen_reason"]').setValue('  Ошибка завершения  ')
+    expect(wrapper.get('[data-reopen-confirm]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('[name="reopen_reason"]').attributes('required')).toBeUndefined()
+    await wrapper.get('[name="reopen_reason"]').setValue(reason)
     expect(writes).toHaveLength(0)
     await wrapper.get('[data-reopen-form]').trigger('submit'); await flushPromises()
-    expect(writes[0]).toMatchObject({ path: '/api/v1/expertises/work-1/reopen/', body: { expected_version: 8, reason: 'Ошибка завершения' } })
+    expect(writes[0]).toMatchObject({ path: '/api/v1/expertises/work-1/reopen/', body: { expected_version: 8, reason: reason.trim() } })
     expect(writes[0]?.key).toBeTruthy()
     expect(wrapper.emitted('updated')?.[0]?.[0]).toMatchObject({ state: 'in_progress', version: 9 })
     expect(wrapper.find('[data-reopen-form]').exists()).toBe(false)

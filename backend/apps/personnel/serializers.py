@@ -95,7 +95,7 @@ class RoleAssignmentCreate(OrderedDates):
     role_id = serializers.PrimaryKeyRelatedField(queryset=Role.objects.filter(is_active=True),source="role")
     scope_limit = serializers.ChoiceField(choices=SCOPES)
     department_ids = serializers.PrimaryKeyRelatedField(queryset=Department.objects.filter(is_active=True),many=True,source="departments")
-    reason = serializers.CharField()
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
 
     def validate(self,attrs):
         attrs = super().validate(attrs)
@@ -122,17 +122,17 @@ class RoleAssignmentOutput(serializers.ModelSerializer):
 class OrgAssignmentCreate(OrderedDates):
     department_id = serializers.PrimaryKeyRelatedField(queryset=Department.objects.filter(is_active=True),source="department")
     position_id = serializers.PrimaryKeyRelatedField(queryset=Position.objects.filter(is_active=True),source="position")
-    reason = serializers.CharField()
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class OrgAssignmentEnd(VersionedSerializer):
     valid_to = serializers.DateField()
-    reason = serializers.CharField()
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class RoleAssignmentRevoke(VersionedSerializer):
     is_active = serializers.BooleanField()
-    reason = serializers.CharField()
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
 
     def validate_is_active(self,value):
         if value:
@@ -148,7 +148,7 @@ class AccountCreate(StrictSerializer):
 
 class AccountUpdate(StrictSerializer):
     is_active = serializers.BooleanField()
-    reason = serializers.CharField()
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class AccountPasswordReset(StrictSerializer):

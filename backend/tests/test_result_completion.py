@@ -82,10 +82,11 @@ def test_closed_correction_appends_history_and_replay_does_not_roll_back(employe
     payload=result_body(done,completed_on="2026-10-11",questions=1,categorical=1,probable=0,unresolved=0,statistics_complete=True,note="Уточнение по оригиналу")
     assert send(client,done,"correct",correction_kind="result",result=payload).status_code==403
     grant(actor,"expertise.closed.correct","own")
-    assert send(client,done,"correct",correction_kind="result",result=payload,reason=" ").status_code==400
-    corrected=send(client,done,"correct",correction_kind="result",result=payload)
+    corrected=send(client,done,"correct",correction_kind="result",result=payload,reason=" ")
     assert corrected.status_code==200
     current=corrected.json()["expertise"]
+    assert current["closure"]["reason"]==''
+    assert AuditEvent.objects.get(action='expertise.closed.correct').reason==''
     assert current["state"]=="completed" and len(current["closure_history"])==2 and len(current["result_history"])==2
     assert current["closure_history"][0]["ended_on"]=="2026-10-10" and current["closure"]["ended_on"]=="2026-10-11"
     replay=send(client,work,"complete",key=key,result_id=work["result"]["id"])

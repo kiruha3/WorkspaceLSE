@@ -43,7 +43,7 @@ def test_save_facts_documents_history_and_core_identity(employee_factory,grant,s
  assert client.get(f'/api/v1/expertises/{work.pk}/').json()['timing']==facts
 
 @pytest.mark.parametrize('change',[
- {'extra':1},{'reason':''},{'notification_sent':True},{'extension_requested':True},
+ {'extra':1},{'notification_sent':True},{'extension_requested':True},
  {'deadline_breached':True},{'deadline_breached':False,'breach_basis':'Нужен документ'},
  {'notification_sent':False,'notification_on':'2026-10-02'}, {'notification_on':'2099-01-01'}, {'request_on':'2026-09-01'},
  {'reasons_complete':None},

@@ -73,7 +73,7 @@ def test_command_replays_return_fresh_state_without_duplicate_revisions(employee
     assert create_letter(client, key=create_key).status_code == 403
 
 
-@pytest.mark.parametrize("values", [{"reason": " "}, {"direction": "sideways"}, {"received_on": "2099-01-01"}, {"recipients": [{"name": "Суд", "email": "ошибка"}]}, {"responsible_id": str(uuid.uuid4())}])
+@pytest.mark.parametrize("values", [{"direction": "sideways"}, {"received_on": "2099-01-01"}, {"recipients": [{"name": "Суд", "email": "ошибка"}]}, {"responsible_id": str(uuid.uuid4())}])
 def test_invalid_create_does_not_leave_command_or_audit(employee_factory, grant, values):
     client, _ = letter_setup(employee_factory, grant); key = str(uuid.uuid4())
     assert create_letter(client, key=key, **values).status_code == 400

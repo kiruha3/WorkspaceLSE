@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLiveSearch } from '../shared/ui/useLiveSearch'
 import SortableTable from '../shared/ui/SortableTable.vue'
 import {orderingParams} from '../shared/ui/tableSorting'
 
@@ -44,7 +45,10 @@ const differences = computed(() => {
     return [`${p.label}: ${was ? scopes[was] : 'нет'} → ${now ? scopes[now] : 'нет'}`]
   })
 })
+const liveSearch = useLiveSearch(() => load(1), () => listRequest.cancel())
 async function load(nextPage = page.value) {
+  liveSearch.cancel()
+
   page.value = nextPage; loading.value = true; listError.value = null
   try { await listRequest.run(signal => api.request<Page<Role>>(`/roles/?${new URLSearchParams({...orderingParams(ordering.value), page: String(page.value), search: search.value })}`, { signal }), result => { list.value = result; loading.value = false }) }
   catch (cause) { listError.value = cause; loading.value = false }
@@ -101,7 +105,7 @@ onBeforeUnmount(() => listRequest.cancel())
   <div class="page-heading"><div><p class="eyebrow">Управление доступом</p><h1>Роли и права</h1><p class="muted">Поддерживаемые действия, явные области и несколько ролей у одного сотрудника.</p></div><button v-if="editing" data-back-roles :disabled="saving" @click="closeEditor">← К списку ролей</button><button v-else-if="canManage" class="button-primary" :disabled="saving" @click="edit(null)">+ Создать роль</button></div>
   <div :class="{'split-layout':!editing}">
     <section v-if="!editing" class="card registry-pane" aria-label="Реестр ролей">
-      <form class="toolbar" @submit.prevent="load(1)"><label class="grow">Поиск ролей<input v-model="search" placeholder="Название или назначение" type="search" /></label><button :disabled="loading">Найти</button></form>
+      <form class="toolbar" @submit.prevent="load(1)"><label class="grow">Поиск ролей<input v-model="search" placeholder="Название или назначение" type="search"  @input="liveSearch.schedule" @compositionend="liveSearch.schedule" /></label><button :disabled="loading">Найти</button></form>
       <ApiMessage :error="listError" />
       <p v-if="loading" class="state" aria-live="polite">Загрузка ролей…</p>
       <div v-else class="table-scroll"><SortableTable :rows="list.results" :columns='[{"key": "name", "label": "Роль"}, {"key": "assignment_count", "label": "Назначения"}, {"key": "is_active", "label": "Состояние"}]' :ordering="ordering" @update:ordering="sortTable" v-slot="{rows:tableRows}">

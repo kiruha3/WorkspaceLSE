@@ -13,12 +13,12 @@ def actor_data(user):
 
 class SuspendInput(VersionedSerializer):
     suspended_on=serializers.DateField()
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class ResumeInput(VersionedSerializer):
     resumed_on=serializers.DateField()
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class SuspensionOutput(serializers.ModelSerializer):
@@ -35,7 +35,7 @@ class DeadlineInput(VersionedSerializer):
     kind=serializers.ChoiceField(choices=DeadlineEvent._meta.get_field("kind").choices)
     recorded_on=serializers.DateField()
     due_on=serializers.DateField()
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
     document_id=serializers.PrimaryKeyRelatedField(source="document",queryset=Document.objects.all(),required=False,allow_null=True,default=None)
 
 

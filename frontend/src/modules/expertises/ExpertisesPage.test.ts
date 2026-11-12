@@ -7,6 +7,41 @@ import ExpertisesPage from './ExpertisesPage.vue'
 import { useSessionStore } from '../../stores/session'
 
 describe('expertise registry', () => {
+  it('searches after typing settles, ignores the previous response and cancels pending search on leave',async()=>{
+    vi.useFakeTimers({toFake:['setTimeout','clearTimeout']})
+    let finishOld!:(response:Response)=>void
+    const searches:string[]=[],signals:AbortSignal[]=[]
+    const client=new ApiClient(async(input,init)=>{
+      const path=String(input)
+      if(path.includes('filter-options'))return json({employees:[]})
+      if(path.includes('/references/'))return json(page([]))
+      searches.push(new URL(path,'http://localhost').searchParams.get('search')??'')
+      if(searches.length===1){signals.push(init!.signal!);return new Promise(done=>{finishOld=done})}
+      return json({count:1,results:[{...expertise,id:'current',registration_number:'432/1-1-26'}]})
+    })
+    const router=await testRouter('/expertises?state=in_progress')
+    const wrapper=mount(ExpertisesPage,{global:{plugins:[sessionWith('expertise.view'),router],provide:{[apiKey as symbol]:client}}})
+    try{
+      await flushPromises()
+      await wrapper.get('[name="search"]').setValue('43')
+      expect(signals[0]!.aborted).toBe(true)
+      await vi.advanceTimersByTimeAsync(200)
+      await wrapper.get('[name="search"]').setValue('432')
+      await vi.advanceTimersByTimeAsync(299);expect(searches).toEqual([''])
+      await vi.advanceTimersByTimeAsync(1);await flushPromises()
+      expect(searches).toEqual(['','432'])
+      expect(router.currentRoute.value.query).toMatchObject({search:'432',state:'in_progress'})
+      finishOld(json({count:1,results:[{...expertise,id:'old',registration_number:'Устаревший ответ'}]}));await flushPromises()
+      expect(wrapper.get('[data-open-expertise]').text()).toBe('432/1-1-26')
+      await wrapper.get('[name="search"]').setValue('432a');await vi.advanceTimersByTimeAsync(100)
+      await wrapper.get('[name="search"]').setValue('432');await vi.advanceTimersByTimeAsync(300);await flushPromises()
+      expect(searches).toEqual(['','432','432'])
+      await wrapper.get('[name="search"]').setValue('');await vi.advanceTimersByTimeAsync(300);await flushPromises()
+      expect(searches).toEqual(['','432','432',''])
+      await wrapper.get('[name="search"]').setValue('99');wrapper.unmount()
+      await vi.advanceTimersByTimeAsync(300);expect(searches).toEqual(['','432','432',''])
+    }finally{wrapper.unmount();vi.useRealTimers()}
+  })
   it('renders the complete lightweight collection including rows beyond the old page boundary',async()=>{
     const records=Array.from({length:41},(_,index)=>({...expertise,id:`record-${index+1}`,registration_number:`${index+1}/4-1-26`}))
     const paths:string[]=[]

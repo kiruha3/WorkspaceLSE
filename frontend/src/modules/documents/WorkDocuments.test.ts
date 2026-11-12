@@ -80,7 +80,7 @@ it('sends search and kind to the server and keeps loading errors recoverable',as
   expect(paths.at(-1)).toContain('search=')
   expect(paths.at(-1)).toContain('kind=case_material')
 })
-it('links an existing document without creating metadata or uploading a duplicate',async()=>{
+it.each(['', 'Общее приложение'])('links an existing document with an optional reason (%s) without creating metadata or uploading a duplicate',async reason=>{
   const posts:{path:string;body:Record<string,unknown>}[]=[]
   const client=new ApiClient(async(input,init)=>{
     const path=String(input)
@@ -91,11 +91,12 @@ it('links an existing document without creating metadata or uploading a duplicat
   const wrapper=mount(DocumentSourceForm,{props:sourceProps,global:globals(client)})
   await wrapper.get('[data-source-existing]').trigger('click');await flushPromises()
   await wrapper.get('[data-use-existing="doc1"]').trigger('click')
-  await wrapper.get('[name="archive_reason"]').setValue('Общее приложение')
+  expect(wrapper.get('[name="archive_reason"]').attributes('required')).toBeUndefined()
+  await wrapper.get('[name="archive_reason"]').setValue(reason)
   await wrapper.get('[data-archive-source-form]').trigger('submit');await flushPromises()
   expect(posts).toHaveLength(1)
   expect(posts[0]?.path).toBe('/api/v1/expertises/work1/documents/')
-  expect(posts[0]?.body).toMatchObject({expected_version:3,document_id:'doc1',reason:'Общее приложение'})
+  expect(posts[0]?.body).toMatchObject({expected_version:3,document_id:'doc1',reason})
 })
 it('recovers lost link response using the same packet after a late GET/prop version update',async()=>{
   const attempts:{key:string|null;body:string}[]=[];let creates=0
@@ -109,6 +110,7 @@ it('recovers lost link response using the same packet after a late GET/prop vers
   })
   const wrapper=mount(DocumentSourceForm,{props:sourceProps,global:globals(client)})
   await wrapper.get('[name="document_title"]').setValue('Дополнение')
+  await wrapper.get('[name="source_kind"]').setValue('paper_original')
   await wrapper.get('[name="archive_reason"]').setValue('Дослано')
   await wrapper.get('[data-archive-source-form]').trigger('submit');await flushPromises()
   await wrapper.setProps({expectedVersion:99})
@@ -126,6 +128,7 @@ it('retains input on403 and requires explicit adoption after a work409',async()=
   })
   const wrapper=mount(DocumentSourceForm,{props:sourceProps,global:globals(client)})
   await wrapper.get('[name="document_title"]').setValue('Не терять')
+  await wrapper.get('[name="source_kind"]').setValue('paper_original')
   await wrapper.get('[name="archive_reason"]').setValue('Дослано')
   await wrapper.get('[data-archive-source-form]').trigger('submit');await flushPromises()
   expect((wrapper.get('[name="document_title"]').element as HTMLInputElement).value).toBe('Не терять')
@@ -145,6 +148,7 @@ it('captures the work version before awaiting metadata and upload',async()=>{
   })
   const wrapper=mount(DocumentSourceForm,{props:sourceProps,global:globals(client)})
   await wrapper.get('[name="document_title"]').setValue('Архив')
+  await wrapper.get('[name="source_kind"]').setValue('paper_original')
   await wrapper.get('[name="archive_reason"]').setValue('По описи')
   await wrapper.get('[data-archive-source-form]').trigger('submit');await flushPromises()
   await wrapper.setProps({expectedVersion:12})
@@ -367,6 +371,7 @@ it('reapplies the visible filter after a successful link instead of displaying a
   const before=reads.length
   await wrapper.get('[data-open-document-source]').trigger('click')
   await wrapper.get('[name="document_title"]').setValue('Заключение новое')
+  await wrapper.get('[name="source_kind"]').setValue('paper_original')
   await wrapper.get('[name="archive_reason"]').setValue('Дослано')
   await wrapper.get('[data-archive-source-form]').trigger('submit');await flushPromises()
   expect(reads.length).toBeGreaterThan(before)

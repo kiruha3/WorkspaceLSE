@@ -59,18 +59,18 @@ class ResultData(StrictSerializer):
 
 class ResultInput(ResultData):
     expected_version=serializers.IntegerField(min_value=1)
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class CompleteInput(StrictSerializer):
     expected_version=serializers.IntegerField(min_value=1)
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
     result_id=serializers.UUIDField()
 
 
 class ReopenInput(StrictSerializer):
     expected_version=serializers.IntegerField(min_value=1)
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class ReopeningOutput(serializers.ModelSerializer):
@@ -91,12 +91,12 @@ class ReturnData(StrictSerializer):
 
 class ReturnInput(ReturnData):
     expected_version=serializers.IntegerField(min_value=1)
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class CorrectInput(StrictSerializer):
     expected_version=serializers.IntegerField(min_value=1)
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
     correction_kind=serializers.ChoiceField(choices=["result","return"])
     result=ResultData(required=False)
     decided_on=serializers.DateField(required=False)

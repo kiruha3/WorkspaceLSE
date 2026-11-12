@@ -41,6 +41,7 @@ it('creates only when persist is requested and warns before dropping a new docum
  const writes:string[]=[]
  const wrapper=await open(async(path,init)=>{if(String(path).endsWith('/csrf/'))return json({csrf_token:'t'});if(init?.method==='POST'){writes.push(String(path));return json(doc)}return json(page([]))})
  await wrapper.get('[data-document-new]').trigger('click');await flushPromises();await wrapper.get('[name="document_title"]').setValue('Новое постановление')
+ await wrapper.get('[name="source_kind"]').setValue('paper_original')
  expect(writes).toEqual([]);vi.spyOn(window,'confirm').mockReturnValue(false)
  await wrapper.get('[data-document-existing]').trigger('click');expect(wrapper.props('mode')).toBe('new')
  const prepared=await wrapper.vm.persist();expect(prepared.id).toBe('doc-a');expect(writes).toEqual(['/api/v1/documents/'])

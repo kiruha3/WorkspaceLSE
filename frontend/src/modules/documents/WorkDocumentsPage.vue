@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLiveSearch } from '../../shared/ui/useLiveSearch'
 import {computed,onBeforeUnmount,ref,watch} from 'vue'
 import {RouterLink,useRoute,useRouter} from 'vue-router'
 import {ApiError,LatestRequest,useApi} from '../../api/client'
@@ -41,13 +42,16 @@ function apply(data:WorkDocumentLibrary){
   if(previous&&(versionUpload.value?.dirty||versionUpload.value?.busy)){retainedSelection.value=previous;return}
   retainedSelection.value=null;selectedId.value=data.results[0]?.document.id??''
 }
+const liveSearch = useLiveSearch(() => filter(), () => requests.cancel())
 async function load(){
+  liveSearch.cancel()
+
   loading.value=true;error.value=null
   const query=new URLSearchParams({page:String(page.value)});if(search.value.trim())query.set('search',search.value.trim());if(kind.value)query.set('kind',kind.value)
   try{await requests.run(signal=>api.request<WorkDocumentLibrary>(documentPath(String(route.params.id))+'?'+query,{signal}),data=>{apply(data);loading.value=false})}
   catch(cause){error.value=cause;loading.value=false}
 }
-function filter(){page.value=1;void load()}
+function filter(){liveSearch.cancel();page.value=1;void load()}
 function saved(response:WorkDocumentResponse){
   requests.cancel();loading.value=false
   if(value.value&&(search.value.trim()||kind.value||page.value>1)){
@@ -62,7 +66,6 @@ function choose(row:WorkDocumentEntry){if(anyBusy.value||versionUpload.value?.di
 function startDetach(id:string){if(!value.value||!selected.value||anyBusy.value)return;detach.value={id,title:selected.value.document.title,reason:'',version:value.value.context.version};detachAttempt.value=null;detachConflict.value=false;detachError.value=null}
 async function saveDetach(){
   if(!detach.value||detachBusy.value||detachConflict.value||!value.value?.can_unlink)return
-  if(!detach.value.reason.trim()){detachError.value=new ApiError(400,'validation_error','Укажите причину снятия связи.');return}
   if(!detachAttempt.value)detachAttempt.value={key:newCommandKey(),body:{expected_version:detach.value.version,reason:detach.value.reason.trim()}}
   detachBusy.value=true;detachError.value=null
   try{const result=await api.request<WorkDocumentResponse>(documentPath(String(route.params.id))+detach.value.id+'/detach/',{method:'POST',body:detachAttempt.value.body,headers:{'Idempotency-Key':detachAttempt.value.key}});detach.value=null;detachAttempt.value=null;saved(result)}
@@ -87,7 +90,7 @@ onBeforeUnmount(()=>requests.cancel())
   <section v-if="value" class="card">
     <div class="section-heading"><div><h2>Документы и связи</h2><p class="muted compact">Версия работы {{value.context.version}} · {{value.count}} документов по текущему фильтру</p></div><div class="button-row"><button type="button" @click="load">Обновить архив</button><button v-if="value.can_link" data-open-document-source class="button-primary" type="button" :disabled="anyBusy" @click="openMode('source')">Добавить документ</button><button v-if="value.can_link&&value.can_create" type="button" :disabled="anyBusy" @click="openMode('batch')">Загрузить файлы / папку</button></div></div>
     <p v-if="!value.can_link" class="muted">Только просмотр. Для добавления связи требуется отдельное право «Связывать документы с экспертизой»; автоматически оно не выдаётся.</p>
-    <form data-archive-filters class="form-columns archive-filters" @submit.prevent="filter"><label>Поиск по названию<input v-model="search" name="archive_search"/></label><label>Вид документа<select v-model="kind" name="archive_kind"><option value="">Все виды</option><option v-for="option in value.document_kinds" :key="option.code" :value="option.code">{{option.name}}</option></select></label><button type="submit">Применить фильтры</button></form>
+    <form data-archive-filters class="form-columns archive-filters" @submit.prevent="filter"><label>Поиск по названию<input v-model="search" name="archive_search" @input="liveSearch.schedule" @compositionend="liveSearch.schedule" /></label><label>Вид документа<select v-model="kind" name="archive_kind"><option value="">Все виды</option><option v-for="option in value.document_kinds" :key="option.code" :value="option.code">{{option.name}}</option></select></label><button type="submit">Применить фильтры</button></form>
     <div v-if="mode" class="inset-form"><div class="section-heading"><h2>{{mode==='batch'?'Пакетная загрузка':'Добавить документ'}}</h2><button type="button" :disabled="anyBusy" @click="close">Закрыть форму</button></div>
       <DocumentSourceForm v-if="mode==='source'" ref="source" :complex="Boolean(value.context.complex_group_id)" :allow-complex="Boolean(value.can_link_complex)" :work-id="value.context.id" :expected-version="value.context.version" :department-id="value.context.department.id" :kind-options="value.document_kinds" :authorized="value.can_link" :allow-create="value.can_create" @saved="saved" @refresh="load"/>
       <DocumentBatchUpload v-else ref="batch" :work-id="value.context.id" :expected-version="value.context.version" :department-id="value.context.department.id" :kind-options="value.document_kinds" :authorized="value.can_link" :allow-create="value.can_create" @saved="saved" @refresh="load"/>
@@ -103,7 +106,7 @@ onBeforeUnmount(()=>requests.cancel())
         <div v-if="selected.extra_links.length" class="inset-form"><h4>Дополнительные связи этой работы</h4><div v-for="item in selected.extra_links" :key="item.id"><p>{{item.note||'Дополнительный документ'}}</p><button v-if="value.can_unlink" type="button" :data-detach-link="item.id" :disabled="anyBusy" @click="startDetach(item.id)">Снять эту связь</button></div><p class="muted compact">Файл и связи с другими работами не удаляются. Основание поступления и другие процессные связи здесь снять нельзя.</p></div>
       </section>
     </div>
-    <form v-if="detach" data-detach-document class="inset-form form-grid" @submit.prevent="saveDetach"><h3>Снять дополнительную связь</h3><p>{{detach.title}}</p><label>Причина<textarea v-model="detach.reason" :disabled="detachBusy||Boolean(detachAttempt)" required/></label><ApiMessage :error="detachError"/><div v-if="detachConflict" class="message"><button type="button" @click="load">Обновить архив для сверки</button><button type="button" @click="acceptDetach">Принять версию {{value.context.version}} работы</button></div><div class="button-row"><button type="submit" :disabled="detachBusy||detachConflict||!value.can_unlink">{{detachAttempt?'Повторить ту же попытку':'Снять связь, не удаляя файл'}}</button><button type="button" :disabled="detachBusy" @click="detach=null;detachAttempt=null">Отмена</button></div></form>
+    <form v-if="detach" data-detach-document class="inset-form form-grid" @submit.prevent="saveDetach"><h3>Снять дополнительную связь</h3><p>{{detach.title}}</p><label>Причина (необязательно)<textarea v-model="detach.reason" :disabled="detachBusy||Boolean(detachAttempt)"/></label><ApiMessage :error="detachError"/><div v-if="detachConflict" class="message"><button type="button" @click="load">Обновить архив для сверки</button><button type="button" @click="acceptDetach">Принять версию {{value.context.version}} работы</button></div><div class="button-row"><button type="submit" :disabled="detachBusy||detachConflict||!value.can_unlink">{{detachAttempt?'Повторить ту же попытку':'Снять связь, не удаляя файл'}}</button><button type="button" :disabled="detachBusy" @click="detach=null;detachAttempt=null">Отмена</button></div></form>
     <details v-if="value.detached_links.length" class="inset-form"><summary>История снятых связей · {{value.detached_links.length}}</summary><article v-for="item in value.detached_links" :key="item.id"><strong>{{item.document&&'title' in item.document?item.document.title:'Документ ограниченного доступа'}}</strong><p>{{item.detach_reason}}</p><small>{{new Date(item.detached_at).toLocaleString('ru-RU')}}</small><button v-if="item.document&& !('restricted' in item.document)" type="button" :data-history-preview="item.id" @click="historyPreview=historyPreview===item.id?'':item.id">{{historyPreview===item.id?'Закрыть просмотр':'Просмотреть документ из истории'}}</button><BasisPreview v-if="historyPreview===item.id" :document="item.document" heading="Документ снятой дополнительной связи"/></article></details>
   </section>
   <p v-else-if="!loading" class="state"><button type="button" @click="load">Повторить загрузку архива</button></p>

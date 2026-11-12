@@ -17,6 +17,24 @@ from .production import locked_work,validate_event_date
 from .results import create_revision,confirm_result,create_closure,return_values
 
 
+def imported_assignments(work, history):
+    assignments = list(work.assignments.select_for_update().all())
+    origin = {'history_id': str(history.pk), 'source_row_id': str(history.source_row_id)}
+    if any(a.ended_at is not None or a.qualification_snapshot.get('historical_import') != origin for a in assignments):
+        raise CommandConflict('В работе уже есть назначения нового учёта; автоматическое смешение истории не выполняется.')
+    return assignments
+
+
+def validate_imported_composition(assignments, specialty, is_commission):
+    if not assignments: return
+    if is_commission and len(assignments) < 2 or not is_commission and len(assignments) != 1:
+        raise ValidationError({'is_commission': 'Подтверждаемый состав не соответствует перенесённым исполнителям.'})
+    # These assignments already happened and have a qualification snapshot.
+    # Activation confirms the source basis, not a second appointment today.
+    if any(a.qualification_snapshot.get('specialty_id') != str(specialty.pk) for a in assignments):
+        raise ValidationError({'specialty_id': 'Специальность не соответствует сохранённым назначениям.'})
+
+
 def require_activation(actor,work):
     require_work(actor,'expertise.view',work)
     require(actor,'imports.history.activate')
@@ -71,7 +89,8 @@ def _activate_history(*,actor,expertise_id,data,key,payload):
             history=HistoricalWork.objects.select_for_update().filter(expertise=work).first()
             if work.origin_kind!='historical' or history is None:raise ValidationError('Это не историческая работа с подтверждаемым источником.')
             if history.operational:raise CommandConflict('Продолжение учёта уже подтверждено. Обновите карточку.')
-            if any(manager.exists() for manager in (work.assignments,work.suspensions,work.deadline_events,work.result_revisions,work.closures)):
+            assignments = imported_assignments(work, history)
+            if any(manager.exists() for manager in (work.suspensions,work.deadline_events,work.result_revisions,work.closures)):
                 raise CommandConflict('В работе уже есть события нового учёта; автоматическое смешение истории не выполняется.')
             specialty=data['specialty']
             if work.specialty_id:
@@ -85,6 +104,7 @@ def _activate_history(*,actor,expertise_id,data,key,payload):
                 group=get_object_or_404(ComplexGroup.objects.select_for_update(),pk=group.pk)
                 if group.material_id!=work.material_id:raise ValidationError({'complex_group_id':'Комплекс относится к другому материалу.'})
             intervals=validate_intervals(work,data)
+            validate_imported_composition(assignments, specialty, data['is_commission'])
             if getattr(work,'classification',None) is not None and data['appointment_nature']!=work.appointment_nature:
                 raise ValidationError({'appointment_nature':'Сначала явно уточните характер назначения в разделе классификации; продолжение истории не заменяет ручную классификацию.'})
             if work.state=='completed':

@@ -16,7 +16,7 @@ const attempt = ref<{ key: string; body: { expected_version: number; reason: str
 const authorized = computed(() => props.expertise.state === 'completed' && props.expertise.allowed_actions.includes('expertise.reopen'))
 const history = computed(() => props.expertise.reopening_history ?? [])
 const conflict = computed(() => error.value instanceof ApiError && error.value.status === 409)
-const valid = computed(() => !busy.value && (uncertain.value ? Boolean(attempt.value) : authorized.value && Boolean(reason.value.trim()) && !conflict.value))
+const valid = computed(() => !busy.value && (uncertain.value ? Boolean(attempt.value) : authorized.value && !conflict.value))
 const confirmLeave = useDirtyGuard(() => editing.value && Boolean(reason.value.trim() || attempt.value), inject(routerKey, undefined), () => busy.value)
 const date = (value: string | null) => value ? value.split('-').reverse().join('.') : 'Не указана'
 const time = (value: string) => new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Krasnoyarsk', dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
@@ -51,7 +51,7 @@ async function submit() {
     <form v-if="editing" data-reopen-form class="reopen-form" @submit.prevent="submit">
       <p class="message">Завершение будет отменено для текущего учёта и нового расчёта отчёта. Если осталась незакрытая приостановка, работа вернётся в состояние «Приостановлена»; иначе — «В работе». Согласование руководителем не требуется.</p>
       <HelpTip label="Историческая работа" v-if="expertise.historical && !expertise.historical.operational">Подтверждение основания для нового учёта и назначение эксперта выполняются отдельно. Этот возврат не создаёт их автоматически.</HelpTip>
-      <label>Причина возврата<textarea v-model="reason" name="reopen_reason" rows="3" required :disabled="busy || uncertain" /></label>
+      <label>Причина возврата (необязательно)<textarea v-model="reason" name="reopen_reason" rows="3" :disabled="busy || uncertain" /></label>
       <ApiMessage :error="error" />
       <p v-if="uncertain" class="message">Результат запроса неизвестен. Повторите ту же команду: второй возврат не создастся.</p>
       <div v-if="conflict" class="message"><p>Данные изменились. Обновите серверные сведения, проверьте состояние и явно примите новую версию.</p><button type="button" :disabled="busy" @click="emit('refresh')">Обновить серверные сведения</button> <button v-if="expertise.version !== expectedVersion && authorized" data-reopen-use-version type="button" :disabled="busy" @click="acceptVersion">Использовать обновлённую версию {{ expertise.version }}</button></div>

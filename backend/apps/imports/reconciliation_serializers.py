@@ -11,7 +11,7 @@ class ReconciliationFilters(BatchFilters):
 
 class SelectionInput(StrictSerializer):
     expected_version=serializers.IntegerField(min_value=0)
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
     department_id=serializers.PrimaryKeyRelatedField(source="department",queryset=Department.objects.all())
     specialty_id=serializers.PrimaryKeyRelatedField(source="specialty",queryset=Specialty.objects.all(),allow_null=True)
     employee_ids=serializers.ListField(child=serializers.UUIDField(),max_length=100,allow_empty=True)
@@ -35,7 +35,7 @@ class SelectedRow(StrictSerializer):
 
 
 class ApplyInput(StrictSerializer):
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
     selections=SelectedRow(many=True,allow_empty=False,max_length=1000)
 
     def validate_selections(self,values):

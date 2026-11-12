@@ -14,7 +14,7 @@ class PastSuspensionInput(StrictSerializer):
 
 class HistoryActivationInput(StrictSerializer):
     expected_version=serializers.IntegerField(min_value=1)
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
     basis_document_id=serializers.PrimaryKeyRelatedField(source='basis_document',queryset=Document.objects.all())
     specialty_id=serializers.PrimaryKeyRelatedField(source='specialty',queryset=Specialty.objects.all(),required=False,allow_null=True,default=None)
     appointment_nature=serializers.ChoiceField(choices=['primary','repeated','additional'])

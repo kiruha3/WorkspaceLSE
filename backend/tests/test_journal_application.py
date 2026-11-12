@@ -43,7 +43,7 @@ def test_saved_selection_is_versioned_idempotent_and_not_a_business_write(employ
 
 
 @pytest.mark.parametrize('override',[
-    {'reason':' '},{'expected_version':-1},{'unexpected':True},{'complex_known':False,'complex_group_key':'complex-a'},
+    {'expected_version':-1},{'unexpected':True},{'complex_known':False,'complex_group_key':'complex-a'},
     {'is_commission':True,'employee_ids':[]},{'statistics_confirmed':True},
 ])
 def test_selection_rejects_unconfirmed_or_contradictory_inputs(employee_factory,grant,settings,tmp_path,override):
@@ -168,13 +168,12 @@ def test_current_rights_checked_on_replay_and_cannot_be_replaced_by_preview_righ
     assert client.get(f'/api/v1/imports/{batch.pk}/reconciliation/').status_code==200
 
 
-@pytest.mark.parametrize('case',['empty','duplicate','too_many','unknown_field','no_reason'])
+@pytest.mark.parametrize('case',['empty','duplicate','too_many','unknown_field'])
 def test_apply_strict_packet_bounds_are_checked_before_any_creation(employee_factory,grant,settings,tmp_path,case):
     client,_,batch,_,_=application_setup(employee_factory,grant,settings,tmp_path)
     source=batch.rows.get();one={'row_id':str(source.pk),'expected_selection_version':1}
     overrides={'selections':[] if case=='empty' else [one,one] if case=='duplicate' else [{'row_id':str(uuid.uuid4()),'expected_selection_version':1} for _ in range(1001)] if case=='too_many' else [one]}
     if case=='unknown_field':overrides['automatic']=True
-    if case=='no_reason':overrides['reason']=' '
     assert apply_rows(client,batch,[source],**overrides).status_code==400
     assert not Expertise.objects.exists()
 

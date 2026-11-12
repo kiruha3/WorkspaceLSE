@@ -3,10 +3,12 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
+AIS_STAND_MODE = os.getenv("AIS_STAND_MODE", "0") == "1"
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "local-test-key-not-for-deployment")
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost,testserver").split(",")
 ROOT_URLCONF = "config.urls"
 INSTALLED_APPS = [
+    "config.admin.LaboratoryAdminConfig", "django.contrib.messages", "django.contrib.staticfiles",
     "django.contrib.auth", "django.contrib.contenttypes", "django.contrib.sessions",
     "rest_framework", "apps.accounts", "apps.references", "apps.personnel", "apps.audit",
     "apps.documents", "apps.intake", "apps.expertises", "apps.correspondence", "apps.issuance", "apps.imports", "apps.reports",
@@ -17,7 +19,18 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
 ]
+TEMPLATES = [{
+    "BACKEND": "django.template.backends.django.DjangoTemplates",
+    "DIRS": [BASE_DIR / "templates"],
+    "APP_DIRS": True,
+    "OPTIONS": {"context_processors": [
+        "django.template.context_processors.request",
+        "django.contrib.auth.context_processors.auth",
+        "django.contrib.messages.context_processors.messages",
+    ]},
+}]
 AUTH_USER_MODEL = "accounts.User"
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME":"django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

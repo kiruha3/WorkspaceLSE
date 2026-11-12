@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLiveSearch } from './ui/useLiveSearch'
 import {computed,onBeforeUnmount,ref,watch} from 'vue'
 import {ApiError,LatestRequest,useApi} from '../api/client'
 import type {BasisDocument,DocumentKind,DocumentLink,Page} from '../api/types'
@@ -40,7 +41,10 @@ async function hydrate(){
   cache.set(id,doc);notify(doc)
  })}catch(cause){error.value=cause}
 }
+const liveSearch = useLiveSearch(() => load(), () => requests.cancel())
 async function load(page=1){
+  liveSearch.cancel()
+
  if(locked.value||!canRead.value||props.mode!=='existing')return
  loading.value=true;error.value=null
  const query=new URLSearchParams({search:search.value.trim(),page:String(page)})
@@ -61,6 +65,7 @@ function choose(event:Event){
 function changeMode(mode:string){
  if(locked.value||mode===props.mode||mode==='new'&&!canCreate.value)return
  if(props.mode==='new'&&form.value?.dirty&&!window.confirm('Есть несохранённый новый документ. Перейти к выбору существующего?'))return
+ liveSearch.cancel()
  requests.cancel();loading.value=false;error.value=null;emit('update:mode',mode);emit('changed')
 }
 async function persist():Promise<BasisDocument>{
@@ -81,7 +86,7 @@ defineExpose({persist,dirty,uploadConflict})
 <template>
  <fieldset class="document-picker form-grid" :disabled="locked" data-document-picker>
   <legend>{{heading||'Документ'}}</legend>
-  <div class="document-actions"><button v-if="mode==='new'" data-document-existing type="button" @click="changeMode('existing')">Выбрать сохранённый</button><template v-else><label class="grow">Поиск по названию или имени файла<input v-model="search" data-document-search type="search" maxlength="500" :disabled="!canRead" @keydown.enter.prevent="load()"/></label><button data-document-find type="button" :disabled="!canRead" @click="load()">Найти</button></template><button v-if="canCreate&&mode!=='new'" data-document-new type="button" @click="changeMode('new')">+ Добавить новый</button></div>
+  <div class="document-actions"><button v-if="mode==='new'" data-document-existing type="button" @click="changeMode('existing')">Выбрать сохранённый</button><template v-else><label class="grow">Поиск по названию или имени файла<input v-model="search" data-document-search type="search" maxlength="500" :disabled="!canRead" @input="liveSearch.schedule" @compositionend="liveSearch.schedule" @keydown.enter.prevent="load()" /></label><button data-document-find type="button" :disabled="!canRead" @click="load()">Найти</button></template><button v-if="canCreate&&mode!=='new'" data-document-new type="button" @click="changeMode('new')">+ Добавить новый</button></div>
   <template v-if="mode==='existing'">
    <ApiMessage :error="error"/><p v-if="loading" role="status" class="muted">Поиск документов…</p><p v-if="!canRead" class="muted">Для выбора сохранённого документа требуется право просмотра документов.</p>
    <label>Сохранённый документ<select :value="modelValue" :name="name" data-document-choice :required="required" :disabled="!canRead" @change="choose"><option value="">{{required?'Выберите документ':'Не выбран'}}</option><option v-if="modelValue&&!options.some(doc=>doc.id===modelValue)" :value="modelValue">{{selected?show(selected):'Ранее выбранный документ'}}</option><option v-for="doc in options" :key="doc.id" :value="doc.id" :disabled="!usable(doc)">{{show(doc)}}{{!usable(doc)?' · Нужен сохранённый файл':''}}</option></select></label>

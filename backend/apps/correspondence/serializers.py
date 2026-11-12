@@ -44,17 +44,17 @@ class LetterCreate(ContentInput):
     direction = serializers.ChoiceField(choices=["incoming", "outgoing"])
     department_id = serializers.PrimaryKeyRelatedField(source="department", queryset=Department.objects.all(), allow_null=True, required=False, default=None)
     parent_id = serializers.UUIDField(allow_null=True, required=False, default=None)
-    reason = serializers.CharField()
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class DraftInput(ContentInput):
     expected_version = serializers.IntegerField(min_value=1)
-    reason = serializers.CharField()
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class AttachmentInput(StrictSerializer):
     expected_version = serializers.IntegerField(min_value=1)
-    reason = serializers.CharField()
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
     document_id = serializers.PrimaryKeyRelatedField(source="document", queryset=Document.objects.all())
 
 

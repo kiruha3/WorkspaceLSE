@@ -44,7 +44,7 @@ const documentKindOptions = computed<{ value: DocumentKind; label: string }[]>((
   ? [{ value: 'deadline_request', label: 'Запрос срока' }]
   : [{ value: 'deadline_agreement', label: 'Подтверждение согласования срока' }, { value: 'resolution', label: 'Постановление' }, { value: 'decision', label: 'Определение' }])
 const valid = computed(() => {
-  if (!action.value || (!authorized.value && !recovering.value) || !reason.value.trim()) return false
+  if (!action.value || (!authorized.value && !recovering.value)) return false
   if (recovering.value) return true
   if (!factualOn.value || factualOn.value < minimumDate.value || factualOn.value > today()) return false
   if (action.value === 'deadline') {
@@ -108,14 +108,14 @@ function time(value: string) { return new Intl.DateTimeFormat('ru-RU', { timeZon
       <fieldset class="form-grid" :disabled="saving || (!authorized && !recovering)">
         <label v-if="action === 'deadline'">Вид события<select v-model="kind" name="deadline_kind"><option v-for="(label, value) in labels" :key="value" :value="value">{{ label }}</option></select></label>
         <div class="form-columns"><label>{{ action === 'suspend' ? 'Дата приостановки' : action === 'resume' ? 'Дата возобновления' : 'Фактическая дата события' }}<input v-model="factualOn" :name="action === 'deadline' ? 'recorded_on' : action === 'suspend' ? 'suspended_on' : 'resumed_on'" type="date" :min="minimumDate" :max="today()" required /></label><label v-if="action === 'deadline'">{{ kind === 'request' ? 'Запрошенный срок исполнения' : 'Срок исполнения' }}<input v-model="dueOn" name="due_on" type="date" :min="receivedOn" required /></label></div>
-        <label>Причина / основание<textarea v-model="reason" name="production_reason" rows="3" required /></label>
+        <label>Причина / основание (необязательно)<textarea v-model="reason" name="production_reason" rows="3" /></label>
         <template v-if="action === 'deadline'">
           <label>{{ kind === 'agreement' ? 'Документ согласования (обязательно)' : 'Документ события (при наличии)' }}<select v-model="documentId" name="production_document"><option v-if="kind !== 'agreement'" value="">Без документа</option><option value="new">Подготовить новый документ</option><option v-for="document in documentOptions" :key="document.id" :value="document.id">{{ document.title || document.id }}</option></select></label>
           <BasisDocumentForm v-if="documentId === 'new'" :key="kind" ref="documentForm" :department-id="expertise.department.id" :busy="saving" :heading="kind === 'agreement' ? 'Документ согласования срока' : 'Документ события срока'" :kind-options="documentKindOptions" @changed="invalidateAttempt" />
           <HelpTip label="Согласование срока" v-if="kind === 'agreement'">Подтверждение: заявленный бумажный оригинал или сохранённая копия. Документ запроса не подтверждает согласование.</HelpTip>
         </template>
       </fieldset>
-      <HelpTip label="Даты событий">Фактические даты — от поступления до сегодняшнего дня учреждения (Asia/Krasnoyarsk). Для прошлого события укажите причину. Срок исполнения может быть будущим.</HelpTip>
+      <HelpTip label="Даты событий">Фактические даты — от поступления до сегодняшнего дня учреждения (Asia/Krasnoyarsk). Причину прошлого события можно указать при необходимости. Срок исполнения может быть будущим.</HelpTip>
       <div class="button-row"><button type="submit" class="button-primary" :formnovalidate="recovering" :disabled="saving || !valid">{{ saving ? 'Сохранение…' : recovering ? 'Повторить ту же попытку' : 'Сохранить событие' }}</button><button type="button" :disabled="saving" @click="cancel">Отмена</button></div>
     </form>
 <details data-suspension-history class="subsection compact-disclosure"><summary><h3>Приостановки и возобновления</h3></summary><div class="compact-disclosure-body"><p v-if="expertise.historical && !expertise.historical.suspension_history_complete" class="muted compact">Полнота исторических приостановок неизвестна. <HelpTip label="Исторические приостановки">Отсутствие записанных событий не означает отсутствие пауз.</HelpTip></p><div v-for="pause in expertise.suspensions" :key="pause.id" class="assignment-line"><strong>{{ pause.suspended_on }} → {{ pause.resumed_on || (closed ? expertise.production.counted_through ? `Ограничена окончанием ${expertise.production.counted_through}` : 'Окончание неизвестно; возобновление не подтверждено' : 'Открытая приостановка') }}</strong><p class="compact">{{ pause.reason }}</p><small>Приостановку внёс {{ pause.actor.full_name }} · {{ time(pause.created_at) }}</small><template v-if="pause.resumed_on"><p class="compact">{{ pause.resume_reason }}</p><small>Возобновление внёс {{ pause.resumed_by?.full_name || 'Неизвестно' }}{{ pause.resumed_recorded_at ? ` · ${time(pause.resumed_recorded_at)}` : '' }}</small></template></div><p v-if="!expertise.suspensions.length" class="muted compact">События приостановок пока не записаны.</p></div></details>

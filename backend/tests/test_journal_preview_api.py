@@ -64,7 +64,7 @@ def test_preview_replay_is_one_batch_file_event_and_minimal_receipt(employee_fac
     assert send_preview(client,csv_source([row(B="152/4-1-26")])).status_code==409
 
 
-@pytest.mark.parametrize("key,reason,extra",[(None,"Причина",{}),("","Причина",{}),("a"*101,"Причина",{}),("k","",{}),("k","Причина",{"apply":True})])
+@pytest.mark.parametrize("key,reason,extra",[(None,"Причина",{}),("","Причина",{}),("a"*101,"Причина",{}),("k","Причина",{"apply":True})])
 def test_preview_requires_explicit_command_contract(employee_factory,grant,settings,tmp_path,key,reason,extra):
     settings.MEDIA_ROOT=tmp_path;client,_=preview_setup(employee_factory,grant)
     assert send_preview(client,key=key,reason=reason,**extra).status_code==400

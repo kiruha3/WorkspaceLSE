@@ -6,7 +6,7 @@ from apps.references.models import LetterJournal, DispatchChannel, ControlClosur
 
 class CommandInput(StrictSerializer):
     expected_version = serializers.IntegerField(min_value=1)
-    reason = serializers.CharField()
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class RegisterInput(CommandInput):

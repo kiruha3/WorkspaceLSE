@@ -21,7 +21,7 @@ class ReceiptAmend(VersionedSerializer):
     sender_name=serializers.CharField(max_length=500,allow_blank=True,required=False)
     basis_document_id=serializers.PrimaryKeyRelatedField(queryset=Document.objects.all(),source="basis_document",allow_null=True,required=False)
     department_id=serializers.PrimaryKeyRelatedField(queryset=Department.objects.filter(is_active=True),source="department",allow_null=True,required=False)
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class ReceiptOutput(serializers.ModelSerializer):

@@ -13,7 +13,7 @@ class PreviousConclusionInput(StrictSerializer):
 
 class ClassificationInput(StrictSerializer):
     expected_version=serializers.IntegerField(min_value=1)
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
     appointment_nature=serializers.ChoiceField(choices=['primary','repeated','additional'],allow_null=True)
     previous_complete=serializers.BooleanField()
     previous_conclusions=PreviousConclusionInput(many=True,max_length=100)

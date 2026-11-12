@@ -246,7 +246,7 @@ describe('correspondence workplace', () => {
     const pinia = sessionWith('letters.view'), router = createRouter({ history: createMemoryHistory(), routes: ['/workspace', '/letters'].map(path => ({ path, component: { template: '<p />' } })) }); await router.push('/workspace')
     const wrapper = mount(HomePage, { global: { plugins: [pinia, router] } }); expect(wrapper.find('a[href="/letters"]').exists()).toBe(false); useSessionStore().user!.supported_modules = ['correspondence']; await flushPromises(); expect(wrapper.find('a[href="/letters"]').exists()).toBe(true); useSessionStore().user!.access = {}; await flushPromises(); expect(wrapper.find('a[href="/letters"]').exists()).toBe(false); wrapper.unmount()
   })
-  it('preserves an unsaved content draft when an independent attachment command succeeds', async () => {
+  it.each(['', 'Приложение'])('preserves an unsaved content draft when an independent attachment with an optional reason (%s) succeeds', async reason => {
     const value = { ...letter, allowed_actions: ['letters.draft', 'letters.attach'] }
     const searches: string[] = [], writes: unknown[] = []
     const { wrapper } = await open(value, async (input, init) => { if (String(input).endsWith('/csrf/')) return json({ csrf_token: 'token' }); if (String(input).includes('/documents/?')) { searches.push(String(input)); return json(page([{ ...basis, title: 'Скан из суда' }])) } if (init?.method === 'POST') { writes.push(JSON.parse(String(init.body))); return json({ event: { id: 'a1' }, letter: { ...value, version: 2, attachments: [{ id: 'a1', document: basis, actor, created_at: content.created_at, reason: 'Приложение' }] } }) } if (String(input).includes('-options/')) return json(page([])); return json(String(input).includes('/options/') ? options : value) }, '/letters/letter-1', ['letters.view', 'letters.draft', 'documents.view'])
@@ -256,8 +256,8 @@ describe('correspondence workplace', () => {
     expect(searches.some(path => path.includes('search=%D0%A1%D0%BA%D0%B0%D0%BD'))).toBe(true)
     expect(wrapper.get('[name="attachment_document_id"]').text()).toContain('Скан из суда')
     expect(writes).toEqual([])
-    await wrapper.get('[name="attachment_document_id"]').setValue(basis.id); await wrapper.get('[name="attachment_reason"]').setValue('Приложение'); await wrapper.get('[data-attach-letter]').trigger('submit'); await flushPromises()
-    expect(writes).toEqual([{ expected_version: 1, reason: 'Приложение', document_id: basis.id }])
+    await wrapper.get('[name="attachment_document_id"]').setValue(basis.id); expect(wrapper.get('[name="attachment_reason"]').attributes('required')).toBeUndefined(); await wrapper.get('[name="attachment_reason"]').setValue(reason); await wrapper.get('[data-attach-letter]').trigger('submit'); await flushPromises()
+    expect(writes).toEqual([{ expected_version: 1, reason, document_id: basis.id }])
     expect(wrapper.get('[name="subject"]').element).toHaveProperty('value', 'Ещё не сохранённая тема'); wrapper.unmount()
   })
 })

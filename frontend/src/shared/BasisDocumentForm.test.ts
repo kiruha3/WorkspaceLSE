@@ -5,7 +5,7 @@ import { json } from '../test/fixtures'
 import { basis } from '../test/intakeFixtures'
 import BasisDocumentForm from './BasisDocumentForm.vue'
 
-it('registers an explicit URL without uploading or changing the legacy default payload', async () => {
+it('starts with an upload and still registers an explicit paper original or URL without uploading', async () => {
   const writes: Record<string,unknown>[]=[]
   const client=new ApiClient(async (input,init)=>{
     if(String(input).endsWith('/csrf/'))return json({csrf_token:'token'})
@@ -13,6 +13,11 @@ it('registers an explicit URL without uploading or changing the legacy default p
     return json({...basis,...writes.at(-1),source_url:writes.at(-1)?.source_url??''},201)
   })
   const old=mount(BasisDocumentForm,{props:{departmentId:'d-4'},global:{provide:{[apiKey as symbol]:client}}})
+  expect(old.get('[name="source_kind"]').element).toHaveProperty('value','uploaded_copy')
+  expect(old.get('[name="source_kind"] option').attributes('value')).toBe('uploaded_copy')
+  expect(old.vm.dirty).toBe(false)
+  expect(old.find('input[type="file"]').exists()).toBe(true)
+  await old.get('[name="source_kind"]').setValue('paper_original')
   await old.get('[name="document_title"]').setValue('Определение')
   await old.vm.persist()
   expect(writes[0]).toEqual({kind:'resolution',title:'Определение',source_kind:'paper_original',department_id:'d-4'})
@@ -47,6 +52,7 @@ it('requires an actual scan for a confirmation even when the source is a paper o
   const writes: string[] = []
   const client = new ApiClient(async input => { writes.push(String(input)); return json(basis,201) })
   const wrapper = mount(BasisDocumentForm,{props:{departmentId:'d-4',requireFile:true,heading:'Подтверждение результата'},global:{provide:{[apiKey as symbol]:client}}})
+  await wrapper.get('[name="source_kind"]').setValue('paper_original')
   expect(wrapper.find('input[type="file"]').exists()).toBe(true)
   await wrapper.get('[name="document_title"]').setValue('Итоговый документ')
   await expect(wrapper.vm.persist()).rejects.toThrow('Выберите файл документа')

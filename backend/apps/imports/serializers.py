@@ -4,11 +4,11 @@ from apps.accounts.serializers import StrictSerializer
 
 class PreviewInput(StrictSerializer):
     file=serializers.FileField()
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class GooglePreviewInput(StrictSerializer):
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
     spreadsheet_id=serializers.CharField(max_length=200)
     gid=serializers.CharField(max_length=10)
 

@@ -41,7 +41,7 @@ function choose(item:ReconciliationRow,on:boolean){
  resetAttempt()
 }
 async function submit(){
- if(busy.value||(!props.canApply&&!uncertain.value)||!reason.value.trim()||!Object.keys(selected.value).length)return
+ if(busy.value||(!props.canApply&&!uncertain.value)||!Object.keys(selected.value).length)return
  busy.value=true;error.value=null
  try{
   if(!attempt.value)attempt.value={key:newCommandKey(),body:{reason:reason.value.trim(),updates:Object.values(selected.value).sort((a,b)=>a.row_id.localeCompare(b.row_id)).map(({number,...entry})=>entry)}}
@@ -68,8 +68,8 @@ onBeforeUnmount(()=>{active=false})
   <form v-if="Object.keys(selected).length" data-update-form class="form-grid" @submit.prevent="submit">
    <h3>Обновить выбранные записи · {{Object.keys(selected).length}}</h3><ul><li v-for="entry in selected" :key="entry.row_id">{{entry.number}} · версия работы {{entry.expected_work_version}} · выбор {{entry.expected_selection_version}}</li></ul>
    <ApiMessage :error="error"/><p v-if="uncertain" class="message">Ответ не получен. Повтор отправляет прежний пакет и ключ; не создавайте второй пакет для той же попытки.</p>
-   <label>Основание исправлений<textarea v-model="reason" name="update_reason" required rows="2" :disabled="busy||uncertain||!canApply"/></label>
-   <button class="button-primary align-start" :disabled="busy||(!canApply&&!uncertain)||!reason.trim()">{{busy?'Обновление…':uncertain?'Повторить ту же попытку':'Подтвердить обновление записей'}}</button>
+   <label>Основание исправлений (необязательно)<textarea v-model="reason" name="update_reason" rows="2" :disabled="busy||uncertain||!canApply"/></label>
+   <button class="button-primary align-start" :disabled="busy||(!canApply&&!uncertain)">{{busy?'Обновление…':uncertain?'Повторить ту же попытку':'Подтвердить обновление записей'}}</button>
   </form>
  </section>
 </template>

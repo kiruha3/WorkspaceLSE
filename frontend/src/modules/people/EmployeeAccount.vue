@@ -74,6 +74,6 @@ onBeforeUnmount(() => { controller.abort(); password.value = ''; replacementPass
         <div class="button-row"><button class="button-primary" :disabled="saving || !replacementPassword || !passwordConfirmation">{{ saving ? 'Сохранение…' : 'Подтвердить сброс пароля' }}</button><button type="button" data-cancel-password-reset :disabled="saving" @click="cancelReset">Отмена</button></div>
       </fieldset>
     </form>
-    <form v-if="account && nextState !== null" data-account-state-form class="inset-form form-grid" @submit.prevent="changeState"><h4>{{ nextState ? 'Разрешить персональный вход' : 'Заблокировать персональный вход' }}</h4><label>Основание<textarea v-model="reason" name="account_state_reason" rows="2" required :disabled="saving" /></label><div class="button-row"><button class="button-primary" :disabled="saving || !reason.trim()">Подтвердить изменение</button><button type="button" :disabled="saving" @click="cancelState">Отмена</button></div></form>
+    <form v-if="account && nextState !== null" data-account-state-form class="inset-form form-grid" @submit.prevent="changeState"><h4>{{ nextState ? 'Разрешить персональный вход' : 'Заблокировать персональный вход' }}</h4><label>Основание (необязательно)<textarea v-model="reason" name="account_state_reason" rows="2" :disabled="saving" /></label><div class="button-row"><button class="button-primary" :disabled="saving">Подтвердить изменение</button><button type="button" :disabled="saving" @click="cancelState">Отмена</button></div></form>
   </section>
 </template>

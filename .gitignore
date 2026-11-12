@@ -15,6 +15,7 @@ backups/
 .runtime/
 /.superpowers/
 /outputs/
+/.stand-access/
 /installation/packages/
 /installation/offline/
 *.sqlite3

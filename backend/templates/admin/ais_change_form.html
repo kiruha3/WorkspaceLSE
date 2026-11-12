@@ -1,0 +1,7 @@
+{% extends "admin/change_form.html" %}
+{% block breadcrumbs %}{% with original=subtitle %}{{ block.super }}{% endwith %}{% endblock %}
+{% block form_top %}
+  <p class="help">Служебный просмотр. Изменения выполняются в рабочем интерфейсе АИС с сохранением истории.</p>
+  {% if workplace_url %}<p><a href="{{ workplace_url }}">Открыть в АИС →</a></p>{% endif %}
+  {{ block.super }}
+{% endblock %}

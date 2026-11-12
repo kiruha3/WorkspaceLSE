@@ -42,7 +42,6 @@ const replyOptions = computed(() => props.letter.replies.filter(item => item.rep
 const valid = computed(() => {
   if (!action.value || (!authorized.value && !recovering.value)) return false
   if (recovering.value) return true
-  if (!fields.reason.trim()) return false
   if (dateName.value && (!fields.date || fields.date > institutionToday())) return false
   if (action.value === 'register') return Boolean(fields.journal_id && fields.registration_number.trim())
   if (action.value === 'send') return Boolean(fields.channel_id && fields.recipient_ids.length)
@@ -91,7 +90,7 @@ async function save() {
         <template v-if="action === 'close'"><label>Основание закрытия<select v-model="fields.closure_reason_id" name="closure_reason_id" required @change="fields.reply_id = ''"><option value="">Выберите основание</option><option v-for="item in options.closure_reasons.filter(item => item.is_active)" :key="item.id" :value="item.id">{{ item.name }}</option></select></label><label v-if="closureRule === 'reply_sent' || closureRule === 'reply_received'">Завершающий ответ<select v-model="fields.reply_id" name="reply_id" required><option value="">Выберите ответ</option><option v-for="item in replyOptions" :key="item.id" :value="item.id">{{ item.registration_number }} · {{ item.subject }}</option></select></label></template>
         <label v-if="['send','close','reopen'].includes(action)">Комментарий<textarea v-model="fields.comment" name="comment" :required="action === 'close' && !['reply_sent','reply_received'].includes(closureRule ?? '')" /></label>
         <template v-if="usesEvidence"><label>Документ подтверждения<select v-model="fields.evidence" name="evidence_document_id"><option value="">Без документа</option><option v-for="item in evidenceOptions" :key="item.id" :value="item.id">{{ item.title || item.id }}</option><option v-if="session.can('documents.upload')" value="new">Подготовить новый документ</option></select></label><BasisDocumentForm v-if="fields.evidence === 'new' && session.can('documents.upload')" ref="documentForm" heading="Документ подтверждения" saved-note="Факт переписки сохраняется отдельно." :kind-options="kinds" :department-id="letter.department?.id ?? ''" :busy="busy" @changed="reset" /></template>
-        <label>Причина / основание записи<textarea v-model="fields.reason" name="command_reason" required /></label>
+        <label>Причина / основание записи (необязательно)<textarea v-model="fields.reason" name="command_reason" /></label>
       </fieldset><div class="button-row"><button type="submit" class="button-primary" :formnovalidate="recovering" :disabled="busy || !valid">{{ busy ? 'Сохранение…' : recovering ? 'Повторить ту же попытку' : 'Сохранить факт' }}</button><button type="button" :disabled="busy" @click="cancel">Отмена</button></div>
     </form>
   </section>

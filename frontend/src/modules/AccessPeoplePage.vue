@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLiveSearch } from '../shared/ui/useLiveSearch'
 import SortableTable from '../shared/ui/SortableTable.vue'
 import {orderingParams} from '../shared/ui/tableSorting'
 
@@ -23,7 +24,10 @@ const creating=ref(false),fullName=ref(''),saving=ref(false),createError=ref<unk
 const account=ref<InstanceType<typeof EmployeeAccount>|null>(null),access=ref<InstanceType<typeof EmployeeAccess>|null>(null)
 const busy=computed(()=>saving.value||Boolean(account.value?.busy||access.value?.busy))
 const confirmLeave=useDirtyGuard(()=>Boolean((creating.value&&fullName.value)||account.value?.dirty||access.value?.dirty),inject(routerKey,undefined),()=>busy.value)
+const liveSearch = useLiveSearch(() => load(1), () => requests.cancel())
 async function load(nextPage=page.value){
+  liveSearch.cancel()
+
   page.value=nextPage;loading.value=true;error.value=null
   try{await requests.run(signal=>api.request<Page<Person>>(`/access/employees/?${new URLSearchParams({...orderingParams(ordering.value),search:search.value,page:String(page.value)})}`,{signal}),result=>{list.value=result;loading.value=false})}
   catch(cause){error.value=cause;loading.value=false}
@@ -58,7 +62,7 @@ onBeforeUnmount(()=>requests.cancel())
     </fieldset></form>
   </section>
   <section v-else-if="!selected" class="card">
-    <form class="toolbar" @submit.prevent="load(1)"><label class="search-field">Поиск сотрудника<input v-model="search" type="search" /></label><button :disabled="loading">Найти</button></form>
+    <form class="toolbar" @submit.prevent="load(1)"><label class="search-field">Поиск сотрудника<input v-model="search" type="search"  @input="liveSearch.schedule" @compositionend="liveSearch.schedule" /></label><button :disabled="loading">Найти</button></form>
     <ApiMessage :error="error"/><p v-if="loading" class="state">Загрузка каталога…</p>
     <div v-else class="table-scroll"><SortableTable :rows="list.results" :columns='[{"key": "full_name", "label": "Сотрудник"}, {"key": "is_active", "label": "Активность"}]' :ordering="ordering" @update:ordering="sortTable" v-slot="{rows:tableRows}"><tr v-for="person in tableRows" :key="person.id"><td><button class="text-button" :data-open-access="person.id" @click="selected=person">{{person.full_name}}</button></td><td>{{person.is_active?'Активен':'Неактивен'}}</td></tr><tr v-if="!list.results.length"><td colspan="2" class="state">Нет сотрудников по этой выборке.</td></tr></SortableTable></div>
     <PaginationBar :page="page" :count="list.count" :next="Boolean(list.next)" :previous="Boolean(list.previous)" :busy="loading" @change="load"/>

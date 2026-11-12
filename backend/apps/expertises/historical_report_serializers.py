@@ -26,7 +26,7 @@ class HistoricalReturnData(StrictSerializer):
 
 class HistoricalReportInput(StrictSerializer):
     expected_version=serializers.IntegerField(min_value=1)
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
     specialty_id=serializers.PrimaryKeyRelatedField(source='specialty',queryset=Specialty.objects.all(),allow_null=True)
     correction_kind=serializers.ChoiceField(choices=['result','return'])
     result=HistoricalResultData(required=False)

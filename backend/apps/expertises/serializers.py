@@ -47,7 +47,7 @@ class GroupInput(StrictSerializer):
 
 class AssignmentInput(VersionedSerializer):
     employee_ids = serializers.ListField(child=serializers.UUIDField(),allow_empty=False)
-    reason = serializers.CharField()
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
 
     def validate_employee_ids(self,values):
         if len(set(values))!=len(values):raise serializers.ValidationError("Сотрудник указан несколько раз.")

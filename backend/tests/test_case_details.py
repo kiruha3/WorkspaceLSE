@@ -86,7 +86,7 @@ def test_native_authority_and_3214_feed_report_and_real_xlsx(employee_factory,gr
         root=ET.fromstring(archive.read('xl/worksheets/sheet2.xml'));ns={'s':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
         assert root.find(".//s:c[@r='P108']/s:v",ns).text=='1'
 
-@pytest.mark.parametrize('patch',[{'reason':' '},{'registration_number':'999/3-1-26'},{'state':'in_progress'},{'authority_group':'mvd'},{'decree3214':True},{'decree3214':False,'decree_basis':'Лишнее основание'},{'decree3214':'unknown'},{'case_number':'x'*501}])
+@pytest.mark.parametrize('patch',[{'registration_number':'999/3-1-26'},{'state':'in_progress'},{'authority_group':'mvd'},{'decree3214':True},{'decree3214':False,'decree_basis':'Лишнее основание'},{'decree3214':'unknown'},{'case_number':'x'*501}])
 def test_strict_invalid_fields_are_atomic(employee_factory,grant,settings,tmp_path,patch):
     client,_,work,_,_,_=setup(employee_factory,grant,settings,tmp_path)
     assert send(client,work,body(work,**patch)).status_code==400

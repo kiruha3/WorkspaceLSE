@@ -16,7 +16,7 @@ class UpdatedRow(StrictSerializer):
 
 
 class UpdateInput(StrictSerializer):
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
     updates=UpdatedRow(many=True,allow_empty=False,max_length=1000)
     def validate_updates(self,values):
         if len({entry['row_id'] for entry in values})!=len(values):raise serializers.ValidationError('Строка выбрана несколько раз.')

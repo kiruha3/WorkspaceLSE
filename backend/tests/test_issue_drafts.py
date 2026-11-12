@@ -102,7 +102,7 @@ def test_issue_package_requires_command_key(employee_factory, grant):
     assert client.get(f"/api/v1/materials/{work['material']['id']}/issue-packages/").json()["package"] is None
 
 
-@pytest.mark.parametrize("values", [{"reason": " "}, {"items": [{"kind": "result", "expertise_id": str(uuid.uuid4()), "document_id": str(uuid.uuid4())}]}, {"issued_on": "2026-10-28"}])
+@pytest.mark.parametrize("values", [{"items": [{"kind": "result", "expertise_id": str(uuid.uuid4()), "document_id": str(uuid.uuid4())}]}, {"issued_on": "2026-10-28"}])
 def test_invalid_issue_draft_has_no_command_audit_or_package(employee_factory, grant, values):
     client, _, work, _, _, _, _ = issue_setup(employee_factory, grant)
     key = str(uuid.uuid4())

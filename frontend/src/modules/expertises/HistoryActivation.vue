@@ -38,7 +38,7 @@ watch(stamp, invalidate, { flush: 'sync' })
 watch(basisId, value => { if (existingBasis.value?.id !== value.trim()) existingBasis.value = null }, { flush: 'sync' })
 watch([resultId, resultKind], () => { existingResult.value = null }, { flush: 'sync' })
 const valid = computed(() => {
-  if (!editing.value || (!available.value && !uncertain.value) || !reason.value.trim()) return false
+  if (!editing.value || (!available.value && !uncertain.value)) return false
   if (uncertain.value && attempt.value) return true
   if (!nature.value || !commission.value || !complexConfirmed.value || !specialtyId.value || (basisMode.value === 'existing' && existingBasis.value?.id !== basisId.value.trim())) return false
   if (closed.value && resultMode.value === 'existing' && (!existingResult.value?.versions.length || existingResult.value.id !== resultId.value.trim() || existingResult.value.kind !== (isReturn.value ? 'return_decision' : resultKind.value))) return false
@@ -144,7 +144,7 @@ onBeforeUnmount(() => { active = false; requests.cancel() })
           <div v-if="evidenceKinds.length" data-history-result-document><DocumentPicker :key="isReturn?'return':resultKind" ref="resultForm" v-model="resultId" v-model:mode="resultMode" name="history_result_id" :document="existingResult" :department-id="expertise.department.id" :kinds="evidenceKinds.map(item=>item.value)" :kind-options="evidenceKinds" :require-file="true" required :busy="busy" :input-locked="uncertain" heading="Итоговый документ" saved-note="Подтверждение окончания выполняется отдельно." @selected="selectResult" @changed="invalidate"/></div>
           <p class="muted compact">Нужен сохранённый файл. Исходный текст журнала и история уточнений сохраняются.</p>
         </template>
-        <label>Основание подтверждения<textarea v-model="reason" name="history_reason" required rows="2" /></label>
+        <label>Основание подтверждения (необязательно)<textarea v-model="reason" name="history_reason" rows="2" /></label>
       </fieldset>
       <div class="button-row"><button data-confirm-history class="button-primary" :disabled="busy || loadingOptions || !valid">{{ busy ? 'Подтверждение…' : uncertain ? 'Повторить ту же попытку' : 'Подтвердить для нового учёта' }}</button><button type="button" :disabled="busy" @click="cancel">Отмена</button></div>
     </form>

@@ -11,7 +11,7 @@ class PlanLineInput(StrictSerializer):
 
 class PlanInput(StrictSerializer):
     expected_version=serializers.IntegerField(min_value=0)
-    reason=serializers.CharField(max_length=100000)
+    reason=serializers.CharField(required=False, allow_blank=True, default="", max_length=100000)
     total=serializers.IntegerField(min_value=0,max_value=2147483647,allow_null=True)
     basis_text=serializers.CharField(allow_blank=True,max_length=100000)
     document_id=serializers.PrimaryKeyRelatedField(source='document',queryset=Document.objects.all(),allow_null=True)

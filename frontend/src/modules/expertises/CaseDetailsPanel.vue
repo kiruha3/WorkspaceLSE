@@ -32,7 +32,6 @@ const confirmLeave=useDirtyGuard(()=>busy.value||editing.value&&(stamp.value!==i
 function reset(){if(!busy.value&&!uncertain.value){preparation=null;command.reset()}}
 watch(stamp,reset,{flush:'sync'})
 const types=computed(()=>options.value?.authority_types.filter(item=>item.is_active||options.value?.retained_authority_type_ids.includes(item.id))??[])
-const invalid=computed(()=>!reason.value.trim())
 function toggleConstruction(event:Event){decree.value=(event.target as HTMLInputElement).checked?'true':'false'}
 async function loadOptions(){loading.value=true;optionsError.value=null;try{await requests.run(signal=>api.request<CaseDetailsOptions>(`/expertises/${props.expertise.id}/case-details/`,{signal}),value=>{options.value=value;if(details.value.source!=='typed')authority.value=value.initial_authority_type_id??'';loading.value=false;initial.value=stamp.value})}catch(cause){optionsError.value=cause;loading.value=false}}
 async function start(){
@@ -42,7 +41,7 @@ async function start(){
 }
 function cancel(){if(!busy.value&&!uncertain.value&&confirmLeave()){editing.value=false;requests.cancel();reset()}}
 function acceptVersion(){expectedVersion.value=props.expertise.version;reset()}
-function submit(){if(uncertain.value||details.value.can_edit&&!invalid.value&&!conflict.value&&!loading.value&&!optionsError.value)void command.submit()}
+function submit(){if(uncertain.value||details.value.can_edit&&!conflict.value&&!loading.value&&!optionsError.value)void command.submit()}
 onBeforeUnmount(()=>requests.cancel())
 </script>
 <template>
@@ -58,9 +57,9 @@ onBeforeUnmount(()=>requests.cancel())
     <HelpTip label="Сведения дела">Текст вопросов не заменяет числа Q/R/S/T. Реквизиты не заменяют документ-основание поступления. Пустые сведения остаются неизвестными.</HelpTip>
     <label v-if="constructionEligible" class="check-label"><input type="checkbox" name="case_decree3214" :checked="decree==='true'" @change="toggleConstruction"/>Самовольное строение <HelpTip label="Самовольное строение">Учитывать в графе3214-р. Дополнительный документ и пояснение необязательны.</HelpTip></label>
     <template v-if="constructionEligible&&decree==='true'"><label>Пояснение и реквизиты основания 3214-р (необязательно)<textarea v-model="basis" name="case_decree_basis" rows="2"/></label><DocumentPicker ref="documentForm" v-model="documentId" v-model:mode="documentMode" name="case_document_id" :document="details.decree_document" :department-id="expertise.department.id" :busy="busy||uncertain" heading="Основание 3214-р (необязательно)" saved-note="Сведения дела сохраняются отдельно." @changed="reset"/></template>
-    <label>Основание изменения<textarea v-model="reason" name="case_reason" required rows="2"/></label>
+    <label>Основание изменения (необязательно)<textarea v-model="reason" name="case_reason" rows="2"/></label>
    </fieldset>
-   <div class="button-row"><button data-case-submit class="button-primary" :disabled="busy||!uncertain&&(invalid||conflict||loading||!!optionsError||!details.can_edit)" :formnovalidate="uncertain">{{busy?'Сохранение…':uncertain?'Повторить ту же попытку':'Сохранить сведения'}}</button><button type="button" :disabled="busy||uncertain" @click="cancel">Отмена</button></div>
+   <div class="button-row"><button data-case-submit class="button-primary" :disabled="busy||!uncertain&&(conflict||loading||!!optionsError||!details.can_edit)" :formnovalidate="uncertain">{{busy?'Сохранение…':uncertain?'Повторить ту же попытку':'Сохранить сведения'}}</button><button type="button" :disabled="busy||uncertain" @click="cancel">Отмена</button></div>
   </form><FactHistory :revisions="details.revisions" :labels="caseLabels"/>
  </section>
 </template>

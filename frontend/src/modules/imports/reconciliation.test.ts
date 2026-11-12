@@ -28,7 +28,7 @@ async function open({ url = '/imports/batch-1/reconciliation', saved = false, co
   return { wrapper, router, pinia }
 }
 enableAutoUnmount(afterEach)
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
 
 it('keeps factual department1 instead of substituting a modern staff department4',async()=>{
   const oldDepartment={id:'department-1',code:'1',name:'Исторический отдел1',is_active:false}
@@ -186,6 +186,59 @@ describe('confirmed journal reconciliation', () => {
     await wrapper.get('[name="selection_reason"]').setValue('Сохранить мой ввод')
     await wrapper.findAll('button').find(button => button.text() === 'Обновить сверку')!.trigger('click'); await flushPromises()
     expect(wrapper.get('[name="selection_reason"]').element).toHaveProperty('value', 'Сохранить мой ввод')
+  })
+
+  it('retains the dirty mapping when a live search navigation is declined', async () => {
+    const paths: string[] = []
+    const { wrapper, router } = await open({ url: '/imports/batch-1/reconciliation?page=1', transport: async input => {
+      paths.push(String(input)); return json(String(input).includes('options') ? options : resultPage())
+    } })
+    await wrapper.get('[data-edit-selection]').trigger('click')
+    await wrapper.get('[name="selection_reason"]').setValue('Не терять сопоставление')
+    const before = paths.length
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    vi.useFakeTimers()
+    await wrapper.get('[name="search"]').setValue('152')
+    await vi.advanceTimersByTimeAsync(300); await flushPromises()
+    expect(router.currentRoute.value.fullPath).toBe('/imports/batch-1/reconciliation?page=1')
+    expect(wrapper.get('[name="selection_reason"]').element).toHaveProperty('value', 'Не терять сопоставление')
+    expect(paths).toHaveLength(before)
+  })
+
+  it('requires confirmation before reloading the same query with a dirty mapping', async () => {
+    const paths: string[] = []
+    const { wrapper } = await open({ url: '/imports/batch-1/reconciliation?search=151&page=1', transport: async input => {
+      paths.push(String(input)); return json(String(input).includes('options') ? options : resultPage())
+    } })
+    await wrapper.get('[data-edit-selection]').trigger('click')
+    await wrapper.get('[name="selection_reason"]').setValue('Сохранить перед обновлением')
+    const before = paths.length
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    await wrapper.get('form.toolbar').trigger('submit'); await flushPromises()
+    expect(wrapper.get('[name="selection_reason"]').element).toHaveProperty('value', 'Сохранить перед обновлением')
+    expect(paths).toHaveLength(before)
+    expect(confirm).toHaveBeenCalledOnce()
+    confirm.mockReturnValue(true)
+    await wrapper.get('form.toolbar').trigger('submit'); await flushPromises()
+    expect(wrapper.find('[data-selection-form]').exists()).toBe(false)
+    expect(paths).toHaveLength(before + 1)
+  })
+
+  it('reloads the current query after typing and reverting a live search', async () => {
+    const paths: string[] = []
+    const { wrapper, router } = await open({ url: '/imports/batch-1/reconciliation?search=151&page=1', transport: async input => {
+      paths.push(String(input)); return json(String(input).includes('options') ? options : resultPage())
+    } })
+    const before = paths.length
+    vi.useFakeTimers()
+    await wrapper.get('[name="search"]').setValue('152')
+    await vi.advanceTimersByTimeAsync(150)
+    await wrapper.get('[name="search"]').setValue('151')
+    await vi.advanceTimersByTimeAsync(300); await flushPromises()
+    expect(router.currentRoute.value.fullPath).toBe('/imports/batch-1/reconciliation?search=151&page=1')
+    expect(paths).toHaveLength(before + 1)
+    expect(paths.at(-1)).toBe('/api/v1/imports/batch-1/reconciliation/?page=1&search=151')
+    expect(wrapper.text()).toContain('151/4-1-26')
   })
 
   it('does not save an unnamed complex as a confirmed noncomplex work', async () => {

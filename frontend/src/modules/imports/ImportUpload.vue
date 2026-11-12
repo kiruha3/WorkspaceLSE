@@ -15,7 +15,7 @@ function choose(event:Event){file.value=(event.target as HTMLInputElement).files
 function cancel(){if(!busy.value&&confirmLeave()){saved.value=true;emit('cancel')}}
 async function submit(){
   if(busy.value||(!props.canCreate&&!uncertain.value))return
-  if(!attempt.value&&(!file.value||!normalizedReason.value))return
+  if(!attempt.value&&!file.value)return
   busy.value=true;error.value=null
   try{
     if(!attempt.value)attempt.value={file:file.value!,reason:normalizedReason.value,key:newCommandKey()}
@@ -28,7 +28,7 @@ async function submit(){
 </script>
 <template>
   <form data-import-upload class="form-grid" @submit.prevent="submit"><h2>Новый снимок журнала</h2><ApiMessage :error="error"/><p v-if="uncertain" class="message">Ответ не получен. Повтор использует тот же файл, основание и ключ.</p><p v-if="!canCreate" class="message">Загрузка больше не разрешена. Выбранные сведения сохранены в форме.</p>
-    <fieldset class="form-grid" :disabled="busy||(!canCreate&&!uncertain)"><label>Первый лист XLSX или CSV<input name="import_file" type="file" accept=".xlsx,.csv" :required="!file" @change="choose"/></label><p v-if="file" class="muted">{{file.name}} · {{Math.ceil(file.size/1024)}} КБ</p><label>Основание проверки<textarea v-model="reason" name="import_reason" required rows="2"/></label></fieldset>
-    <p class="muted compact">Сохранится неизменяемый снимок первого листа. Рабочие экспертизы, сотрудники и события выдачи не создаются.</p><div class="button-row"><button type="submit" class="button-primary" :formnovalidate="uncertain" :disabled="busy||(!canCreate&&!uncertain)||(!attempt&&(!file||!normalizedReason))">{{busy?'Чтение и сохранение…':uncertain?'Повторить ту же попытку':'Проверить источник'}}</button><button type="button" :disabled="busy" @click="cancel">Отмена</button></div>
+    <fieldset class="form-grid" :disabled="busy||(!canCreate&&!uncertain)"><label>Первый лист XLSX или CSV<input name="import_file" type="file" accept=".xlsx,.csv" :required="!file" @change="choose"/></label><p v-if="file" class="muted">{{file.name}} · {{Math.ceil(file.size/1024)}} КБ</p><label>Основание проверки (необязательно)<textarea v-model="reason" name="import_reason" rows="2"/></label></fieldset>
+    <p class="muted compact">Сохранится неизменяемый снимок первого листа. Рабочие экспертизы, сотрудники и события выдачи не создаются.</p><div class="button-row"><button type="submit" class="button-primary" :formnovalidate="uncertain" :disabled="busy||(!canCreate&&!uncertain)||(!attempt&&!file)">{{busy?'Чтение и сохранение…':uncertain?'Повторить ту же попытку':'Проверить источник'}}</button><button type="button" :disabled="busy" @click="cancel">Отмена</button></div>
   </form>
 </template>

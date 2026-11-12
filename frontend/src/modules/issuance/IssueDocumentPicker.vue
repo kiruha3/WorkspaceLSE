@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLiveSearch } from '../../shared/ui/useLiveSearch'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ApiError, LatestRequest, useApi } from '../../api/client'
 import type { IssueItemKind } from '../../api/issuance'
@@ -16,7 +17,10 @@ const list = ref<Page<BasisDocument>>({ count: 0, next: null, previous: null, re
 const shownDocument = computed(() => list.value.results.find(item => item.id === selected.value) ?? (props.document?.id === selected.value ? props.document : null))
 const dirty = computed(() => selected.value !== (props.document?.id ?? '') || source.value === 'new' || Boolean(documentForm.value?.dirty))
 watch([selected, source], () => emit('changed'), { flush: 'sync' })
+const liveSearch = useLiveSearch(() => load(), () => requests.cancel())
 async function load(page = 1) {
+  liveSearch.cancel()
+
   loading.value = true; error.value = null; currentPage.value = page
   const query = new URLSearchParams({ kind: props.kind, search: search.value.trim(), page: String(page) })
   try { await requests.run(signal => api.request<Page<BasisDocument>>(`/issue-packages/${props.packageId}/document-options/?${query}`, { signal }), value => { list.value = value; loading.value = false }) } catch (cause) { error.value = cause; loading.value = false }
@@ -35,13 +39,14 @@ const newDocument = computed(() => source.value === 'new')
 function changeSource(value: string) {
   if (props.busy || value === source.value || (value === 'new' && (!session.can('documents.upload') || !props.kindOptions.length))) return
   if (source.value === 'new' && documentForm.value?.dirty && !window.confirm('Есть несохранённый новый документ. Перейти к выбору существующего?')) return
+  liveSearch.cancel(); requests.cancel(); loading.value = false
   source.value = value
 }
 defineExpose({ persist, dirty, newDocument })
 </script>
 <template>
   <fieldset class="form-grid" :disabled="busy"><legend>{{ heading || 'Документ приложения' }}</legend>
-    <template v-if="source === 'existing'"><div class="document-actions"><label class="grow">Поиск по названию документа<input v-model="search" name="document_search" type="search" @keydown.enter.prevent="load()" /></label><button data-find-issue-documents type="button" :disabled="loading" @click="load()">Найти</button><button v-if="session.can('documents.upload') && kindOptions.length" data-document-new type="button" @click="changeSource('new')">+ Добавить новый</button></div><ApiMessage :error="error" /><p v-if="loading" class="state">Поиск документов…</p><label>Сохранённый документ<select v-model="selected" name="document_id" :required="required"><option value="">{{ required ? 'Выберите документ' : 'Без документа' }}</option><option v-if="selected && !list.results.some(item => item.id === selected)" :value="selected">{{ shownDocument && !('restricted' in shownDocument) ? shownDocument.title || 'Выбранный документ' : 'Сохранённый документ (доступ ограничен)' }}</option><option v-for="item in list.results" :key="item.id" :value="item.id">{{ item.title || 'Без названия' }} · {{ item.source_kind === 'paper_original' ? 'Бумажный оригинал' : 'Копия' }} · {{ item.versions.length ? `Версий: ${item.versions.length}` : 'Без электронного файла' }}</option></select></label><PaginationBar :page="currentPage" :count="list.count" :next="Boolean(list.next)" :previous="Boolean(list.previous)" :busy="loading || Boolean(busy)" @change="load" /><BasisPreview v-if="shownDocument" :document="shownDocument" heading="Выбранный документ" /></template>
+    <template v-if="source === 'existing'"><div class="document-actions"><label class="grow">Поиск по названию документа<input v-model="search" name="document_search" type="search"  @input="liveSearch.schedule" @compositionend="liveSearch.schedule" @keydown.enter.prevent="load()" /></label><button data-find-issue-documents type="button" :disabled="loading" @click="load()">Найти</button><button v-if="session.can('documents.upload') && kindOptions.length" data-document-new type="button" @click="changeSource('new')">+ Добавить новый</button></div><ApiMessage :error="error" /><p v-if="loading" class="state">Поиск документов…</p><label>Сохранённый документ<select v-model="selected" name="document_id" :required="required"><option value="">{{ required ? 'Выберите документ' : 'Без документа' }}</option><option v-if="selected && !list.results.some(item => item.id === selected)" :value="selected">{{ shownDocument && !('restricted' in shownDocument) ? shownDocument.title || 'Выбранный документ' : 'Сохранённый документ (доступ ограничен)' }}</option><option v-for="item in list.results" :key="item.id" :value="item.id">{{ item.title || 'Без названия' }} · {{ item.source_kind === 'paper_original' ? 'Бумажный оригинал' : 'Копия' }} · {{ item.versions.length ? `Версий: ${item.versions.length}` : 'Без электронного файла' }}</option></select></label><PaginationBar :page="currentPage" :count="list.count" :next="Boolean(list.next)" :previous="Boolean(list.previous)" :busy="loading || Boolean(busy)" @change="load" /><BasisPreview v-if="shownDocument" :document="shownDocument" heading="Выбранный документ" /></template>
     <template v-else><button data-document-existing type="button" @click="changeSource('existing')">Выбрать сохранённый</button><BasisDocumentForm ref="documentForm" :department-id="departmentId" :busy="busy" :input-locked="!session.can('documents.upload')" :heading="heading || 'Документ приложения'" :kind-options="kindOptions" saved-note="Состав комплекта и факт выдачи сохраняются отдельно." @changed="emit('changed')" /></template>
   </fieldset>
 </template>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { isNavigationFailure, NavigationFailureType } from 'vue-router'
+import { useLiveSearch } from '../../shared/ui/useLiveSearch'
 import SortableTable from '../../shared/ui/SortableTable.vue'
 import {orderingParams} from '../../shared/ui/tableSorting'
 import {useRouteTableSort} from '../../shared/ui/useRouteTableSort'
@@ -19,7 +21,10 @@ const downloading = ref(false), downloadError = ref<unknown>(null)
 const canExport = computed(() => session.can('expertise.view') && session.can('expertise.export'))
 const departments = ref<Reference[]>([]), specialties = ref<Reference[]>([]), employees = ref<{ id: string; full_name: string }[]>([])
 const stateLabels = { in_progress: 'В производстве', suspended: 'Приостановлена', completed: 'Завершена', without_execution: 'Без исполнения' }
+const liveSearch = useLiveSearch(() => filter(), () => requests.cancel())
 async function load() {
+  liveSearch.cancel()
+
   loading.value = true; error.value = null; list.value = {count:0,results:[]}
   const query = new URLSearchParams({...orderingParams(ordering.value), ...Object.fromEntries(filterKeys.filter(key => route.query[key]).map(key => [key, String(route.query[key])])) })
   try { await requests.run(signal => api.request<ExpertiseRegistry>(`/expertises/registry/?${query}`, { signal }), result => {
@@ -28,7 +33,7 @@ async function load() {
   }) }
   catch (cause) { error.value = cause; loading.value = false }
 }
-async function filter() { await router.replace({ path: '/expertises', query: {...orderingParams(ordering.value), ...Object.fromEntries(filterKeys.filter(key => filters[key]).map(key => [key, filters[key]])) } }) }
+async function filter() { liveSearch.cancel(); const navigation = await router.replace({ path: '/expertises', query: {...orderingParams(ordering.value), ...Object.fromEntries(filterKeys.filter(key => filters[key]).map(key => [key, filters[key]])) } }) ; if (isNavigationFailure(navigation, NavigationFailureType.duplicated)) void load() }
 async function download() {
   if (downloading.value || !canExport.value) return
   downloading.value = true; downloadError.value = null
@@ -61,7 +66,7 @@ onBeforeUnmount(() => { requests.cancel(); optionsRequests.cancel(); downloads.c
   <JournalSyncActions/>
   <section class="card">
     <form class="toolbar work-filters" @submit.prevent="filter()">
-      <label class="search-field">Поиск<input v-model="filters.search" name="search" type="search" placeholder="Номер или материал" /></label>
+      <label class="search-field">Поиск<input v-model="filters.search" name="search" type="search" placeholder="Номер или материал"  @input="liveSearch.schedule" @compositionend="liveSearch.schedule" /></label>
       <label>Отдел<select v-model="filters.department_id" name="department_id"><option value="">Все доступные</option><option v-for="item in departments" :key="item.id" :value="item.id">{{ item.code }} · {{ item.name }}</option></select></label>
       <label>Специальность<select v-model="filters.specialty_id" name="specialty_id"><option value="">Все доступные</option><option v-for="item in specialties" :key="item.id" :value="item.id">{{ item.code }} · {{ item.name }}</option></select></label>
       <label>Текущий исполнитель<select v-model="filters.employee_id" name="employee_id"><option value="">Все доступные</option><option v-for="item in employees" :key="item.id" :value="item.id">{{ item.full_name }}</option></select></label>

@@ -19,6 +19,7 @@ const groups=computed(()=>[
   {id:'storage',to:'/settings/storage',icon:'folder',title:'Папки документов',description:'Папки по годам и доступ к файлам',visible:storage.value},
   {id:'imports',to:'/imports',icon:'file',title:'Источники журнала',description:'Загрузки, предпросмотр и сверка',visible:session.importPreviewEnabled&&session.can('imports.results.view')},
   {id:'source',to:'/imports/source-settings',icon:'table',title:'Google-таблица',description:'Ссылка на таблицу и лист',visible:source.value},
+  {id:'historical-assignments',to:'/settings/historical-assignments',icon:'people',title:'Исполнители из журнала',description:'Разовый перенос исторических соответствий в назначения',visible:session.user?.supported_modules?.includes('historical_assignment_import')&&institutionPermission(session.user,'imports.results.view')&&session.can('expertise.view')},
  ]},
 ].map(group=>({...group,items:group.items.filter(item=>item.visible)})).filter(group=>group.items.length))
 </script>

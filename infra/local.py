@@ -80,7 +80,7 @@ def db_start():
         run_pg("pg_ctl", "-D", DATA, "-l", RUNTIME / "postgresql.log", "-o",
                f"-h 127.0.0.1 -p {config['port']} -c shared_buffers=32MB -c max_connections=30",
                "start", "-w", "-t", "30")
-    credentials = {key: value for key, value in config.items() if key != "django_secret"}
+    credentials = {key: config[key] for key in ("host", "port", "dbname", "user", "password")}
     credentials["dbname"] = "postgres"
     with psycopg.connect(**credentials, autocommit=True, connect_timeout=3) as conn:
         if not conn.execute("SELECT 1 FROM pg_database WHERE datname=%s", (config["dbname"],)).fetchone():

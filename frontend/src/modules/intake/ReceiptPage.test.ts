@@ -240,6 +240,7 @@ describe('manual expertise registration', () => {
     await wrapper.findAll('button').find(button => button.text() === 'Редактировать поступление')!.trigger('click')
     await wrapper.get('input[type="checkbox"]').setValue(true)
     await wrapper.get('[name="document_title"]').setValue('Новое основание')
+    await wrapper.get('[name="source_kind"]').setValue('paper_original')
     await wrapper.get('[name="amend_reason"]').setValue('Уточнено основание')
     await wrapper.get('form').trigger('submit'); await flushPromises()
     expect(docWrites).toBe(1)

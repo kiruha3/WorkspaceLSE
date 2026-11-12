@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLiveSearch } from '../shared/ui/useLiveSearch'
 import SortableTable from '../shared/ui/SortableTable.vue'
 import {orderingParams} from '../shared/ui/tableSorting'
 
@@ -24,7 +25,10 @@ const creating = computed(() => mode.value === 'create')
 const fullName = ref(''), saving = ref(false), createError = ref<unknown>(null), success = ref('')
 const requests = new LatestRequest(), details = new LatestRequest()
 const confirmLeave = useDirtyGuard(() => creating.value && Boolean(fullName.value), inject(routerKey, undefined))
+const liveSearch = useLiveSearch(() => load(1), () => requests.cancel())
 async function load(nextPage = page.value) {
+  liveSearch.cancel()
+
   page.value = nextPage; loading.value = true; error.value = null
   try { await requests.run(signal => api.request<Page<Employee>>(`/employees/?${new URLSearchParams({...orderingParams(ordering.value), search: search.value, page: String(page.value) })}`, { signal }), result => { list.value = result; loading.value = false }) }
   catch (cause) { error.value = cause; loading.value = false }
@@ -65,7 +69,7 @@ onBeforeUnmount(() => { requests.cancel(); details.cancel() })
 <template>
   <div class="page-heading"><div><p class="eyebrow">Кадровый учёт</p><h1>{{ mode === 'detail' ? selected?.full_name ?? 'Карточка сотрудника' : creating ? 'Новый сотрудник' : 'Сотрудники' }}</h1><p class="muted">Один человек — одна карточка, несколько должностей, специальностей и ролей.</p></div><div class="button-row"><button v-if="mode !== 'list'" data-back-to-people :disabled="saving||panel?.busy" @click="backToList">← Назад к списку</button><button v-if="!creating&&session.can('employees.create')" data-add-employee class="button-primary" :disabled="saving||panel?.busy" @click="startCreate">+ Добавить сотрудника</button></div></div>
   <section v-if="mode === 'list'" class="card">
-    <form class="toolbar" @submit.prevent="load(1)"><label class="search-field">Поиск сотрудников<input v-model="search" type="search" placeholder="Фамилия, имя или отчество" /></label><button :disabled="loading">Найти</button><span class="toolbar-note">Данные в разрешённой области</span></form>
+    <form class="toolbar" @submit.prevent="load(1)"><label class="search-field">Поиск сотрудников<input v-model="search" type="search" placeholder="Фамилия, имя или отчество"  @input="liveSearch.schedule" @compositionend="liveSearch.schedule" /></label><button :disabled="loading">Найти</button><span class="toolbar-note">Данные в разрешённой области</span></form>
     <ApiMessage :error="error" /><p v-if="loading" class="state" aria-live="polite">Загрузка сотрудников…</p>
     <div v-else class="table-scroll"><SortableTable :rows="list.results" :columns='[{"key": "full_name", "label": "Сотрудник"}, {"key": "organization", "label": "Должности и подразделения"}, {"key": "specialties", "label": "Полученные специальности"}, {"key": "training", "label": "Обучение"}, {"key": "is_active", "label": "Состояние"}]' :ordering="ordering" @update:ordering="sortTable" v-slot="{rows:tableRows}">
       <tr v-for="employee in tableRows" :key="employee.id" data-employee-row :class="{ 'row-selected': employee.id === selected?.id }"><td><button class="text-button" :data-open-employee="employee.id" @click="open(employee)">{{ employee.full_name }}</button></td><td><p v-for="assignment in employee.org_assignments" :key="assignment.id" class="cell-line">{{ assignment.position.name }}<small>{{ assignment.department.name }}{{ assignment.valid_to ? ` · до ${assignment.valid_to}` : '' }}</small></p><span v-if="!employee.org_assignments.length" class="muted">Не указаны</span></td><td data-qualified><span v-for="specialty in employee.specialties.filter(s => s.status === 'qualified')" :key="specialty.id" class="badge badge-green" :title="specialty.specialty.name">{{ specialty.specialty.code }}</span><span v-if="!employee.specialties.some(s => s.status === 'qualified')" class="muted">Нет подтверждённых</span><small v-if="employee.specialties.some(s => s.status === 'unknown_legacy')">Есть неподтверждённые сведения</small></td><td data-training><span v-for="specialty in employee.specialties.filter(s => s.status === 'training')" :key="specialty.id" class="badge badge-amber" :title="specialty.specialty.name">{{ specialty.specialty.code }}</span><span v-if="!employee.specialties.some(s => s.status === 'training')" class="muted">Не ведётся</span></td><td><span class="badge" :class="employee.is_active ? 'badge-green' : ''">{{ employee.is_active ? 'Активен' : 'Неактивен' }}</span></td></tr>

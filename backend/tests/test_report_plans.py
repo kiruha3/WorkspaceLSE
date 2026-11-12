@@ -43,7 +43,7 @@ def test_create_edit_keeps_unknown_and_zero_distinct_with_audit_and_full_history
  assert read(client)==edited and AuditEvent.objects.filter(action='reports.plan.save').count()==2
 
 
-@pytest.mark.parametrize('change',[{'extra':1},{'reason':''},{'total':-1},{'total':1.5},{'total':2147483648},{'expected_version':-1},{'total':True},{'total':5,'basis_text':''}])
+@pytest.mark.parametrize('change',[{'extra':1},{'total':-1},{'total':1.5},{'total':2147483648},{'expected_version':-1},{'total':True},{'total':5,'basis_text':''}])
 def test_invalid_plan_does_not_leave_an_empty_year_or_revision(employee_factory,grant,change):
  client,_=setup(employee_factory,grant);response=send(client,body(**change));assert response.status_code==400,response.content
  Plan,Line,Revision=plan_models();assert not Plan.objects.filter(year=2027).exists() and Line.objects.count()==0 and Revision.objects.count()==1

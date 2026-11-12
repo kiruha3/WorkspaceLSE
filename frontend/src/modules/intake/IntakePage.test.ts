@@ -37,6 +37,7 @@ describe('intake creation', () => {
     await wrapper.get('[name="material_title"]').setValue('Материалы дела')
     await wrapper.get('[name="department_id"]').setValue('d-4')
     await wrapper.get('[name="document_title"]').setValue('Постановление суда')
+    await wrapper.get('[name="source_kind"]').setValue('paper_original')
     expect(wrapper.find('input[type="file"]').exists()).toBe(false)
     await wrapper.get('[data-create-receipt]').trigger('submit')
     await flushPromises()

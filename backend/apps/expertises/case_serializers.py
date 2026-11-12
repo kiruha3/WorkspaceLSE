@@ -9,7 +9,7 @@ HISTORY_TEXT_FIELDS = ('authority_name','official','contact','case_description',
 
 class CaseDetailsInput(StrictSerializer):
     expected_version=serializers.IntegerField(min_value=1)
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
     authority_type_id=serializers.PrimaryKeyRelatedField(source='authority_type',queryset=AuthorityType.objects.all(),allow_null=True)
     authority_name=serializers.CharField(allow_blank=True,max_length=100000)
     official=serializers.CharField(allow_blank=True,max_length=100000)

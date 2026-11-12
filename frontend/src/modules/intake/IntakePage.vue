@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { isNavigationFailure, NavigationFailureType } from 'vue-router'
+import { useLiveSearch } from '../../shared/ui/useLiveSearch'
 import SortableTable from '../../shared/ui/SortableTable.vue'
 import {orderingParams} from '../../shared/ui/tableSorting'
 import {useRouteTableSort} from '../../shared/ui/useRouteTableSort'
@@ -23,12 +25,15 @@ const departments = ref<Reference[]>([]), basisForm = ref<InstanceType<typeof Ba
 const createError = ref<unknown>(null), referencesError = ref<unknown>(null), requests = new LatestRequest()
 const dirty = computed(() => creating.value && !saved.value && Boolean(receivedAt.value || sender.value || materialTitle.value || departmentId.value || isDemo.value || basisForm.value?.dirty))
 const confirmLeave = useDirtyGuard(() => dirty.value || saving.value, router)
+const liveSearch = useLiveSearch(() => filter(), () => requests.cancel())
 async function load() {
+  liveSearch.cancel()
+
   loading.value = true; error.value = null
   try { await requests.run(signal => api.request<Page<Receipt>>(`/receipts/?${new URLSearchParams({...orderingParams(ordering.value), search: String(route.query.search ?? ''), page: String(page.value) })}`, { signal }), result => { list.value = result; loading.value = false }) }
   catch (cause) { error.value = cause; loading.value = false }
 }
-async function filter(nextPage = 1) { await router.replace({ path: '/intake', query: {...orderingParams(ordering.value), ...(search.value ? { search: search.value } : {}), page: String(nextPage) } }) }
+async function filter(nextPage = 1) { liveSearch.cancel(); const navigation = await router.replace({ path: '/intake', query: {...orderingParams(ordering.value), ...(search.value ? { search: search.value } : {}), page: String(nextPage) } }) ; if (isNavigationFailure(navigation, NavigationFailureType.duplicated)) void load() }
 async function startCreate() {
   creating.value = true; saved.value = false; createError.value = null
   if (!departments.value.length) try { departments.value = await api.allPages<Reference>('/references/departments/') } catch (cause) { referencesError.value = cause }
@@ -64,7 +69,7 @@ onBeforeUnmount(() => requests.cancel())
     </header>
     <section v-if="!creating" class="card intake-registry">
       <form class="toolbar intake-toolbar" @submit.prevent="filter()">
-        <label class="search-field">Поиск поступлений<input v-model="search" type="search" placeholder="Отправитель или материал" /></label>
+        <label class="search-field">Поиск поступлений<input v-model="search" type="search" placeholder="Отправитель или материал"  @input="liveSearch.schedule" @compositionend="liveSearch.schedule" /></label>
         <button :disabled="loading">Найти</button>
         <span class="muted intake-count" role="status">{{ loading ? 'Загрузка…' : `Найдено: ${list.count}` }}</span>
       </form>

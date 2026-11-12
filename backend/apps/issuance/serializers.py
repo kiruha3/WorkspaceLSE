@@ -27,7 +27,7 @@ class ContentInput(StrictSerializer):
     note = serializers.CharField(allow_blank=True, required=False, default="")
     items = ItemInput(many=True, required=False, default=list)
     billing = WorkBillingInput(many=True, required=False, max_length=1000)
-    reason = serializers.CharField()
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class DraftInput(ContentInput):

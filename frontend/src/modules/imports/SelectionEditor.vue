@@ -23,7 +23,7 @@ let active = true
 const fields = computed(() => JSON.stringify([department.value, specialty.value, employees.value, nature.value, commission.value, complex.value, groupKey.value.trim(), statistics.value, reason.value.trim()]))
 const original = fields.value
 const confirmLeave = useDirtyGuard(() => !saved.value && (fields.value !== original || busy.value || Boolean(attempt.value)), inject(routerKey, undefined))
-const valid = computed(() => Boolean(department.value && reason.value.trim() && (props.canEdit || uncertain.value) && (uncertain.value || complex.value !== 'group' || groupKey.value.trim())))
+const valid = computed(() => Boolean(department.value && (props.canEdit || uncertain.value) && (uncertain.value || complex.value !== 'group' || groupKey.value.trim())))
 watch(fields, () => { attempt.value = null; uncertain.value = false; error.value = null }, { flush: 'sync' })
 async function submit() {
   if (busy.value || !valid.value) return
@@ -62,7 +62,7 @@ defineExpose({ confirmLeave })
         </div>
         <fieldset class="candidate-list"><legend>Подтверждённые исторические участники</legend><label v-for="person in options.employees" :key="person.id" class="check-label"><input v-model="employees" type="checkbox" :value="person.id" />{{ person.full_name }}{{ person.is_active ? '' : ' · неактивен' }}</label></fieldset>
         <p class="muted compact">Q / R / S / T: {{ item.row.facts.questions ?? 'неизвестно' }} / {{ item.row.facts.categorical ?? 'неизвестно' }} / {{ item.row.facts.probable ?? 'неизвестно' }} / {{ item.row.facts.unresolved ?? 'неизвестно' }}.</p>
-        <label class="check-label"><input v-model="statistics" name="selection_statistics" type="checkbox" />Подтверждаю полноту статистики вопросов</label><label>Основание сопоставления<textarea v-model="reason" name="selection_reason" required rows="2" /></label>
+        <label class="check-label"><input v-model="statistics" name="selection_statistics" type="checkbox" />Подтверждаю полноту статистики вопросов</label><label>Основание сопоставления (необязательно)<textarea v-model="reason" name="selection_reason" rows="2" /></label>
       </fieldset>
       <button class="button-primary align-start" :disabled="busy || !valid">{{ busy ? 'Сохранение…' : uncertain ? 'Повторить ту же попытку' : 'Сохранить сопоставление' }}</button>
       <p class="muted compact">Сохранение выбора ещё не переносит экспертизу. Фактический отдел и признанный код специальности сверяются сервером. Нынешний отдел сотрудника не меняется; пустое количество не становится нулём.</p>

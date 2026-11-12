@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { useLiveSearch } from '../../shared/ui/useLiveSearch'
 import SortableTable from '../../shared/ui/SortableTable.vue'
 import {orderingParams} from '../../shared/ui/tableSorting'
 import {useRouteTableSort} from '../../shared/ui/useRouteTableSort'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { isNavigationFailure, NavigationFailureType, RouterLink, useRoute, useRouter } from 'vue-router'
 import { ApiError, LatestRequest, useApi } from '../../api/client'
 import { newCommandKey } from '../../api/commandKey'
 import type { ApplicationPayload, Classification, ImportApplication, ImportSelection, ReconciliationOptions, ReconciliationRow } from '../../api/imports'
@@ -35,7 +36,10 @@ const sourcePath = computed(() => `/imports/${route.params.id}`)
 const back = computed(() => typeof route.query.return === 'string' && (route.query.return === sourcePath.value || route.query.return.startsWith(sourcePath.value + '?')) ? route.query.return : sourcePath.value)
 useDirtyGuard(() => Boolean(reason.value.trim() || busy.value || attempt.value), router)
 watch(() => reason.value.trim(), () => { attempt.value = null; uncertain.value = false; writeError.value = null }, { flush: 'sync' })
+const liveSearch = useLiveSearch(() => filter(), () => requests.cancel())
 async function load() {
+  liveSearch.cancel()
+
   requests.cancel(); rows.value = null; editing.value = null
   if (!enabled.value) return
   loading.value = true; error.value = null
@@ -51,7 +55,13 @@ async function loadOptions() {
   try { await optionRequests.run(signal => api.request<ReconciliationOptions>('/imports/reconciliation-options/', { signal }), value => { options.value = value }) }
   catch (cause) { optionsError.value = cause }
 }
-function filter(nextPage = 1) { void router.replace({ path: route.path, query: {...orderingParams(ordering.value), ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value)), page: String(nextPage), ...(route.query.return ? { return: route.query.return } : {}) } }) }
+async function filter(nextPage = 1) {
+  liveSearch.cancel()
+  const failure = await router.replace({ path: route.path, query: {...orderingParams(ordering.value), ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value)), page: String(nextPage), ...(route.query.return ? { return: route.query.return } : {}) } })
+  // A duplicate skips navigation guards; still protect the open mapping.
+  // Aborted/cancelled navigation must leave that mapping untouched.
+  if (isNavigationFailure(failure, NavigationFailureType.duplicated)) reload()
+}
 function toggle(item: ReconciliationRow, selected: boolean) {
   if (busy.value || !canApply.value || !item.selection || item.classification !== 'new' || item.blockers.length) return
   if (selected) chosen.value[item.row.id] = { row_id: item.row.id, expected_selection_version: item.selection.version, number: String(item.row.facts.registration_number || item.row.raw.B) }
@@ -69,7 +79,7 @@ function saved(value: ImportSelection) {
 function reload() { if (!editor.value || editor.value.confirmLeave()) void load() }
 function edit(item: ReconciliationRow) { if (!editor.value || editor.value.confirmLeave()) editing.value = item }
 async function apply() {
-  if (busy.value || !enabled.value || (!canApply.value && !uncertain.value) || !reason.value.trim() || !Object.keys(chosen.value).length) return
+  if (busy.value || !enabled.value || (!canApply.value && !uncertain.value) || !Object.keys(chosen.value).length) return
   const current = generation
   busy.value = true; writeError.value = null
   try {
@@ -93,7 +103,7 @@ onBeforeUnmount(() => { generation++; requests.cancel(); optionRequests.cancel()
     <ApplicationResult v-if="result" :application="result" :numbers="appliedNumbers" />
     <section class="card stack-card">
       <div v-if="rows" data-reconciliation-summary class="button-row"><span class="badge">Новые: {{ rows.summary.new }}</span><span class="badge">Совпадают: {{ rows.summary.unchanged }}</span><span class="badge">Изменены: {{ rows.summary.changed }}</span><span class="badge badge-amber">Нужна проверка: {{ rows.summary.invalid }}</span></div>
-      <form class="toolbar" @submit.prevent="filter()"><label>Поиск<input v-model="filters.search" name="search" type="search" /></label><label>Классификация<select v-model="filters.classification" name="classification"><option value="">Все строки</option><option v-for="(label, code) in labels" :key="code" :value="code">{{ label }}</option></select></label><button :disabled="loading || busy">Применить</button><button type="button" :disabled="loading || busy" @click="reload">Обновить сверку</button></form>
+      <form class="toolbar" @submit.prevent="filter()"><label>Поиск<input v-model="filters.search" name="search" type="search"  @input="liveSearch.schedule" @compositionend="liveSearch.schedule" /></label><label>Классификация<select v-model="filters.classification" name="classification"><option value="">Все строки</option><option v-for="(label, code) in labels" :key="code" :value="code">{{ label }}</option></select></label><button :disabled="loading || busy">Применить</button><button type="button" :disabled="loading || busy" @click="reload">Обновить сверку</button></form>
       <ApiMessage :error="error" /><ApiMessage :error="optionsError" /><p v-if="loading" class="state">Загрузка сверки…</p>
       <div v-else-if="rows" class="table-scroll"><SortableTable :rows="rows.results" :columns="[...(canApply?[{key:'actions',label:'В пакет',sortable:false}]:[]),{key:'number',label:'Строка / номер'},{key:'classification',label:'Классификация'},{key:'department',label:'Отдел / специальность'},{key:'executor',label:'Исторический исполнитель'},{key:'selection',label:'Сопоставление'}]" :ordering="ordering" @update:ordering="sortTable" v-slot="{rows:tableRows}">
         <tr v-for="item in tableRows" :key="item.row.id">
@@ -112,7 +122,7 @@ onBeforeUnmount(() => { generation++; requests.cancel(); optionRequests.cancel()
     <section v-if="Object.keys(chosen).length" class="card stack-card">
       <h2>Подтвердить пакет · {{ Object.keys(chosen).length }}</h2><ul><li v-for="entry in chosen" :key="entry.row_id">{{ entry.number }} · сопоставление версии {{ entry.expected_selection_version }}</li></ul>
       <p class="muted compact">Применяются только перечисленные сохранённые сопоставления. Ошибка любой строки откатывает весь пакет. Документы, назначения и допуски этим действием не создаются.</p>
-      <form data-application-form class="form-grid" @submit.prevent="apply"><ApiMessage :error="writeError" /><p v-if="uncertain" class="message">Ответ не получен. Повтор использует тот же пакет, версии и ключ.</p><label>Основание применения пакета<textarea v-model="reason" name="application_reason" required rows="2" :disabled="busy || (!canApply && !uncertain)" /></label><button data-apply-import class="button-primary align-start" :disabled="busy || (!canApply && !uncertain) || !reason.trim()">{{ busy ? 'Применение…' : uncertain ? 'Повторить ту же попытку' : 'Применить подтверждённый пакет' }}</button></form>
+      <form data-application-form class="form-grid" @submit.prevent="apply"><ApiMessage :error="writeError" /><p v-if="uncertain" class="message">Ответ не получен. Повтор использует тот же пакет, версии и ключ.</p><label>Основание применения пакета (необязательно)<textarea v-model="reason" name="application_reason" rows="2" :disabled="busy || (!canApply && !uncertain)" /></label><button data-apply-import class="button-primary align-start" :disabled="busy || (!canApply && !uncertain)">{{ busy ? 'Применение…' : uncertain ? 'Повторить ту же попытку' : 'Применить подтверждённый пакет' }}</button></form>
     </section>
   </template>
 </template>

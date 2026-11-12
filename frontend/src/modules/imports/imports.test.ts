@@ -27,6 +27,16 @@ async function choose(wrapper:ReturnType<typeof mount>,file=new File(['demo'],'Ð
 }
 afterEach(()=>vi.restoreAllMocks());enableAutoUnmount(afterEach)
 
+it('previews a selected file without an action reason but still requires the file',async()=>{
+  const writes:FormData[]=[]
+  const {wrapper}=await open('/imports',async(input,init)=>{if(String(input).endsWith('/csrf/'))return json({csrf_token:'t'});if(init?.method==='POST'){writes.push(init.body as FormData);return json({event:{id:'event-1'},batch},201)}return json(page([]))})
+  await wrapper.get('[data-new-import-preview]').trigger('click')
+  expect(wrapper.get('[name="import_reason"]').attributes('required')).toBeUndefined()
+  await wrapper.get('[data-import-upload]').trigger('submit');await flushPromises();expect(writes).toHaveLength(0)
+  await choose(wrapper);await wrapper.get('[data-import-upload]').trigger('submit');await flushPromises()
+  expect(writes).toHaveLength(1);expect(writes[0]!.get('reason')).toBe('')
+})
+
 it('posts only a source preview with explicit reason/file/key, never applies business records',async()=>{
   const writes:{path:string;body:FormData;key:string|null}[]=[]
   const {wrapper}=await open('/imports',async(input,init)=>{if(String(input).endsWith('/csrf/'))return json({csrf_token:'t'});if(init?.method==='POST'){writes.push({path:String(input),body:init.body as FormData,key:new Headers(init.headers).get('Idempotency-Key')});return json({event:{id:'event-1'},batch},201)}return json(page([batch]))})

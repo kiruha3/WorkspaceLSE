@@ -21,15 +21,18 @@ def completed(employee_factory,grant,settings,tmp_path):
     return client,actor,done.json()['expertise']
 
 
-def test_reopen_requires_permission_reason_and_current_version(employee_factory,grant,settings,tmp_path):
+def test_reopen_requires_permission_and_current_version(employee_factory,grant,settings,tmp_path):
     client,actor,work=completed(employee_factory,grant,settings,tmp_path)
     assert send(client,work,'reopen',reason='Ошибочное завершение').status_code==403
     grant(actor,'expertise.reopen','own')
     detail=client.get(f"/api/v1/expertises/{work['id']}/").json()
     assert 'expertise.reopen' in detail['allowed_actions']
-    assert send(client,work,'reopen',reason=' ').status_code==400
     assert send(client,work,'reopen',expected_version=work['version']-1).status_code==409
     assert not AuditEvent.objects.filter(action='expertise.reopen').exists()
+    response=send(client,work,'reopen',reason=' ')
+    assert response.status_code==200,response.content
+    assert response.json()['expertise']['reopening_history'][0]['reason']==''
+    assert AuditEvent.objects.get(action='expertise.reopen').reason==''
 
 
 def test_reopen_preserves_history_and_recompletion_increments_closure(employee_factory,grant,settings,tmp_path):

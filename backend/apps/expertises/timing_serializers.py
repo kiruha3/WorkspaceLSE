@@ -10,7 +10,7 @@ class TimingReasonInput(StrictSerializer):
 
 class TimingInput(StrictSerializer):
     expected_version=serializers.IntegerField(min_value=1)
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
     reasons_complete=serializers.BooleanField()
     primary_reason_id=serializers.PrimaryKeyRelatedField(source='primary_reason',queryset=DelayReason.objects.all(),allow_null=True)
     reasons=TimingReasonInput(many=True,max_length=100)

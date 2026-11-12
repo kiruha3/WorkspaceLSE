@@ -235,10 +235,10 @@ onBeforeUnmount(() => { details.cancel(); hints.cancel() })
             </div>
             <label v-if="session.can('documents.upload')" class="check-label"><input v-model="replaceBasis" type="checkbox" />Добавить или заменить документ-основание</label>
             <BasisDocumentForm v-if="replaceBasis" ref="basisForm" :department-id="amendDepartment" :busy="busy" />
-            <label>Причина уточнения<textarea v-model="amendReason" name="amend_reason" required rows="2" /></label>
+            <label>Причина уточнения (необязательно)<textarea v-model="amendReason" name="amend_reason" rows="2" /></label>
           </fieldset>
           <div class="button-row">
-            <button class="button-primary" :disabled="busy || !amendReason.trim()">Сохранить уточнение</button>
+            <button class="button-primary" :disabled="busy">Сохранить уточнение</button>
             <button type="button" :disabled="busy" @click="toggleAmend">Отмена</button>
           </div>
         </form>

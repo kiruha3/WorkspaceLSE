@@ -23,6 +23,14 @@ async function open(options:{actions?:string[];initial?:string;current?:any;resp
  })}}});await flushPromises();return {wrapper,router,pinia,paths,writes,set:(next:any)=>{current=next}}
 }
 async function edit(wrapper:Awaited<ReturnType<typeof open>>['wrapper']){await wrapper.get('[data-plan-edit]').trigger('click');await wrapper.get('[name="plan_reason"]').setValue('Сверено с утверждённым планом')}
+it('saves with an optional action reason while requiring the substantive plan basis',async()=>{
+ const {wrapper,writes}=await open();await wrapper.get('[data-plan-edit]').trigger('click')
+ expect(wrapper.get('[name="plan_reason"]').attributes('required')).toBeUndefined()
+ await wrapper.get('[name="plan_total"]').setValue('10');expect(wrapper.get('[data-plan-submit]').attributes('disabled')).toBeDefined()
+ await wrapper.get('[name="plan_basis_text"]').setValue('Утверждённый план')
+ await wrapper.get('[data-plan-form]').trigger('submit');await flushPromises()
+ expect(writes[0]!.body).toMatchObject({reason:'',total:10,basis_text:'Утверждённый план'})
+})
 it('shows a read-only confirmed plan, zero, unknown and system history without offering a write',async()=>{
  const {wrapper}=await open({current:{...seeded,can_edit:false},initial:'/report-plans?year=2026',actions:['reports.form151.run']})
  expect(wrapper.get('h1').text()).toContain('Годовые планы');expect(wrapper.text()).toContain('294');expect(wrapper.text()).toContain('Неизвестно');expect(wrapper.text()).toContain('Система')

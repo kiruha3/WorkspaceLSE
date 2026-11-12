@@ -67,7 +67,6 @@ const conflict = computed(() => error.value instanceof ApiError && error.value.s
 const validation = computed(() => {
   if (!action.value || recovering.value) return ''
   if (!authorized.value) return 'Действие больше не разрешено. Введённые данные сохранены.'
-  if (!reason.value.trim()) return 'Укажите причину / основание.'
   if (action.value === 'complete') return !current.value || readiness.value.completion_blockers.length ? 'Устраните препятствия завершению.' : ''
   if (loadingOptions.value || !options.value) return 'Загрузите справочники результата.'
   if (isReturn.value) {
@@ -172,7 +171,7 @@ onBeforeUnmount(() => requests.cancel())
         <template v-if="isReturn"><label>Дата решения<input v-model="decidedOn" name="decided_on" type="date" :min="minimumDate" :max="today()" required /></label><label>Причина решения без исполнения<select v-model="returnReason" name="return_reason_id"><option value="">Неизвестна / не определена</option><option v-for="item in returnReasons" :key="item.id" :value="item.id">{{ item.name }}{{ item.is_active ? '' : ' (неактивна, сохранена ранее)' }}</option></select></label><label>Пояснение к решению<textarea v-model="comment" name="return_comment" rows="2" /></label></template>
         <template v-if="action !== 'complete'"><DocumentPicker v-if="evidenceKind" :key="evidenceKind" ref="documentForm" v-model="pickerId" v-model:mode="pickerMode" name="result_document" :document="selectedDocument" :department-id="expertise.department.id" :busy="saving" :input-locked="recovering" :kinds="[evidenceKind]" :kind-options="documentKindOptions" :heading="isReturn?'Документ решения':'Документ результата'" @selected="chosenDocument=$event" @changed="invalidateAttempt"/><p v-else class="muted compact">Выберите вид результата, чтобы подобрать или добавить документ.</p><HelpTip label="Документ результата">Документ ожидается в составе дела, но его можно прикрепить позднее. Отсутствие файла не запрещает завершение.</HelpTip></template>
         <p v-else class="muted compact">Будет подтверждена текущая сохранённая редакция №{{ current?.number }} с её датой окончания. Пробелы отчёта сохранятся явно.</p>
-        <label>Причина / основание<textarea v-model="reason" name="result_reason" required rows="3" /></label>
+        <label>Причина / основание (необязательно)<textarea v-model="reason" name="result_reason" rows="3" /></label>
       </fieldset>
       <p v-if="validation && authorized && !recovering" class="muted compact" role="status">{{ validation }}</p>
       <div class="button-row"><button data-result-submit type="submit" class="button-primary" :formnovalidate="recovering" :disabled="saving || !valid">{{ saving ? 'Сохранение…' : recovering ? 'Повторить ту же попытку' : action === 'complete' ? 'Подтвердить завершение' : action === 'correct' ? 'Сохранить исправление' : isReturn ? 'Подтвердить решение' : 'Сохранить редакцию результата' }}</button><button type="button" :disabled="saving" @click="cancel">Отмена</button></div>

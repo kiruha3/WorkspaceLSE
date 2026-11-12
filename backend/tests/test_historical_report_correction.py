@@ -95,7 +95,7 @@ def test_explicit_unknowns_stay_unknown_and_zero_does_not_become_blank(employee_
     assert response.json()['expertise']['historical']['corrections'][0]['after']['categorical']==0
 
 
-@pytest.mark.parametrize('variant',['balance','future','before_receipt','wrong_kind','other_without_comment','duplicate_allocation','incomplete_distribution','unknown_field','identity','missing_reason','mixed_kind'])
+@pytest.mark.parametrize('variant',['balance','future','before_receipt','wrong_kind','other_without_comment','duplicate_allocation','incomplete_distribution','unknown_field','identity','mixed_kind'])
 def test_invalid_input_is_atomic(employee_factory,grant,settings,tmp_path,variant):
     client,_,work,history,_,_=setup_correction(employee_factory,grant,settings,tmp_path);data=body(work)
     if variant=='balance':data['result']['questions']=0
@@ -108,7 +108,6 @@ def test_invalid_input_is_atomic(employee_factory,grant,settings,tmp_path,varian
         data['result'].update(allocations_complete=True,unresolved_allocations=[entry,entry] if variant=='duplicate_allocation' else [])
     if variant=='unknown_field':data['result']['unexpected']=1
     if variant=='identity':data['registration_number']='999/4-1-26'
-    if variant=='missing_reason':data['reason']=' '
     if variant=='mixed_kind':data['return_data']={'decided_on':None,'return_reason_id':None,'comment':''}
     before=deepcopy(history.__dict__);counts=domain_counts()
     response=send(client,work,data);assert response.status_code==400,response.content

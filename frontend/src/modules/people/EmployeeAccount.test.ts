@@ -39,7 +39,7 @@ describe('employee personal account', () => {
     expect(wrapper.find('[data-toggle-account]').exists()).toBe(false)
   })
 
-  it('blocks the account with a reason independently from employee activity or roles', async () => {
+  it.each(['', 'Приказ о блокировке'])('blocks the account with an optional reason (%s) independently from employee activity or roles', async reason => {
     const writes: unknown[] = []
     const client = new ApiClient(async (input, init) => {
       if (String(input).endsWith('/csrf/')) return json({ csrf_token: 'token' })
@@ -50,10 +50,11 @@ describe('employee personal account', () => {
     await flushPromises()
     expect(wrapper.find('[data-toggle-account]').exists()).toBe(true)
     await wrapper.get('[data-toggle-account]').trigger('click')
-    await wrapper.get('[name="account_state_reason"]').setValue('Приказ о блокировке')
+    expect(wrapper.get('[name="account_state_reason"]').attributes('required')).toBeUndefined()
+    await wrapper.get('[name="account_state_reason"]').setValue(reason)
     await wrapper.get('[data-account-state-form]').trigger('submit')
     await flushPromises()
-    expect(writes).toEqual([{ is_active: false, reason: 'Приказ о блокировке' }])
+    expect(writes).toEqual([{ is_active: false, reason }])
     expect(wrapper.text()).toContain('Вход заблокирован')
   })
 

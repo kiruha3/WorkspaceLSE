@@ -25,7 +25,7 @@ def test_open_history_activation_requires_evidence_but_never_creates_qualificati
     history.refresh_from_db();assert history.completed_on is None
 
 
-@pytest.mark.parametrize('change',[{'basis_document_id':None},{'appointment_nature':None},{'is_commission':None},{'complex_known':False},{'reason':' '},{'unexpected':True}])
+@pytest.mark.parametrize('change',[{'basis_document_id':None},{'appointment_nature':None},{'is_commission':None},{'complex_known':False},{'unexpected':True}])
 def test_activation_rejects_unknown_required_confirmation_without_partial_write(employee_factory,grant,settings,tmp_path,change):
     client,_,work,history,_,specialty,basis=activation_setup(employee_factory,grant,settings,tmp_path,state='in_progress',ended=None)
     response=activate(client,work,activation_body(basis,specialty,**change));assert response.status_code==400

@@ -40,7 +40,7 @@ def test_atomic_nature_previous_facts_history_and_registration_identity(employee
  {'appointment_nature':'unknown'}, {'extra':'rejected'}, {'previous_complete':True,'previous_conclusions':[]},
  {'previous_conclusions':[previous(reference='')]}, {'previous_conclusions':[previous(organization_group='court')]},
  {'previous_conclusions':[previous(confirms_previous='nonsense')]}, {'previous_conclusions':[previous(extra=1)]},
- {'previous_conclusions':[previous()]*101}, {'previous_complete':None}, {'reason':''},
+ {'previous_conclusions':[previous()]*101}, {'previous_complete':None},
 ])
 def test_strict_invalid_data_rolls_back(employee_factory,grant,settings,tmp_path,change):
  client,_,work,_,_,_=setup(employee_factory,grant,settings,tmp_path);before=counts()

@@ -12,12 +12,12 @@ from .work_library import library_data,options_data
 class WorkDocumentInput(VersionedSerializer):
     document_id=serializers.UUIDField()
     note=serializers.CharField(allow_blank=True,required=False,default='')
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
     share_with_complex=serializers.BooleanField(required=False,default=False)
 
 
 class WorkDocumentDetachInput(VersionedSerializer):
-    reason=serializers.CharField()
+    reason=serializers.CharField(required=False, allow_blank=True, default="")
 
 
 def loaded_work(pk):

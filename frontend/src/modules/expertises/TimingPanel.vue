@@ -54,7 +54,7 @@ const conflict=computed(()=>command.conflict.value&&!(error.value instanceof Api
 const confirmLeave=useDirtyGuard(()=>busy.value||editing.value&&(stamp.value!==initial.value||[...documentForms.values()].some(f=>f.dirty)||uncertain.value),router)
 function reset(){if(!busy.value&&!uncertain.value){preparation=null;command.reset()}}
 watch(stamp,reset,{flush:'sync'})
-const invalid=computed(()=>!reason.value.trim()||entries.value.some(e=>!e.reason_id)||new Set(entries.value.map(e=>e.reason_id)).size!==entries.value.length||
+const invalid=computed(()=>entries.value.some(e=>!e.reason_id)||new Set(entries.value.map(e=>e.reason_id)).size!==entries.value.length||
  slots.some(s=>(s.key==='breach'?flags.value[s.flag]!=='':flags.value[s.flag]==='true')&&(documents.value[s.key].mode==='existing'&&!documents.value[s.key].id.trim()||s.key==='breach'&&!basis.value.trim())))
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Krasnoyarsk',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())
 async function loadOptions(){loading.value=true;optionsError.value=null;try{await requests.run(signal=>api.request<TimingOptions>(`/expertises/${props.expertise.id}/timing/`,{signal}),value=>{options.value=value;loading.value=false})}catch(cause){optionsError.value=cause;loading.value=false}}
@@ -89,7 +89,7 @@ onBeforeUnmount(()=>requests.cancel())
      <template v-if="slot.key==='breach'||flags[slot.flag]!=='false'"><label v-if="slot.date">Фактическая дата (может быть неизвестна)<input v-model="dates[slot.date]" :name="`timing_${slot.date}`" type="date" :min="expertise.receipt.received_at" :max="today()"/></label><label v-if="slot.key==='breach'">Основание оценки срока<textarea v-model="basis" name="timing_breach_basis" rows="2" :required="flags.deadline_breached!==''"/></label>
       <DocumentPicker :ref="el=>{if(el)documentForms.set(slot.key,el as InstanceType<typeof DocumentPicker>);else documentForms.delete(slot.key)}" v-model="documents[slot.key].id" v-model:mode="documents[slot.key].mode" :name="`timing_${slot.key}_document_id`" :document="details[`${slot.key}_document`]" :department-id="expertise.department.id" :busy="busy||uncertain" :kind-options="[{value:slot.kind,label:'Документ подтверждения'}]" heading="Документ подтверждения" saved-note="Сведения о сроках сохраняются отдельно." @changed="reset"/>
      </template><HelpTip label="Подтверждение фактов">{{slot.key==='breach'?'Для известного «да» или «нет» нужны основание и документ. Отсутствие согласования само по себе не подставляет оценку.':'«Да» требует документа. Неизвестную дату не выдумывайте: графа информирования останется предварительной. Запись запроса или черновик письма не означает отправку.'}}</HelpTip>
-    </section><label>Основание изменения<textarea v-model="reason" name="timing_reason" rows="2" required/></label>
+    </section><label>Основание изменения (необязательно)<textarea v-model="reason" name="timing_reason" rows="2"/></label>
    </fieldset><div class="button-row"><button data-timing-submit class="button-primary" :disabled="busy||!uncertain&&(invalid||conflict||documentConflict||loading||!!optionsError||!details.can_edit)" :formnovalidate="uncertain">{{busy?'Сохранение…':uncertain?'Повторить ту же попытку':'Сохранить сведения о сроках'}}</button><button type="button" :disabled="busy||uncertain" @click="cancel">Отмена</button></div>
   </form><FactHistory :revisions="details.revisions" :labels="labels" :format-value="historyValue"/>
  </section>

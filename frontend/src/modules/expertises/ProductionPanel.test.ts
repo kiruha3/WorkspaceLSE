@@ -179,6 +179,7 @@ describe('production work controls', () => {
     await wrapper.get('[name="due_on"]').setValue('2026-11-12')
     await wrapper.get('[name="production_reason"]').setValue('Основание срока')
     await wrapper.get('[name="document_title"]').setValue('Согласование')
+    await wrapper.get('[name="source_kind"]').setValue('paper_original')
     await wrapper.get('[data-production-form]').trigger('submit'); await flushPromises()
     await wrapper.findAll('button').find(button => button.text() === 'Обновить серверные сведения')!.trigger('click'); await flushPromises()
     await wrapper.get('[name="document_title"]').setValue('  Согласование  ')

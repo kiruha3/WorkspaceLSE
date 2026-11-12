@@ -40,7 +40,7 @@ const {busy,uncertain,error,conflict}=command
 const confirmLeave=useDirtyGuard(()=>busy.value||editing.value&&(stamp.value!==initial.value||[...documentForms.values()].some(f=>f.dirty)||uncertain.value),router)
 function reset(){if(!busy.value&&!uncertain.value){preparation=null;command.reset()}}
 watch(stamp,reset,{flush:'sync'})
-const invalid=computed(()=>!reason.value.trim()||props.expertise.origin_kind==='native'&&!nature.value||entries.value.some(e=>!e.reference.trim())||complete.value&&['repeated','additional'].includes(nature.value)&&!entries.value.length)
+const invalid=computed(()=>props.expertise.origin_kind==='native'&&!nature.value||entries.value.some(e=>!e.reference.trim())||complete.value&&['repeated','additional'].includes(nature.value)&&!entries.value.length)
 async function loadOptions(){loading.value=true;optionsError.value=null;try{await requests.run(signal=>api.request<ClassificationOptions>(`/expertises/${props.expertise.id}/classification/`,{signal}),value=>{options.value=value;loading.value=false})}catch(cause){optionsError.value=cause;loading.value=false}}
 async function start(){
  nature.value=props.expertise.appointment_nature??'';complete.value=details.value.previous_complete;reason.value='';expectedVersion.value=props.expertise.version
@@ -73,7 +73,7 @@ onBeforeUnmount(()=>requests.cancel())
     <button data-add-previous type="button" :disabled="entries.length>=100" @click="add">Добавить предыдущее заключение</button>
     <label class="check-line"><input v-model="complete" name="previous_complete" type="checkbox"/>Подтверждаю, что список предыдущих заключений полон</label>
     <HelpTip label="Предыдущие заключения">Полнота списка и известность каждого поля — разные сведения. «Не подтвердились выводы» учитывается только при тех же исходных данных и явном «Нет». СНДЗ не означает автоматически неподтверждение.</HelpTip>
-    <label>Основание изменения<textarea v-model="reason" name="classification_reason" rows="2" required/></label>
+    <label>Основание изменения (необязательно)<textarea v-model="reason" name="classification_reason" rows="2"/></label>
    </fieldset><div class="button-row"><button data-classification-submit class="button-primary" :disabled="busy||!uncertain&&(invalid||conflict||loading||!!optionsError||!details.can_edit)" :formnovalidate="uncertain">{{busy?'Сохранение…':uncertain?'Повторить ту же попытку':'Сохранить классификацию'}}</button><button type="button" :disabled="busy||uncertain" @click="cancel">Отмена</button></div>
   </form><FactHistory :revisions="details.revisions" :labels="labels" :format-value="historyValue"/>
  </section>

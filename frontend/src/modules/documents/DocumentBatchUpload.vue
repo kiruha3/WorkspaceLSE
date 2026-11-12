@@ -25,7 +25,7 @@ function acceptVersion(){
   for(const row of rows.value)if(row.status==='failed')forms.get(row.id)?.acceptVersion(workVersion.value)
 }
 async function run(){
-  if(busy.value||!props.authorized||!props.allowCreate||!rows.value.length||!reason.value.trim())return
+  if(busy.value||!props.authorized||!props.allowCreate||!rows.value.length)return
   if(!started.value)workVersion.value=props.expectedVersion
   started.value=true;busy.value=true;error.value='';await nextTick()
   try{
@@ -44,7 +44,7 @@ defineExpose({dirty,busy})
   <section class="form-grid" data-document-batch>
     <h3>Выбранные файлы или папка <HelpTip label="Загрузка файлов и папки">До100 файлов, последовательно. Папка доступна только после вашего выбора. Это разовая загрузка, не подключение серверного каталога.</HelpTip></h3>
     <div class="form-columns"><label>Выбрать файлы<input type="file" multiple :disabled="busy||started||!authorized" @change="select"/></label><label>Выбрать папку<input data-folder-files type="file" multiple webkitdirectory :disabled="busy||started||!authorized" @change="select"/></label></div>
-    <label>Причина пакетной загрузки<textarea v-model="reason" name="batch_reason" :disabled="busy||started" @input="emit('changed')"/></label>
+    <label>Причина пакетной загрузки (необязательно)<textarea v-model="reason" name="batch_reason" :disabled="busy||started" @input="emit('changed')"/></label>
     <p v-if="rows.length" role="status">Сохранено {{complete}} из {{rows.length}} файлов</p>
     <p v-if="error" class="message message-error" role="alert">{{error}}</p>
     <article v-for="row in rows" :key="row.id" class="archive-batch-row" :data-batch-row="row.id">
@@ -52,7 +52,7 @@ defineExpose({dirty,busy})
       <div v-show="row.expanded"><DocumentSourceForm :ref="value=>bind(row.id,value)" :work-id="workId" :expected-version="workVersion" :department-id="departmentId" :kind-options="kindOptions" :authorized="authorized" :allow-create="allowCreate" :initial-file="row.file" embedded @refresh="emit('refresh')" @changed="emit('changed')"/></div>
     </article>
     <section v-if="conflict" class="message"><p>Конфликт версии работы. Обновите архив; затем примите текущую версию для оставшихся файлов.</p><button type="button" @click="emit('refresh')">Обновить архив</button><button data-accept-batch-version type="button" :disabled="busy" @click="acceptVersion">Принять версию {{expectedVersion}} работы</button></section>
-    <button v-if="rows.length&&complete<rows.length" data-run-batch class="button-primary" type="button" :disabled="busy||conflict||!authorized||!allowCreate||!reason.trim()" @click="run">{{busy?'Загружается…':started?'Повторить оставшиеся':'Загрузить выбранные файлы'}}</button>
+    <button v-if="rows.length&&complete<rows.length" data-run-batch class="button-primary" type="button" :disabled="busy||conflict||!authorized||!allowCreate" @click="run">{{busy?'Загружается…':started?'Повторить оставшиеся':'Загрузить выбранные файлы'}}</button>
     <p v-if="rows.length&&complete===rows.length" class="message message-success">Все выбранные файлы сохранены и связаны с экспертизой.</p>
   </section>
 </template>

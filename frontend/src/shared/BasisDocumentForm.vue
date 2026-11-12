@@ -9,7 +9,7 @@ const props = defineProps<{ departmentId: string; busy?: boolean; inputLocked?: 
 const emit = defineEmits<{ changed: [] }>()
 const api = useApi()
 const options = computed(() => props.kindOptions ?? [{ value: 'resolution' as const, label: 'Постановление' }, { value: 'decision' as const, label: 'Определение' }])
-const kind = ref<DocumentKind>(options.value[0]!.value), title = ref(props.initialFile?.name??''), sourceKind = ref<BasisDocument['source_kind']>(props.initialFile?'uploaded_copy':'paper_original'), sourceUrl=ref('')
+const kind = ref<DocumentKind>(options.value[0]!.value), title = ref(props.initialFile?.name??''), sourceKind = ref<BasisDocument['source_kind']>('uploaded_copy'), sourceUrl=ref('')
 const file = ref<File | null>(props.initialFile??null), prepared = ref<BasisDocument | null>(null), preparedPayload = ref(''), uploaded = ref<File | null>(null)
 const uploadKey = ref('')
 const uploadConflict=ref(false),currentDocument=ref<BasisDocument|null>(null),versionLoading=ref(false),versionError=ref<unknown>(null),versionRequests=new LatestRequest()
@@ -17,7 +17,7 @@ const conflictError=()=>new ApiError(409,'document_version_conflict','Измен
 const metadataAttempt = ref<{ stamp: string; key: string } | null>(null)
 watch(file, () => { uploadKey.value = '' }, { flush: 'sync' })
 const payload = computed(() => ({ kind: kind.value, title: title.value.trim(), source_kind: sourceKind.value, department_id: props.departmentId || null,...(sourceKind.value==='external_link'?{source_url:sourceUrl.value.trim()}:{}) }))
-const dirty = computed(() => Boolean(title.value || file.value || prepared.value || kind.value !== options.value[0]!.value || sourceKind.value !== 'paper_original'))
+const dirty = computed(() => Boolean(title.value || file.value || prepared.value || kind.value !== options.value[0]!.value || sourceKind.value !== 'uploaded_copy'))
 watch([() => JSON.stringify(payload.value), file], () => emit('changed'), { flush: 'sync' })
 watch(()=>JSON.stringify(payload.value),()=>{versionRequests.cancel();uploadConflict.value=false;currentDocument.value=null;versionLoading.value=false;versionError.value=null},{flush:'sync'})
 function chooseFile(event: Event) { file.value = (event.target as HTMLInputElement).files?.[0] ?? null }
@@ -61,7 +61,7 @@ defineExpose({ persist, dirty, uploadConflict })
   <fieldset class="form-grid" :disabled="busy">
     <h4 v-if="heading">{{ heading }}</h4>
     <fieldset class="form-grid" :disabled="inputLocked">
-    <div class="form-columns"><label>{{ heading ? 'Вид документа' : 'Вид основания' }}<select v-model="kind" name="document_kind"><option v-for="option in options" :key="option.value" :value="option.value">{{ option.label }}</option></select></label><label>{{ heading ? 'Источник документа' : 'Источник основания' }}<select v-model="sourceKind" name="source_kind"><option value="paper_original">Бумажный оригинал</option><option value="uploaded_copy">Загруженная копия / фото</option><option v-if="allowExternalSource" value="external_link">Внешняя ссылка</option></select></label></div>
+    <div class="form-columns"><label>{{ heading ? 'Вид документа' : 'Вид основания' }}<select v-model="kind" name="document_kind"><option v-for="option in options" :key="option.value" :value="option.value">{{ option.label }}</option></select></label><label>{{ heading ? 'Источник документа' : 'Источник основания' }}<select v-model="sourceKind" name="source_kind"><option value="uploaded_copy">Загруженная копия / фото</option><option value="paper_original">Бумажный оригинал</option><option v-if="allowExternalSource" value="external_link">Внешняя ссылка</option></select></label></div>
     <label v-if="sourceKind==='external_link'">Адрес источника<input v-model="sourceUrl" name="source_url" type="url" maxlength="2048" required/><HelpTip label="Внешняя ссылка">Ссылка сама по себе не подтверждает наличие принятого файла. Сохранённую копию можно загрузить отдельно.</HelpTip></label>
     <label>Название или известные реквизиты<input v-model="title" name="document_title" maxlength="500" required /></label>
     <HelpTip label="Бумажный оригинал" v-if="sourceKind === 'paper_original' && !requireFile">Заявляется наличие бумажного оригинала. {{ heading ? 'Электронного файла может пока не быть.' : 'Скан можно добавить позднее в карточке поступления.' }}</HelpTip>

@@ -30,7 +30,6 @@ const confirmLeave=useDirtyGuard(()=>dirty.value||busy.value,router)
 watch(stamp,()=>{if(!busy.value&&!uncertain.value){attempt.value=null;error.value=null}},{flush:'sync'})
 const conflict=computed(()=>error.value instanceof ApiError&&error.value.status===409)
 const validation=computed(()=>{
- if(!reason.value.trim())return 'Укажите основание уточнения.'
  if(isReturn.value){if(options.value?.return_reasons.find(item=>item.id===returnReason.value)?.code==='other'&&!returnComment.value.trim())return 'Поясните иную причину возврата.';return ''}
  const numbers=[complexity.value,q.value,r.value,s.value,t.value]
  if(numbers.some(value=>value!==''&&(!Number.isSafeInteger(Number(value))||Number(value)<0))||(complexity.value!==''&&Number(complexity.value)<1))return 'Числа должны быть целыми и неотрицательными, сложность — не меньше 1.'
@@ -111,7 +110,7 @@ onBeforeUnmount(()=>{active=false;requests.cancel()})
      <label>Отчётное примечание<textarea v-model="note" name="history_report_note" rows="2"/></label>
     </template>
     <template v-else><label>Дата решения, если известна<input v-model="decidedOn" name="history_report_decided_on" type="date" :min="expertise.receipt.received_at" :max="today()"/></label><label>Причина решения без исполнения<select v-model="returnReason" name="history_report_return_reason"><option value="">Неизвестна / не уточнена</option><option v-for="item in returnReasons" :key="item.id" :value="item.id">{{item.name}}</option></select></label><label>Пояснение к решению<textarea v-model="returnComment" name="history_report_return_comment" rows="2"/></label><HelpTip label="Дата решения">Пустая дата остаётся неизвестной. Дата выдачи не подставляется вместо даты решения.</HelpTip></template>
-    <label>Основание уточнения<textarea v-model="reason" name="history_report_reason" rows="3" required/></label>
+    <label>Основание уточнения (необязательно)<textarea v-model="reason" name="history_report_reason" rows="3"/></label>
    </fieldset>
    <p v-if="validation&&!recovering" class="muted" role="status">{{validation}}</p>
    <div class="button-row"><button data-history-report-submit class="button-primary" :disabled="busy||!valid" :formnovalidate="recovering">{{busy?'Сохранение…':recovering?'Повторить ту же попытку':'Сохранить уточнение'}}</button><button type="button" :disabled="busy||recovering" @click="cancel">Отмена</button></div>
